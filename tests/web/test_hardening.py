@@ -633,3 +633,19 @@ def test_very_long_return_urls_still_let_you_sign_in(app):
         assert nxt == "/studio"  # too long to carry through the form: back to the page itself
         r = c.post("/login", data={"password": "test-password", "next": nxt}, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/studio"
+
+
+# ---- eighth review round ------------------------------------------------------------------
+@pytest.mark.parametrize("path", ["/jobs/" + "中" * 1000, "/clips/" + "\U0001F600" * 700, "/clips/" + "é" * 1400])
+def test_non_ascii_return_urls_are_measured_encoded(app, path):
+    from urllib.parse import quote
+
+    from fastapi.testclient import TestClient
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        login_url = c.get(quote(path), follow_redirects=False).headers["location"]
+        page = c.get(login_url).text
+        nxt = re.search(r'name="next" value="([^"]*)"', page).group(1)
+        assert len(quote(nxt, safe="")) <= 6000  # fits the 8 KB login field once the browser encodes it
+        r = c.post("/login", data={"password": "test-password", "next": nxt}, follow_redirects=False)
+        assert r.status_code == 303

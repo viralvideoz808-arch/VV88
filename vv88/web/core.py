@@ -307,7 +307,13 @@ def redirect(request: Request, url: str, message: str = "", kind: str = "info") 
     return RedirectResponse(safe_next(url), status_code=303)
 
 
-MAX_NEXT = 2000  # characters of return URL kept through sign-in
+# Return URL kept through sign-in, measured once form-encoded (UTF-8 %XX: non-ASCII grows up to 9x); the login
+# form allows 8 KB per field, so stay well under it.
+MAX_NEXT_ENCODED = 6000
+
+
+def _fits_login_form(url: str) -> bool:
+    return len(quote(url, safe="")) <= MAX_NEXT_ENCODED
 
 
 def safe_next(url: str) -> str:
@@ -321,9 +327,9 @@ def safe_next(url: str) -> str:
         return "/"
     if parsed.scheme or parsed.netloc:
         return "/"
-    if len(url) > MAX_NEXT:
-        # The login form re-encodes it (up to 3x) into an 8 KB field: keep just the page for very long links.
-        return parsed.path if len(parsed.path) <= MAX_NEXT else "/"
+    if not _fits_login_form(url):
+        # Too big to carry through the login form once the browser encodes it: keep just the page.
+        return parsed.path if _fits_login_form(parsed.path) else "/"
     return url
 
 
