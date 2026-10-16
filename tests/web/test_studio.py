@@ -1,4 +1,5 @@
 import json
+import re
 
 from vv88.store import Store
 
@@ -42,7 +43,7 @@ def test_page_renders(client):
 def test_campaign_is_preselected_with_its_sources(client):
     r = client.get("/studio", params={"campaign": "money-talks"})
     assert r.status_code == 200
-    assert '<option value="money-talks" selected>' in r.text
+    assert re.search(r'<option value="money-talks" selected[\s>]', r.text)
     assert 'data-copy="https://www.youtube.com/watch?v=demo1"' in r.text
     r = client.get("/studio", params={"campaign": "money-talks", "source": "https://www.youtube.com/watch?v=demo1"})
     assert 'value="https://www.youtube.com/watch?v=demo1"' in r.text
