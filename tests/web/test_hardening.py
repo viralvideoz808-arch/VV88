@@ -4,6 +4,8 @@ import importlib
 import inspect
 import json
 import os
+import re
+import sqlite3
 import threading
 import time
 
@@ -476,3 +478,77 @@ def test_studio_and_clip_page_explain_campaigns_without_usable_platforms(client,
     page = client.get("/studio?campaign=fb-only").text
     assert "None of this campaign" in page and "facebook" in page
     assert "facebook (not supported)" in client.get("/campaigns").text
+
+
+# ---- fourth review round ------------------------------------------------------------------
+def test_strict_referrer_policy_null_origin_still_signs_in(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as c:
+        # Referrer-Policy: no-referrer makes browsers send Origin: null even to their own site
+        r = _sign_in(c, Origin="null", **{"Sec-Fetch-Site": "same-origin"})
+        assert r.status_code == 303
+    with TestClient(app) as c:  # same-site (another port) and cross-site posts are still refused
+        assert _sign_in(c, **{"Sec-Fetch-Site": "same-site"}).status_code == 403
+        assert _sign_in(c, **{"Sec-Fetch-Site": "cross-site"}).status_code == 403
+
+
+@pytest.mark.parametrize("headers", [{"Origin": "http://["}, {"Origin": "http://[::1"},
+                                     {"Referer": "http://[x]/login"}, {"Origin": "http://testserver:99999"}])
+def test_malformed_origin_headers_are_refused_not_500(app, headers):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        assert _sign_in(c, **headers).status_code == 403
+
+
+def test_origin_check_normalises_ports_dots_and_bad_base_urls(app, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app, base_url="http://127.0.0.1:8088") as c:  # a proxy that rewrites Host
+        for base in ("https://vv88.example.com:443/", "https://VV88.example.com./"):
+            monkeypatch.setenv("VV88_WEB_BASE_URL", base)
+            c.cookies.clear()
+            assert _sign_in(c, Origin="https://vv88.example.com").status_code == 303
+        monkeypatch.setenv("VV88_WEB_BASE_URL", "http://[vv88")  # a typo must not break sign-in
+        c.cookies.clear()
+        assert _sign_in(c, Origin="http://127.0.0.1:8088").status_code == 303
+    with TestClient(app, base_url="https://vv88.example.com:443") as c:  # Host: $host:$server_port
+        monkeypatch.delenv("VV88_WEB_BASE_URL")
+        assert _sign_in(c, Origin="https://vv88.example.com").status_code == 303
+
+
+def test_campaign_upgrade_handles_non_finite_numbers_and_never_blocks_startup(demo_root, monkeypatch):
+    from vv88.models import Campaign
+    from vv88.pipeline import Engine
+
+    store = _store(demo_root)
+    legacy = Campaign(id="uncapped", title="Uncapped", reward_per_1k_usd=1, budget_remaining_usd=float("inf")).to_dict()
+    del legacy["other_platforms"]
+    store.db.execute("INSERT OR REPLACE INTO campaigns(id, data, updated_at) VALUES(?,?,?)",
+                     ("uncapped", json.dumps(legacy), time.time()))
+    store.db.commit()
+    assert "uncapped" in store.campaigns_missing("other_platforms")  # Python json reads Infinity fine
+    store.kv_set("upgrade:other_platforms", None)
+
+    def boom(self, key):
+        raise sqlite3.OperationalError("malformed JSON")
+
+    monkeypatch.setattr(Store, "campaigns_missing", boom)
+    Engine(load_settings(demo_root / "config.yaml", env_path=demo_root / ".env"))  # must not raise
+
+
+def test_studio_hint_carries_per_campaign_platforms_and_warns(client, csrf, demo_root):
+    from vv88.models import Campaign
+
+    _store(demo_root).upsert_campaigns([Campaign(id="fb-only", title="FB only", reward_per_1k_usd=5,
+                                                 other_platforms=["facebook"])])
+    page = client.get("/studio").text
+    assert 'data-platform-hint="#post-hint"' in page
+    assert re.search(r'value="fb-only"[^>]*data-platforms=""[^>]*data-named="facebook"', page, re.S)
+    assert re.search(r'value="money-talks"[^>]*data-platforms="tiktok youtube instagram x"', page, re.S)
+    src = demo_root / "own.mp4"
+    src.write_bytes(b"\0\0\0\x18ftypmp42" + b"\0" * 64)
+    r = client.post("/studio/clip", data={"csrf": csrf("/studio"), "source": str(src), "campaign_id": "fb-only",
+                                          "n": "1", "i_have_rights": "on", "post": "on"}, follow_redirects=True)
+    assert "Nothing will be scheduled" in r.text

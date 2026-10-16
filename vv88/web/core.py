@@ -125,22 +125,35 @@ def known_device(request: Request) -> str:
     return ""
 
 
+def _origin_key(url: str) -> tuple[str, int | None] | None:
+    """(host, port) with case, a trailing dot and default ports (80/443) normalised away; None if unparseable."""
+    try:
+        parts = urlparse(url)
+        host = (parts.hostname or "").rstrip(".").lower()
+        port = parts.port
+    except ValueError:
+        return None
+    return (host, None if port in (None, 80, 443) else port) if host else None
+
+
 def same_origin(request: Request) -> bool:
     """False when a browser says the form was posted from another origin (another port, host or subdomain).
 
-    Requests without Origin/Referer (scripts, curl) can't carry a victim's cookies, so they pass.
+    Sec-Fetch-Site is set by the browser itself (pages can't forge it) and survives a strict Referrer-Policy,
+    which turns Origin into "null"; Origin/Referer are only the fallback for browsers without it. Requests with
+    none of these (scripts, curl) can't carry a victim's cookies, so they pass.
     """
+    site = request.headers.get("sec-fetch-site")
+    if site:
+        return site in ("same-origin", "none")
     source = request.headers.get("origin") or request.headers.get("referer")
     if not source:
         return True
-    if source == "null":
+    key = None if source == "null" else _origin_key(source)
+    if key is None:
         return False
-    netloc = urlparse(source).netloc.lower()
-    allowed = {request.url.netloc.lower()}
-    base = os.environ.get("VV88_WEB_BASE_URL", "")
-    if base:
-        allowed.add(urlparse(base).netloc.lower())
-    return netloc in allowed
+    allowed = {_origin_key("//" + request.url.netloc), _origin_key(os.environ.get("VV88_WEB_BASE_URL", ""))}
+    return key in allowed - {None}
 
 
 def logged_in(request: Request) -> bool:

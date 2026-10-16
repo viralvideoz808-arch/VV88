@@ -51,17 +51,20 @@ class Engine:
         """Campaigns stored before `other_platforms` existed lost the platform names VV88 can't post to, so a
         Facebook-only campaign looked like "pays anywhere". Rebuild manual ones from the YAML now (local, cheap)
         and make the next cycle rediscover the rest. Runs once."""
-        if self.store.kv_get("upgrade:other_platforms"):
-            return
-        legacy = self.store.campaigns_missing("other_platforms")
-        if legacy:
-            try:
-                fresh = [c for c in ManualCampaignSource(self.s.discovery.manual_file).fetch() if c.id in legacy]
-                self.store.upsert_campaigns(fresh)
-            except Exception as e:  # noqa: BLE001 - a broken YAML is reported by discovery itself
-                log.warning("could not refresh stored campaigns: %s", e)
-            self.store.kv_set("last_discovery", 0)
-        self.store.kv_set("upgrade:other_platforms", True)
+        try:
+            if self.store.kv_get("upgrade:other_platforms"):
+                return
+            legacy = self.store.campaigns_missing("other_platforms")
+            if legacy:
+                try:
+                    fresh = [c for c in ManualCampaignSource(self.s.discovery.manual_file).fetch() if c.id in legacy]
+                    self.store.upsert_campaigns(fresh)
+                except Exception as e:  # noqa: BLE001 - a broken YAML is reported by discovery itself
+                    log.warning("could not refresh stored campaigns: %s", e)
+                self.store.kv_set("last_discovery", 0)
+            self.store.kv_set("upgrade:other_platforms", True)
+        except Exception as e:  # noqa: BLE001 - an upgrade step must never stop the engine from starting
+            log.warning("campaign upgrade skipped: %s", e)
 
     # ---- discovery & ranking ---------------------------------------------------------
     def target_platforms(self) -> list[str]:

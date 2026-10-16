@@ -81,10 +81,12 @@
       <h2 class="step"><b>2</b> Campaign &amp; amount</h2>
       <div class="grid cols-2">
         <label class="field"><span>Campaign</span>
-          <select name="campaign_id">
-            <option value="">No campaign (your own footage)</option>
+          <select name="campaign_id" data-platform-hint="#post-hint">
+            <option value="" data-platforms="{{ no_campaign_platforms|join(' ') }}">No campaign (your own footage)</option>
             {% for c in campaigns %}
-              <option value="{{ c.id }}" {{ "selected" if selected and c.id == selected.id }}>{{ c.title }} · ${{ "%.2f"|format(scores.get(c.id) or 0) }}/clip</option>
+              <option value="{{ c.id }}" {{ "selected" if selected and c.id == selected.id }}
+                      data-platforms="{{ platforms_by_campaign.get(c.id, [])|join(' ') }}"
+                      data-named="{{ (c.platforms + c.other_platforms)|join(', ') }}">{{ c.title }} · ${{ "%.2f"|format(scores.get(c.id) or 0) }}/clip</option>
             {% endfor %}
           </select>
           <span class="hint">Applies its hashtags, mentions and #ad rule.</span></label>
@@ -119,7 +121,10 @@
             <span class="check-hint">Not needed when you pick a campaign and use one of its own source videos. Uploads always need it.</span></span></label>
         <label class="check"><input type="checkbox" name="post" {{ "checked" if v.post }}>
           <span>Schedule posts on enabled platforms after rendering
-            <span class="check-hint">{% for p in post_platforms %}{{ ui.platform(p) }} {% else %}{% if selected and (selected.platforms or selected.other_platforms) %}None of this campaign's platforms ({{ (selected.platforms + selected.other_platforms)|join(", ") }}) can be posted to here: turn them on in Settings, or pick another campaign.{% else %}No platforms enabled — turn some on in Settings.{% endif %}{% endfor %}
+            {%- set named = (selected.platforms + selected.other_platforms) if selected else [] %}
+            <span class="check-hint" id="post-hint">{% for p in all_platforms %}<span data-plat="{{ p }}" {{ "hidden" if p not in post_platforms }}>{{ ui.platform(p) }} </span>{% endfor %}
+              <span data-hint-campaign {{ "hidden" if post_platforms or not named }}>None of this campaign's platforms (<span data-hint-named>{{ named|join(", ") }}</span>) can be posted to here: turn them on in Settings, or pick another campaign.</span>
+              <span data-hint-enabled {{ "hidden" if post_platforms or named }}>No platforms enabled — turn some on in Settings.</span>
               {% if backend == "dry_run" %}· dry-run: posts are written to the outbox, not published{% endif %}</span></span></label>
       </div>
 

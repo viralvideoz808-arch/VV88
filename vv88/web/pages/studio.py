@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from vv88.editing.styles import STYLES
+from vv88.models import PLATFORMS
 from vv88.publishing.base import redact
 from vv88.web.core import context, flash, read_form, redirect, render, require_user, verify_csrf
 
@@ -186,13 +187,18 @@ def _page(request: Request, ctx, values: dict, status_code: int = 200):
         })
     from vv88.pipeline import Engine
 
-    enabled = Engine(settings).platforms_for(selected)  # what "post after rendering" will really use
+    engine = Engine(settings)
+    enabled = engine.platforms_for(selected)  # what "post after rendering" will really use
+    # Per campaign too, so the hint can follow the dropdown without a reload (static/app.js).
+    platforms_by_campaign = {c.id: engine.platforms_for(c) for c in campaigns}
     footage = [c for c in campaigns if c.source_urls][:5] if selected is None else []
     response = render(
         request, "studio.html", title="Clip studio",
         v=values, campaigns=campaigns, scores=scores, selected=selected, footage=footage, styles=styles,
         max_clips=MAX_CLIPS, video_exts=VIDEO_EXTS, accept="video/*," + ",".join(VIDEO_EXTS),
-        post_platforms=enabled, backend=settings.publishing.backend,
+        post_platforms=enabled, platforms_by_campaign=platforms_by_campaign,
+        no_campaign_platforms=engine.platforms_for(None), all_platforms=PLATFORMS,
+        backend=settings.publishing.backend,
         jobs=_recent_clip_jobs(ctx), ffmpeg_missing=not shutil.which("ffmpeg"),
     )
     response.status_code = status_code
@@ -301,4 +307,10 @@ def _start_clip(request: Request, form, upload: UploadFile | None):
                                       "n": n, "style": style, "i_have_rights": values["i_have_rights"],
                                       "post": values["post"]})
     what = f"{n} clip{'s' if n != 1 else ''}"
+    if values["post"]:
+        from vv88.pipeline import Engine
+
+        if not Engine(settings).platforms_for(campaign):
+            flash(request, "Nothing will be scheduled: none of this campaign's platforms can be posted to here "
+                           "(switched off in Settings, or not supported).", "warning")
     return redirect(request, f"/jobs/{job_id}", f"Clipping started: {what} (job #{job_id}).", "success")

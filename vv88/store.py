@@ -156,9 +156,20 @@ class Store:
             self.db.executemany("UPDATE campaigns SET score=? WHERE id=?", [(v, k) for k, v in scores.items()])
 
     def campaigns_missing(self, key: str) -> set[str]:
-        """Ids of stored campaigns whose JSON lacks `key` (rows written by an older version)."""
-        rows = self.db.execute("SELECT id FROM campaigns WHERE json_type(data, ?) IS NULL", (f"$.{key}",))
-        return {r["id"] for r in rows.fetchall()}
+        """Ids of stored campaigns whose JSON lacks `key` (rows written by an older version).
+
+        Checked in Python, not with SQLite's json functions: older SQLite rejects the NaN/Infinity that
+        json.dumps writes for values like `budget_remaining_usd: inf`.
+        """
+        out = set()
+        for r in self.db.execute("SELECT id, data FROM campaigns").fetchall():
+            try:
+                data = json.loads(r["data"])
+            except ValueError:
+                continue
+            if isinstance(data, dict) and key not in data:
+                out.add(r["id"])
+        return out
 
     # ---- sources ---------------------------------------------------------
     def add_source(self, src: SourceVideo) -> None:

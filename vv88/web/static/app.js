@@ -54,6 +54,27 @@
     tick();
   }
 
+  // <select data-platform-hint="#hint">: show where "post after rendering" will post for the chosen option
+  // (options carry data-platforms="tiktok youtube" and data-named="…" computed by the server).
+  document.querySelectorAll("select[data-platform-hint]").forEach(function (sel) {
+    const hint = document.querySelector(sel.getAttribute("data-platform-hint"));
+    if (!hint) return;
+    const update = function () {
+      const opt = sel.selectedOptions[0];
+      if (!opt) return;
+      const plats = (opt.getAttribute("data-platforms") || "").split(" ").filter(Boolean);
+      const named = opt.getAttribute("data-named") || "";
+      hint.querySelectorAll("[data-plat]").forEach(function (b) { b.hidden = plats.indexOf(b.getAttribute("data-plat")) < 0; });
+      const camp = hint.querySelector("[data-hint-campaign]");
+      const none = hint.querySelector("[data-hint-enabled]");
+      if (camp) camp.hidden = plats.length > 0 || !named;
+      if (none) none.hidden = plats.length > 0 || !!named;
+      const n = hint.querySelector("[data-hint-named]");
+      if (n) n.textContent = named;
+    };
+    sel.addEventListener("change", update);
+  });
+
   // <div data-refresh="15">: reload the page every N seconds (dashboard while jobs run).
   const refreshEl = document.querySelector("[data-refresh]");
   if (refreshEl) {
