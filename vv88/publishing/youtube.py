@@ -27,6 +27,7 @@ class YouTubePublisher:
         self.cfg = cfg
         self.http = session or requests.Session()
         self._token: str | None = None
+        self.scopes: list[str] = []
 
     def _access_token(self) -> str:
         if self._token:
@@ -47,6 +48,7 @@ class YouTubePublisher:
             "youtube token refresh",
         )
         self._token = body["access_token"]
+        self.scopes = body.get("scope", "").split()
         return self._token
 
     def publish(self, video_path: str, content: PostContent) -> PostResult:

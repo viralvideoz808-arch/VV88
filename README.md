@@ -93,19 +93,23 @@ vv88 connect all         # walks through every tool and account below
 | `instagram` | Facebook Login for Business → your Instagram professional account | ~60-day token; `vv88 doctor` warns 10 days early and reconnecting is one click |
 | `apify`, `youtube-key`, `anthropic` | paste key (hidden input) → checked live | API keys don't expire until you revoke them |
 
-VV88 never sees or stores your passwords. It keeps only revocable tokens, in `.env` (permissions set to 600) and `data/vv88.db`. Register `http://127.0.0.1:8788/callback/` (Facebook: `http://localhost:8788/callback/`) as the redirect URI in each developer app.
+VV88 never sees or stores your passwords. It keeps only revocable tokens, in `.env` and `data/vv88.db`; both files are private to your user (permissions 600).
+
+Register `http://127.0.0.1:8788/callback/` as the redirect URI in each developer app (Facebook: `http://localhost:8788/callback/`). If an app accepts only https redirects, register any https URL you control and run `vv88 connect <platform> --paste --redirect <that url>`. After you approve, copy the address-bar URL back into the terminal.
+
+Secrets are masked in all logs and error messages.
 
 ## Brand kit: one look across all four accounts
 
 A brand kit is a folder: `brand.json` plus images. It holds one profile picture, names, bios sized to each platform's limit, a YouTube banner and an X header.
 
 ```bash
-vv88 brand show          # prints names/bios with character counts, flags anything over a limit
-vv88 brand approve       # you approve the exact images + text (type APPROVE)
-vv88 brand apply         # applies what the APIs allow, writes a checklist for the rest
+vv88 brand show                           # every image path, name, full bio + char counts, and a fingerprint
+vv88 brand approve --fingerprint <fp>     # you approve exactly what `show` printed
+vv88 brand apply                          # writes the checklist, then applies what the APIs allow
 ```
 
-Approval is tied to a fingerprint of the images and text, so changing anything afterwards needs a fresh approval. What gets applied automatically:
+Approval names the fingerprint that `brand show` printed. Any change to the images or text produces a new fingerprint, and that needs a fresh approval. What gets applied automatically:
 - **YouTube:** channel description and keywords, via the API. Every other channel setting is preserved.
 - **TikTok, Instagram and X:** their APIs don't allow profile editing, and the API can't change YouTube's channel name or profile picture either. `brand apply` writes `APPLY_CHECKLIST.md` with the exact text to paste and the image to upload on each platform.
 

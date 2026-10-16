@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import time
 from pathlib import Path
@@ -29,13 +30,37 @@ class PublishError(RuntimeError):
     pass
 
 
+_SECRET_PARAM = re.compile(
+    r"(?i)((?:access_token|refresh_token|client_secret|fb_exchange_token|token|key|code|code_verifier|"
+    r"api_key|apikey|password)=)[^&\s'\"]+"
+)
+_BEARER = re.compile(r"(?i)\b(bearer|oauth)\s+[A-Za-z0-9._~+/=-]{8,}")
+
+
+def redact(text: str) -> str:
+    """Mask secrets in URLs / headers before anything is printed or logged."""
+    return _BEARER.sub(r"\1 ***", _SECRET_PARAM.sub(r"\1***", text))
+
+
+class RedactingFilter(logging.Filter):
+    """Logging filter that masks secrets in every record (installed by the CLI)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            msg = record.getMessage()
+        except Exception:  # noqa: BLE001 - never break logging
+            return True
+        record.msg, record.args = redact(msg), ()
+        return True
+
+
 def check(resp: requests.Response, what: str) -> dict:
     try:
         body = resp.json()
     except ValueError:
         body = {"text": resp.text[:500]}
     if resp.status_code >= 400:
-        raise PublishError(f"{what} failed: HTTP {resp.status_code} {json.dumps(body)[:800]}")
+        raise PublishError(redact(f"{what} failed: HTTP {resp.status_code} {json.dumps(body)[:800]}"))
     return body
 
 

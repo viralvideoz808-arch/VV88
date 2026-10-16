@@ -81,8 +81,13 @@ def cmd_doctor(settings: Settings, _args) -> int:
 
     print("Linked accounts & tools (`vv88 connect <name>` to link):")
     store = Store(settings.data_path / "vv88.db")
-    for name, linked, detail in link_status(settings, store):
-        print(f"  [{'ok' if linked else '--'}] {name}{(' - ' + detail) if detail else ''}")
+    in_use = set(settings.publishing.enabled_platforms()) if settings.publishing.backend == "direct" else set()
+    for row in link_status(settings, store):
+        mark = "ok" if row.linked and not row.warning else ("!!" if row.warning else "--")
+        print(f"  [{mark}] {row.name}{(' - ' + row.detail) if row.detail else ''}"
+              f"{(' - ' + row.warning) if row.warning else ''}")
+        if row.name in in_use and (not row.linked or row.warning):
+            ok = False
     return 0 if ok else 1
 
 
@@ -186,19 +191,20 @@ def cmd_links(settings: Settings, args) -> int:
 
 
 def cmd_connect(settings: Settings, args) -> int:
+    import requests
+
     from vv88 import connect as c
-    from vv88.publishing.base import PublishError
+    from vv88.publishing.base import PublishError, redact
     from vv88.store import Store
 
     store = Store(settings.data_path / "vv88.db")
     if args.target in (None, "status"):
-        for name, linked, detail in c.link_status(settings, store):
-            print(f"[{'linked' if linked else '  --  '}] {name:<12} {detail}")
+        for row in c.link_status(settings, store):
+            print(f"[{'linked' if row.linked else '  --  '}] {row.name:<12} {row.detail}"
+                  f"{('  ! ' + row.warning) if row.warning else ''}")
         return 0
-    targets = [args.target]
-    if args.target == "all":
-        targets = [*c.KEY_TOOLS, "youtube", "tiktok", "instagram", "x"]
-    failed = 0
+    targets = [*c.KEY_TOOLS, "youtube", "tiktok", "instagram", "x"] if args.target == "all" else [args.target]
+    summary: dict[str, str] = {}
     for t in targets:
         print(f"\n== {t} ==")
         try:
@@ -206,53 +212,89 @@ def cmd_connect(settings: Settings, args) -> int:
                 res = c.connect_key(t, settings, env_path=args.env)
             else:
                 res = c.connect_platform(t, settings, store, port=args.port, open_browser=not args.no_browser,
-                                         env_path=args.env)
+                                         env_path=args.env, paste=args.paste, redirect=args.redirect)
             print(c.dump(res))
+            summary[t] = "linked" + (f" ({res['warning']})" if res.get("warning") else "")
+        except c.Skipped as e:
+            print(e)
+            summary[t] = "skipped"
+        except (EOFError, KeyboardInterrupt):
+            print("\ncancelled")
+            summary[t] = "cancelled"
+            break
+        except requests.RequestException as e:
+            # requests errors embed the URL; print only the type plus a redacted hint.
+            print(f"not linked: network error ({type(e).__name__}): {redact(str(e))[:200]}")
+            summary[t] = "failed"
         except (PublishError, TimeoutError, ValueError, OSError) as e:
-            failed += 1
-            print(f"not linked: {e}")
-        if args.target == "all":
-            settings = load_settings(args.config)  # pick up keys saved to .env so far
-    return 1 if failed and args.target != "all" else 0
+            print(f"not linked: {redact(str(e))}")
+            summary[t] = "failed"
+        # pick up keys/tokens just saved so later steps (and the summary) see them
+        settings = load_settings(args.config, env_path=args.env)
+    if len(targets) > 1:
+        print("\nSummary: " + ", ".join(f"{k}={v}" for k, v in summary.items()))
+    return 1 if any(v in ("failed", "cancelled") for v in summary.values()) else 0
 
 
 def cmd_brand(settings: Settings, args) -> int:
     from vv88 import brand as b
+    from vv88.publishing.base import PublishError, redact
     from vv88.store import Store
 
     store = Store(settings.data_path / "vv88.db")
     kit = b.load_kit(args.dir)
     d = kit.data
+    fp = kit.fingerprint()
     if args.action == "show":
-        print(f"{d.get('concept_name', '')}  handle: @{d.get('unified_handle', '')}  fingerprint {kit.fingerprint()}")
-        print(f"profile picture: {kit.avatar}")
+        print(f"{d.get('concept_name', '')}   handle: @{d.get('unified_handle', '')}"
+              f"   fallbacks: {', '.join('@' + h for h in d.get('handle_fallbacks', []))}")
+        print(f"profile picture : {kit.avatar}")
+        for label, path in (("youtube banner", kit.youtube_banner), ("x header", kit.x_header)):
+            print(f"{label:<16}: {path}{'' if path.exists() else '  (missing)'}")
         for k, v in d.get("display_names", {}).items():
-            print(f"  name/{k:<10} ({len(v):>3}) {v}")
+            print(f"name/{k:<10} ({len(v):>3}) {v}")
         for k, v in d.get("bios", {}).items():
-            print(f"  bio/{k:<19} ({len(v):>4}) {v if k != 'youtube_description' else v[:120] + '...'}")
-        print("problems: " + ("; ".join(kit.problems) if kit.problems else "none"))
-        print("approved: " + ("yes" if b.approval(kit, store) else "NO - nothing will be applied until approved"))
+            print(f"\nbio/{k} ({len(v)} chars):\n{v}")
+        if d.get("youtube_keywords"):
+            print(f"\nyoutube keywords: {', '.join(d['youtube_keywords'])}")
+        print("\nproblems: " + ("; ".join(kit.problems) if kit.problems else "none"))
+        print(f"fingerprint: {fp}")
+        if b.approval(kit, store):
+            print("approved: yes")
+        else:
+            print(f"approved: NO. Nothing is applied until you run: vv88 brand approve --fingerprint {fp}")
         return 1 if kit.problems else 0
     if args.action == "approve":
-        if not args.yes:
-            answer = input(f"Approve the profile picture {kit.avatar} and the bios shown by `vv88 brand show`? "
-                           "Type APPROVE: ")
-            if answer.strip() != "APPROVE":
-                print("not approved")
-                return 1
-        rec = b.approve(kit, store, note=args.note or "")
+        # Approval must name the exact kit the owner reviewed with `brand show`.
+        given = args.fingerprint or input("Type the fingerprint shown by `vv88 brand show` to approve: ").strip()
+        if given != fp:
+            print("fingerprint doesn't match the current kit (it changed, or it's a typo); run `vv88 brand show` again")
+            return 1
+        try:
+            rec = b.approve(kit, store, note=args.note or "")
+        except ValueError as e:
+            print(e)
+            return 1
         print(f"approved fingerprint {rec['fingerprint']}")
         return 0
     if args.action == "apply":
-        token = None
+        token, scopes = None, None
         if settings.publishing.direct.youtube_refresh_token:
             from vv88.publishing.youtube import YouTubePublisher
 
-            token = YouTubePublisher(settings.publishing.direct)._access_token()
-        result = b.apply(kit, store, youtube_access_token=token)
+            yt = YouTubePublisher(settings.publishing.direct)
+            try:
+                token, scopes = yt._access_token(), yt.scopes
+            except Exception as e:  # noqa: BLE001 - YouTube trouble must not block the checklist
+                print(f"YouTube sign-in failed, skipping the automatic update: {redact(str(e))[:200]}")
+        try:
+            result = b.apply(kit, store, youtube_access_token=token, youtube_scopes=scopes)
+        except (PermissionError, PublishError) as e:
+            print(e)
+            return 1
         print(json.dumps(result, indent=2))
         print(f"Finish the remaining steps from {result['checklist']}")
-        return 0
+        return 0 if result.get("youtube", {}).get("ok") or "skipped" in result.get("youtube", {}) else 1
     return 2
 
 
@@ -342,11 +384,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8788, help="local callback port (register "
                    "http://127.0.0.1:8788/callback/ as the redirect URI)")
     p.add_argument("--no-browser", action="store_true", help="print the sign-in link instead of opening it")
-    p.add_argument("--env", default=".env", help=".env file to save tokens/keys to")
+    p.add_argument("--paste", action="store_true",
+                   help="for https-only redirects: paste the URL you land on instead of using the local server")
+    p.add_argument("--redirect", default=None, help="redirect URI registered on the developer app (with --paste)")
+    p.add_argument("--env", default=".env", help=".env file to read and save tokens/keys")
     p = sub.add_parser("brand", help="profile picture + bios kit: show, approve, apply")
     p.add_argument("action", choices=["show", "approve", "apply"])
     p.add_argument("--dir", default="brand", help="brand kit folder (brand.json + images)")
-    p.add_argument("--yes", action="store_true", help="approve without the interactive prompt")
+    p.add_argument("--fingerprint", default=None, help="fingerprint printed by `vv88 brand show` (approve)")
     p.add_argument("--note", default="")
     sub.add_parser("styles", help="list caption/layout styles")
     p = sub.add_parser("benchmark", help="measure local rendering throughput")
@@ -358,7 +403,13 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    settings = load_settings(args.config)
+    from vv88.publishing.base import RedactingFilter
+
+    for h in logging.getLogger().handlers:
+        h.addFilter(RedactingFilter())
+    # urllib3 logs full request URLs at DEBUG; some platform APIs require tokens in the query string.
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    settings = load_settings(args.config, env_path=getattr(args, "env", None))
     handlers = {
         "doctor": cmd_doctor,
         "discover": cmd_discover,

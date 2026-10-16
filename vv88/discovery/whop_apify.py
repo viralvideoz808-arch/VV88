@@ -55,7 +55,7 @@ class WhopApifySource:
             payload["minBudgetRemainingUsd"] = self.cfg.min_budget_remaining_usd
         resp = self.http.post(
             APIFY_RUN_SYNC.format(actor=self.cfg.actor),
-            params={"token": self.cfg.token},
+            headers={"Authorization": f"Bearer {self.cfg.token}"},
             json=payload,
             timeout=300,
         )

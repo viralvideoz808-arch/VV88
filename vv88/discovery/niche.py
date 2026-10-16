@@ -50,8 +50,8 @@ class NicheTrafficSignal:
         published_after = (now - timedelta(days=self.cfg.lookback_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
         search = self.http.get(
             YT_SEARCH,
+            headers={"X-goog-api-key": self.cfg.youtube_api_key},
             params={
-                "key": self.cfg.youtube_api_key,
                 "part": "id",
                 "type": "video",
                 "videoDuration": "short",
@@ -69,7 +69,8 @@ class NicheTrafficSignal:
             return 0.0
         videos = self.http.get(
             YT_VIDEOS,
-            params={"key": self.cfg.youtube_api_key, "part": "statistics,snippet", "id": ",".join(ids)},
+            headers={"X-goog-api-key": self.cfg.youtube_api_key},
+            params={"part": "statistics,snippet", "id": ",".join(ids)},
             timeout=30,
         )
         videos.raise_for_status()

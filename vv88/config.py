@@ -182,6 +182,10 @@ class DirectAPIConfig(_Model):
 
     facebook_app_id: str = "${FACEBOOK_APP_ID}"
     facebook_app_secret: str = "${FACEBOOK_APP_SECRET}"
+    # Optional: an https redirect registered on the Meta app (used with `vv88 connect instagram --paste`)
+    facebook_redirect_uri: str = "${FACEBOOK_REDIRECT_URI}"
+    # Optional: Facebook Login for Business configuration id (replaces the scope list)
+    facebook_login_config_id: str = "${FACEBOOK_LOGIN_CONFIG_ID}"
     instagram_user_id: str = "${INSTAGRAM_USER_ID}"
     instagram_access_token: str = "${INSTAGRAM_ACCESS_TOKEN}"
     instagram_graph_version: str = "v23.0"
@@ -259,8 +263,9 @@ def deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
-def load_settings(path: str | Path | None = None, overrides: dict | None = None) -> Settings:
-    load_dotenv()
+def load_settings(path: str | Path | None = None, overrides: dict | None = None,
+                  env_path: str | Path | None = None) -> Settings:
+    load_dotenv(env_path or os.environ.get("VV88_ENV", ".env"))
     raw: dict = {}
     if path is None:
         path = os.environ.get("VV88_CONFIG", "config.yaml")

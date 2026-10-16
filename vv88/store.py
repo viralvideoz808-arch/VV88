@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from dataclasses import asdict
@@ -71,7 +72,15 @@ CREATE INDEX IF NOT EXISTS idx_metrics_post ON metrics(post_id, fetched_at);
 class Store:
     def __init__(self, path: str | Path):
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        # The DB holds OAuth tokens: keep the folder and file private to the owner.
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if not self.path.exists():
+            os.close(os.open(self.path, os.O_CREAT | os.O_WRONLY, 0o600))
+        if os.name == "posix":
+            try:
+                os.chmod(self.path, 0o600)
+            except OSError:
+                pass
         self.db = sqlite3.connect(str(self.path))
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)

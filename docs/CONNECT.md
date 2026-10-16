@@ -47,6 +47,9 @@ http://127.0.0.1:8788/callback/      (Facebook/Instagram: http://localhost:8788/
 4. Add `http://localhost:8788/callback/` as a valid OAuth redirect URI.
 5. Put the keys into `.env` as `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`.
 6. Run `vv88 connect instagram`.
+   - Meta accepts an `http://localhost` redirect only while the app is in **Development mode** and you have a role on it.
+   - For a Live app, register an https redirect and run `vv88 connect instagram --paste --redirect https://...`.
+   - If your app uses a Facebook Login for Business configuration, put its id in `FACEBOOK_LOGIN_CONFIG_ID`.
 7. The token lasts about 60 days. `vv88 doctor` warns 10 days before it lapses; run the same command again to renew.
 
 ### X

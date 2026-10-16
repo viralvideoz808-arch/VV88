@@ -14,19 +14,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import requests
 
-from vv88.publishing.base import PublishError, check
+from vv88.publishing.base import PublishError, check, redact
 from vv88.store import Store
 
 BIO_LIMITS = {"tiktok": 80, "instagram": 150, "x": 160, "youtube_description": 1000}
 NAME_LIMITS = {"tiktok": 30, "instagram": 30, "x": 50, "youtube": 100}
 HANDLE_MAX = 15  # X is the tightest
+HANDLE_RE = re.compile(r"[A-Za-z0-9_]{1,15}")
 YOUTUBE_KEYWORDS_MAX = 500
+YOUTUBE_MANAGE_SCOPE = "https://www.googleapis.com/auth/youtube"
 YOUTUBE_WRITABLE = ("country", "description", "defaultLanguage", "keywords", "trackingAnalyticsAccountId",
                     "unsubscribedTrailer")
 
@@ -88,9 +91,11 @@ def validate(kit: BrandKit) -> list[str]:
     for k, limit in NAME_LIMITS.items():
         if len(names.get(k, "")) > limit:
             problems.append(f"{k} display name is {len(names[k])} chars (limit {limit})")
-    handle = d.get("unified_handle", "")
-    if handle and (len(handle) > HANDLE_MAX or not all(c.isalnum() or c in "._" for c in handle)):
-        problems.append(f"handle {handle!r} must be <= {HANDLE_MAX} chars of letters, digits, '.' or '_'")
+    for label, handle in [("handle", d.get("unified_handle", "")),
+                          *(("fallback handle", h) for h in d.get("handle_fallbacks", []))]:
+        if handle and not HANDLE_RE.fullmatch(handle):
+            # X is the strictest platform: ASCII letters, digits and '_' only, max 15.
+            problems.append(f"{label} {handle!r} must be 1-{HANDLE_MAX} ASCII letters, digits or '_' (X's rule)")
     kw = " ".join(_quote_kw(k) for k in d.get("youtube_keywords", []))
     if len(kw) > YOUTUBE_KEYWORDS_MAX:
         problems.append(f"youtube keywords are {len(kw)} chars (limit {YOUTUBE_KEYWORDS_MAX})")
@@ -186,7 +191,7 @@ def checklist(kit: BrandKit) -> str:
             lines.append(f"- [ ] {label} ({len(value)} chars):")
             lines.append("")
             lines.append("  ```")
-            lines.append(f"  {value}")
+            lines.extend(f"  {ln}" for ln in value.splitlines() or [""])
             lines.append("  ```")
         for e in extra:
             lines.append(f"- [ ] {e}")
@@ -197,19 +202,33 @@ def checklist(kit: BrandKit) -> str:
     lines.append("```")
     lines.append(bios.get("youtube_description", ""))
     lines.append("```")
+    if d.get("youtube_keywords"):
+        lines.append("")
+        lines.append("## YouTube channel keywords (Studio > Settings > Channel > Basic info)")
+        lines.append("```")
+        lines.append(" ".join(_quote_kw(k) for k in d["youtube_keywords"]))
+        lines.append("```")
     return "\n".join(lines) + "\n"
 
 
 def apply(kit: BrandKit, store: Store, youtube_access_token: str | None = None,
-          http: requests.Session | None = None) -> dict:
+          http: requests.Session | None = None, youtube_scopes: list[str] | None = None) -> dict:
+    """Write the manual checklist, then try the YouTube update; a YouTube failure never blocks the rest."""
     if not approval(kit, store):
         raise PermissionError("this brand kit hasn't been approved (or changed since approval); "
                               "review it and run `vv88 brand approve` first")
-    result: dict = {}
-    if youtube_access_token:
-        result["youtube"] = youtube_apply(kit, youtube_access_token, http)
     path = kit.root / "APPLY_CHECKLIST.md"
     path.write_text(checklist(kit))
-    result["checklist"] = str(path)
+    result: dict = {"checklist": str(path)}
+    if not youtube_access_token:
+        result["youtube"] = {"ok": False, "skipped": "YouTube not connected; use the checklist"}
+    elif youtube_scopes and YOUTUBE_MANAGE_SCOPE not in youtube_scopes:
+        result["youtube"] = {"ok": False, "skipped": "the YouTube link lacks channel-edit permission; run "
+                                                     "`vv88 connect youtube` again, or paste the description by hand"}
+    else:
+        try:
+            result["youtube"] = youtube_apply(kit, youtube_access_token, http)
+        except (PublishError, requests.RequestException) as e:
+            result["youtube"] = {"ok": False, "error": redact(str(e))[:400]}
     store.kv_set("brand:applied", {"fingerprint": kit.fingerprint(), "at": time.time(), "result": result})
     return result
