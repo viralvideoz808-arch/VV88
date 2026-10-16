@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}<a class="btn primary" href="/studio">Make clips</a>{% endblock %}
+{% block content %}
+<style>
+  .clip-filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+  .clip-filters .field { flex: 1 1 200px; margin-bottom: 0; }
+  .clip-filters .btns { display: flex; gap: 8px; }
+  .clip-count { margin: 12px 2px 10px; }
+  .cliplist .clip .hook { color: var(--text); line-height: 1.35; }
+  .cliplist .clip .hook:hover { color: var(--accent); text-decoration: none; }
+  .cliplist .clip .novideo { aspect-ratio: 9 / 16; background: #000; display: grid; place-items: center;
+                             color: var(--muted); font-size: 12px; text-align: center; padding: 12px; }
+  .cliplist .facts { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .pstats { list-style: none; margin: 2px 0 0; padding: 6px 0 0; border-top: 1px solid var(--line);
+            display: flex; flex-direction: column; gap: 4px; }
+  .pstats li { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .cliplist .meta .btn { margin-top: auto; text-align: center; }
+  .cliplist .meta { flex: 1; }
+  @media (max-width: 560px) {
+    .cliplist { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .cliplist .clip .meta { padding: 8px; }
+    .pstats .plat { padding: 1px 5px; font-size: 11px; }
+    .pstats .badge { padding: 1px 6px; font-size: 10.5px; }
+  }
+</style>
+
+<form method="get" action="/clips" class="card clip-filters">
+  <label class="field"><span>Campaign</span>
+    <select name="campaign">
+      <option value="">All campaigns</option>
+      {% for cid in campaign_ids %}
+        <option value="{{ cid }}" {{ "selected" if cid == campaign }}>{{ titles.get(cid, cid) }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="field"><span>Style</span>
+    <select name="style">
+      <option value="">All styles</option>
+      {% for s in styles %}<option value="{{ s }}" {{ "selected" if s == style }}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <div class="btns">
+    <button class="btn primary">Filter</button>
+    {% if filtered %}<a class="btn ghost" href="/clips">Clear</a>{% endif %}
+  </div>
+</form>
+
+{% if clips %}
+  <p class="muted small clip-count">
+    {% if total > clips|length %}Showing the newest {{ clips|length }} of {{ total }} clips{% else %}{{ total }} clip{{ "s" if total != 1 }}{% endif %}{{ " matching these filters" if filtered }}.
+  </p>
+  <div class="clips cliplist">
+    {% for item in clips %}{% set c = item.clip %}
+    <div class="clip">
+      {% if item.exists %}
+        <video src="{{ media_url(c.path) }}" preload="metadata" controls playsinline></video>
+      {% else %}
+        <div class="novideo">Video file missing on disk</div>
+      {% endif %}
+      <div class="meta">
+        <a class="hook" href="/clips/{{ c.id }}">{{ c.hook_text or c.title or c.id }}</a>
+        <div class="facts">
+          {{ ui.badge(c.style) }}
+          <span class="muted small nowrap">{{ "%.0f"|format(c.duration) }}s · score {{ "%.1f"|format(c.score) }}</span>
+        </div>
+        <div class="muted small">{{ titles.get(c.campaign_id, c.campaign_id) }} · {{ fmt_ago(item.created_at) }}</div>
+        {% if posts[c.id] %}
+          <ul class="pstats">
+            {% for p in posts[c.id] %}<li>{{ ui.platform(p.platform) }} {{ ui.status(p.status) }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <div class="muted small pstats">Not scheduled anywhere yet.</div>
+        {% endif %}
+        <a class="btn small" href="/clips/{{ c.id }}">Details{{ " & schedule" if not posts[c.id] }}</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% elif filtered %}
+  <div class="section">{{ ui.empty("No clips match these filters. Clear them to see every clip.") }}</div>
+{% else %}
+  <div class="section">{{ ui.empty("No clips yet. Open the Clip studio, paste a video link and render your first clips, or run a full cycle from the Dashboard.") }}</div>
+{% endif %}
+{% endblock %}
