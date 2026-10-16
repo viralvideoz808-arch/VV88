@@ -110,18 +110,38 @@ def _quote_kw(k: str) -> str:
 
 
 # ---- approval gate ----------------------------------------------------------------------
+APPROVAL_FILE = "APPROVAL.json"
+
+
 def approve(kit: BrandKit, store: Store, note: str = "") -> dict:
+    """Record the owner's approval of this exact kit.
+
+    Saved in the local database and as APPROVAL.json inside the kit folder, so an approval
+    committed with the kit is honoured on every machine that runs VV88 (laptop, server, cloud).
+    The file is ignored as soon as the kit's images or text change (fingerprint mismatch).
+    """
     if kit.problems:
         raise ValueError("fix these before approving: " + "; ".join(kit.problems))
-    record = {"fingerprint": kit.fingerprint(), "root": str(kit.root), "approved_at": time.time(), "note": note}
-    store.kv_set("brand:approved", record)
+    record = {"fingerprint": kit.fingerprint(), "approved_at": time.time(), "note": note,
+              "avatar": kit.data.get("avatar", "avatar_1024.png")}
+    store.kv_set("brand:approved", {**record, "root": str(kit.root)})
+    (kit.root / APPROVAL_FILE).write_text(json.dumps(record, indent=2) + "\n")
     return record
 
 
 def approval(kit: BrandKit, store: Store) -> dict | None:
+    fp = kit.fingerprint()
     rec = store.kv_get("brand:approved")
-    if rec and rec.get("fingerprint") == kit.fingerprint():
+    if rec and rec.get("fingerprint") == fp:
         return rec
+    f = kit.root / APPROVAL_FILE
+    if f.is_file():
+        try:
+            rec = json.loads(f.read_text())
+        except (OSError, ValueError):
+            return None
+        if isinstance(rec, dict) and rec.get("fingerprint") == fp:
+            return rec
     return None
 
 
@@ -164,16 +184,19 @@ def checklist(kit: BrandKit) -> str:
     names = d.get("display_names", {})
     bios = d.get("bios", {})
     handle = d.get("unified_handle", "")
-    lines = [
-        f"# Profile update checklist — {d.get('concept_name', 'brand kit')}",
-        "",
-        f"Profile picture (same on every platform): `{kit.avatar}`",
-        f"Unified handle to try: `@{handle}`"
-        + (f" (fallbacks: {', '.join('@' + h for h in d.get('handle_fallbacks', []))})" if handle else ""),
-        "Handles can't be checked from here; claim the same one everywhere if it's free. Changing a handle "
-        "breaks old links to your profile, and TikTok/Instagram limit how often you can change it.",
-        "",
-    ]
+    fallbacks = d.get("handle_fallbacks") or []
+    lines = [f"# Profile update checklist — {d.get('concept_name', 'brand kit')}", "",
+             f"Profile picture (same on every platform): `{kit.avatar}`"]
+    if handle and d.get("handle_note"):
+        lines.append(f"Handle: `@{handle}` — {d['handle_note']} Leave it as it is.")
+    elif handle:
+        lines.append(f"Handle to claim everywhere: `@{handle}`"
+                     + (f" (fallbacks: {', '.join('@' + h for h in fallbacks)})" if fallbacks else ""))
+        lines.append("Handles can't be checked from here. Changing a handle breaks old links to your profile, and "
+                     "TikTok/Instagram limit how often you can change it.")
+    if d.get("link_in_bio_suggestion"):
+        lines += ["", f"Profile link (same on TikTok, Instagram and X): {d['link_in_bio_suggestion']}"]
+    lines.append("")
     sections = [
         ("tiktok", "TikTok", [("Name", names.get("tiktok", "")), ("Bio", bios.get("tiktok", ""))], []),
         ("instagram", "Instagram", [("Name", names.get("instagram", "")), ("Bio", bios.get("instagram", ""))], []),
@@ -196,7 +219,7 @@ def checklist(kit: BrandKit) -> str:
         for e in extra:
             lines.append(f"- [ ] {e}")
         if d.get("link_in_bio_suggestion") and key != "youtube":
-            lines.append(f"- [ ] Link: {d['link_in_bio_suggestion']}")
+            lines.append("- [ ] Profile link (see the note at the top)")
         lines.append("")
     lines.append("## YouTube description")
     lines.append("```")

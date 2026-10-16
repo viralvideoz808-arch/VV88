@@ -358,3 +358,17 @@ def test_cli_approve_requires_the_shown_fingerprint(tmp_path, monkeypatch, capsy
     assert main(["-c", "config.yaml", "brand", "approve", "--dir", str(kit.root),
                  "--fingerprint", kit.fingerprint()]) == 0
     assert "approved fingerprint" in capsys.readouterr().out
+
+
+def test_approval_travels_with_the_kit_folder(tmp_path):
+    kit = make_kit(tmp_path)
+    b.approve(kit, Store(tmp_path / "machine1.db"), note="owner")
+    assert (kit.root / "APPROVAL.json").exists()
+    # A different machine (fresh database) honours the committed approval...
+    other = Store(tmp_path / "machine2.db")
+    assert b.approval(b.load_kit(kit.root), other)["note"] == "owner"
+    # ...until anything in the kit changes.
+    (kit.root / "avatar_1024.png").write_bytes(b"edited")
+    assert b.approval(b.load_kit(kit.root), other) is None
+    (kit.root / "APPROVAL.json").write_text("not json")
+    assert b.approval(b.load_kit(kit.root), other) is None
