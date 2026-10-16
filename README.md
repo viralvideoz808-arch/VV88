@@ -179,6 +179,8 @@ vv88 links                                 # posted URLs per campaign, to submit
 
 Run it 24/7 with Docker (`docker build -t vv88 . && docker run -p 127.0.0.1:8088:8088 -v $PWD:/work vv88`, which starts the control website; turn on Autopilot there), with cron (`*/30 * * * * cd /path && vv88 run --once`), or as a systemd service.
 
+On an Android phone, run it in Termux: `bash scripts/termux_setup.sh`, then `bash scripts/termux_start.sh` (full steps in [docs/TERMUX.md](docs/TERMUX.md)). Phones can't install faster-whisper, so captions are transcribed with whisper.cpp instead. VV88 switches to it automatically when faster-whisper is missing.
+
 ### Optional: Claude as editor-in-chief
 
 Set `llm.enabled: true` and `ANTHROPIC_API_KEY`. The heuristic shortlist (about 15 windows of transcript text, not the video) goes to Claude. Claude picks the best clips and writes the hook text, title, caption and niche hashtags. This costs cents per source video; everything else stays free.

@@ -36,8 +36,16 @@ def cmd_doctor(settings: Settings, _args) -> int:
         filters = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
         line(" ass " in filters, "libass (animated captions)")
         line(" loudnorm " in filters, "loudnorm (-14 LUFS audio)")
+    try:
+        __import__("faster_whisper")
+        line(True, "transcription", "faster-whisper")
+    except ImportError:
+        from vv88.analysis.transcribe import whisper_cpp_engine
+
+        engine = whisper_cpp_engine(settings.analysis)
+        line(bool(engine), "transcription", f"whisper.cpp ({engine[1].name})" if engine else
+             "pip install 'vv88[transcribe]', or build whisper.cpp (scripts/termux_setup.sh on Android)")
     for mod, label, extra in [
-        ("faster_whisper", "faster-whisper (transcription)", "transcribe"),
         ("cv2", "OpenCV (face-tracked reframing)", "vision"),
         ("yt_dlp", "yt-dlp (source downloads)", "download"),
     ]:

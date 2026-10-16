@@ -370,8 +370,16 @@ def system_checks(settings: Settings) -> list[dict]:
             "Your FFmpeg was built without libass; install a full build.")
         add("loudnorm audio filter", "loudnorm" in ff["filters"], "-14 LUFS loudness",
             "Your FFmpeg lacks loudnorm; install a full build.")
-    for module, label, extra in (("faster_whisper", "faster-whisper (transcription)", "transcribe"),
-                                 ("cv2", "OpenCV (face-tracked reframing)", "vision"),
+    fw_ok, fw_err = _cached("import:faster_whisper", lambda: _importable("faster_whisper"))
+    if fw_ok:
+        add("Transcription", True, "faster-whisper")
+    else:
+        from vv88.analysis.transcribe import whisper_cpp_engine
+
+        engine = whisper_cpp_engine(settings.analysis)
+        add("Transcription", bool(engine), f"whisper.cpp ({engine[1].name})" if engine else fw_err,
+            "pip install 'vv88[transcribe]', or build whisper.cpp (scripts/termux_setup.sh on Android).")
+    for module, label, extra in (("cv2", "OpenCV (face-tracked reframing)", "vision"),
                                  ("yt_dlp", "yt-dlp (source downloads)", "download")):
         ok, err = _cached(f"import:{module}", lambda m=module: _importable(m))
         add(label, ok, "" if ok else err, f"pip install 'vv88[{extra}]'")
