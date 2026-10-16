@@ -88,12 +88,12 @@ def test_connect_x_saves_rotating_tokens(monkeypatch, store, tmp_path):
     monkeypatch.setattr(c, "_authorize", lambda url, port, state, open_browser: "code1")
     http = FakeSession([
         ("POST", "oauth2/token", FakeResp(body={"access_token": "at", "refresh_token": "rt", "expires_in": 7200})),
-        ("GET", "users/me", FakeResp(body={"data": {"username": "artkdclips"}})),
+        ("GET", "users/me", FakeResp(body={"data": {"username": "exampleclips"}})),
     ])
     s = Settings()
     s.publishing.direct.x_client_id = "cid"
     res = c.connect_platform("x", s, store, open_browser=False, env_path=tmp_path / ".env", http=http)
-    assert res["account"] == "@artkdclips"
+    assert res["account"] == "@exampleclips"
     assert store.kv_get("oauth:x")["refresh_token"] == "rt"
     assert "X_REFRESH_TOKEN=rt" in (tmp_path / ".env").read_text()
     token_call = http.calls[0][2]["data"]
@@ -106,12 +106,12 @@ def test_connect_instagram_finds_professional_account(monkeypatch, store, tmp_pa
         ("GET", "oauth/access_token", lambda url, kw: FakeResp(body={"access_token": "long" if kw["params"].get(
             "grant_type") else "short", "expires_in": 5_184_000})),
         ("GET", "me/accounts", FakeResp(body={"data": [{"name": "Page", "instagram_business_account": {
-            "id": "1784", "username": "art0kd"}}]})),
+            "id": "1784", "username": "example_ig"}}]})),
     ])
     s = Settings()
     s.publishing.direct.facebook_app_id, s.publishing.direct.facebook_app_secret = "app", "sec"
     res = c.connect_platform("instagram", s, store, open_browser=False, env_path=tmp_path / ".env", http=http)
-    assert res["account"] == "@art0kd" and res["ig_id"] == "1784"
+    assert res["account"] == "@example_ig" and res["ig_id"] == "1784"
     env = (tmp_path / ".env").read_text()
     assert "INSTAGRAM_ACCESS_TOKEN=long" in env and "INSTAGRAM_USER_ID=1784" in env
     status = dict((n, (ok, d)) for n, ok, d in c.link_status(load_settings_with(env, tmp_path), store))
@@ -129,8 +129,8 @@ def load_settings_with(env_text, tmp_path):
 
 def test_connect_postiz_maps_integrations(tmp_path):
     http = FakeSession([("GET", "/integrations", FakeResp(body=[
-        {"id": "i-tt", "identifier": "tiktok", "name": "artkd"},
-        {"id": "i-ig", "identifier": "instagram-standalone", "name": "art0kd"},
+        {"id": "i-tt", "identifier": "tiktok", "name": "example"},
+        {"id": "i-ig", "identifier": "instagram-standalone", "name": "example_ig"},
         {"id": "i-x", "identifier": "x", "name": "x", "disabled": True},
     ]))])
     res = c.connect_key("postiz", Settings(), env_path=tmp_path / ".env", key="pz", http=http)
@@ -146,9 +146,9 @@ def make_kit(tmp_path, **overrides):
     root.mkdir(exist_ok=True)
     (root / "avatar_1024.png").write_bytes(b"png-bytes")
     data = {
-        "concept_name": "test", "unified_handle": "artkdclips", "handle_fallbacks": ["artkd.clips"],
-        "display_names": {"tiktok": "artkd clips", "instagram": "artkd clips", "x": "artkd clips",
-                          "youtube": "artkd signal"},
+        "concept_name": "test", "unified_handle": "exampleclips", "handle_fallbacks": ["example.clips"],
+        "display_names": {"tiktok": "Example Clips", "instagram": "Example Clips", "x": "Example Clips",
+                          "youtube": "Example Channel"},
         "bios": {"tiktok": "Best moments, clipped daily.", "instagram": "Best moments from long videos.",
                  "x": "Clips worth your time.", "youtube_description": "Daily clips."},
         "youtube_keywords": ["clips", "podcast clips"],
@@ -183,7 +183,7 @@ def test_apply_updates_youtube_writable_fields_only_and_writes_checklist(tmp_pat
     b.approve(kit, store)
     http = FakeSession([
         ("GET", "youtube/v3/channels", FakeResp(body={"items": [{"id": "UC1", "brandingSettings": {
-            "channel": {"title": "artkd signal", "country": "KE", "description": "old", "unsubscribedTrailer": "v9"},
+            "channel": {"title": "Example Channel", "country": "KE", "description": "old", "unsubscribedTrailer": "v9"},
             "image": {"bannerExternalUrl": "https://banner"}}}]})),
         ("PUT", "youtube/v3/channels", FakeResp(body={"id": "UC1"})),
     ])
@@ -194,5 +194,5 @@ def test_apply_updates_youtube_writable_fields_only_and_writes_checklist(tmp_pat
     assert "title" not in ch and "image" not in body["brandingSettings"]
     assert ch["keywords"] == 'clips "podcast clips"'
     text = (kit.root / "APPLY_CHECKLIST.md").read_text()
-    assert "Best moments, clipped daily." in text and "@artkdclips" in text
+    assert "Best moments, clipped daily." in text and "@exampleclips" in text
     assert res["youtube"]["ok"]
