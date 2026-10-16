@@ -83,7 +83,8 @@ def seed(root: Path, chdir: bool = True) -> Path:
                             hook_type=htype, hook_text=hook, title=hook, text=hook,
                             hashtags=["#finance", "#money", "#podcast"], cover_ms=1300, score=8.0 - i * 0.6)
         store.add_clip(clip)
-        for j, platform in enumerate(("tiktok", "youtube", "instagram", "x")):
+        pays = next(c["platforms"] for c in CAMPAIGNS if c["id"] == camp)
+        for j, platform in enumerate(p for p in ("tiktok", "youtube", "instagram", "x") if p in pays):
             when = now - (6 - i) * 86400 + j * 3600 if i < 4 else now + (i - 3) * 5400 + j * 1800
             pid = store.schedule_post(clip.id, platform, when, {
                 "platform": platform, "caption": f"{hook}\n\n#moneytalks #fyp", "title": hook if platform == "youtube" else "",

@@ -32,11 +32,11 @@ def test_queue_renders_scheduled_by_default(client):
     t = r.text
     assert 'action="/queue/publish-due"' in t and "Publish due now" in t
     assert 'aria-current="page">Scheduled' in t
-    # KPI counts: 8 scheduled, 15 posted, 1 failed, 0 skipped in the demo seed
-    assert re.search(r"Scheduled</div><div class=\"kpi-value\">8<", t)
+    # KPI counts: 4 scheduled, 15 posted, 1 failed, 0 skipped in the demo seed
+    assert re.search(r"Scheduled</div><div class=\"kpi-value\">4<", t)
     assert re.search(r"Posted</div><div class=\"kpi-value\">15<", t)
     assert re.search(r"Failed</div><div class=\"kpi-value\">1<", t)
-    assert t.count("/publish-now") == 8 and t.count("/cancel") == 8
+    assert t.count("/publish-now") == 4 and t.count("/cancel") == 4
     assert 'href="/clips/demo04aaaaaaaaaa"' in t and "The clutch nobody saw coming" in t
     assert "<details>" in t and "#moneytalks #fyp" in t      # caption preview
     assert "in 1h" in t or "in 2h" in t                      # fmt_ago on upcoming posts
@@ -51,7 +51,7 @@ def test_queue_tabs(client):
     skipped = client.get("/queue", params={"status": "skipped"}).text
     assert "No cancelled posts" in skipped
     everything = client.get("/queue", params={"status": "all"}).text
-    assert everything.count('<td class="c-plat">') == 24
+    assert everything.count('<td class="c-plat">') == 20
 
 
 def test_queue_unknown_status_falls_back_with_warning(client):
