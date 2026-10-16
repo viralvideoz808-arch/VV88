@@ -13,8 +13,11 @@
   .pf .bar.neg > span { background: var(--err); }
   .pf .bar.soft > span { background: var(--info); }
   .pf-barcell { width: 34%; }
+  .pf-share { display: flex; align-items: center; gap: 8px; }
+  .pf-share .bar { flex: 1 1 auto; }
+  .pf-share .small { flex: 0 0 auto; min-width: 38px; text-align: right; }
   .pf-dim h3 { margin-top: 2px; }
-  .pf-note { margin: -4px 0 14px; }
+  .pf-note { margin: -4px 0 14px; max-width: 900px; }
   .pf-url { overflow-wrap: anywhere; word-break: break-word; }
   .pf-hook { font-weight: 600; color: var(--text); }
   .pf-hook:hover { color: var(--accent); text-decoration: none; }
@@ -45,11 +48,9 @@
 </div>
 
 <div class="card section">
-  <div class="row between">
-    <h2>What's winning this week</h2>
-    {% if has_winning %}<span class="muted small">from {{ usable }} post{{ "s" if usable != 1 }} at least {{ min_age_h }}h old</span>{% endif %}
-  </div>
-  <p class="muted small pf-note">Uplift is views compared with the platform average for posts with that choice. Results decay with a
+  <h2>What's winning this week</h2>
+  <p class="muted small pf-note">Uplift is views compared with the platform average for posts with that choice{% if has_winning %}
+    (from {{ usable }} post{{ "s" if usable != 1 }} at least {{ min_age_h }}h old){% endif %}. Results decay with a
     {{ half_life }}-day half-life, so this follows what works now, and new clips lean toward the winners automatically.</p>
   {% if has_winning %}
   <div class="grid cols-3">
@@ -92,8 +93,8 @@
           <td class="num">{{ p.posts }}{% if p.measured != p.posts %}<div class="muted small">{{ p.measured }} measured</div>{% endif %}</td>
           <td class="num nowrap">{{ "{:,}".format(p.views) }}</td>
           <td class="num nowrap pf-hide-sm">{{ "{:,}".format(p.avg) if p.avg is not none else "—" }}</td>
-          <td class="pf-barcell"><div class="bar soft" role="img" aria-label="{{ p.share }}% of views"><span style="width: {{ p.width }}%"></span></div>
-            <div class="muted small">{{ p.share }}%</div></td>
+          <td class="pf-barcell"><div class="pf-share"><div class="bar soft" role="img" aria-label="{{ p.share }}% of views"><span style="width: {{ p.width }}%"></span></div>
+            <span class="muted small">{{ p.share }}%</span></div></td>
         </tr>
       {% endfor %}
       </tbody>

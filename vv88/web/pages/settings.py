@@ -205,6 +205,7 @@ def parse_values(v: dict) -> tuple[dict, list[str]]:
     force = v.get("force_style", "")
     if force and force not in STYLES:
         errors.append("Unknown style to force.")
+        force = ""
     font = v.get("font", "")
     if not font or not FONT_RE.match(font):
         errors.append("Caption font must be a font name like 'Inter Black' (letters, digits, spaces).")

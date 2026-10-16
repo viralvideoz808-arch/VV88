@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  {{ ui.action("/settings/benchmark", "Benchmark", csrf_field, "ghost") }}
+  <button class="btn primary" form="settings-form">Save settings</button>
+{% endblock %}
+{% block content %}
+<style>
+  .settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+  .settings-layout > .stack-col > .card + .card, .side-col > .card + .card { margin-top: 14px; }
+  .side-col { position: sticky; top: 16px; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; }
+  .fgrid.wide { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .fgrid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fgrid > .check { align-self: end; min-height: 40px; margin-bottom: 12px; }
+  .card .lead { margin: -4px 0 14px; }
+  .plat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .plat-box { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 0; min-width: 0; }
+  .plat-box .check { margin-bottom: 10px; justify-content: space-between; }
+  .plat-box .field { margin-bottom: 10px; }
+  .plat-box input[type=number] { padding: 6px 9px; }
+  .style-opt { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+  .style-opt:first-of-type { border-top: 0; }
+  .style-opt input { margin-top: 2px; flex: none; }
+  .style-opt .desc { display: block; }
+  .chk { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .chk:first-of-type { border-top: 0; }
+  .chk .what { min-width: 0; }
+  .chk .detail { overflow-wrap: anywhere; }
+  .hint-err { color: var(--warn); }
+  .save-row { margin-top: 14px; }
+  @media (max-width: 1100px) {
+    .settings-layout { grid-template-columns: minmax(0, 1fr); }
+    .side-col { position: static; }
+  }
+</style>
+
+<div class="settings-layout">
+<div class="stack-col">
+<form method="post" action="/settings" id="settings-form" novalidate>
+  {{ csrf_field() }}
+
+  <div class="card">
+    <h2>Publishing</h2>
+    <div class="fgrid wide">
+      <label class="field"><span>Backend</span>
+        <select name="backend">
+          {% for b in backends %}<option value="{{ b }}" {{ "selected" if v.backend == b }}>{{ {"dry_run": "dry_run — write to data/outbox only", "postiz": "postiz — post through Postiz", "direct": "direct — official platform APIs"}[b] }}</option>{% endfor %}
+        </select>
+        <span class="hint">Link accounts on <a href="/connections">Connections</a> before leaving dry-run.</span>
+      </label>
+      <label class="field"><span>Posting slots (UTC)</span>
+        <input type="text" name="slots_utc" value="{{ v.slots_utc }}" placeholder="02:00, 06:00, 12:00">
+        <span class="hint">Comma-separated HH:MM times.</span>
+      </label>
+    </div>
+    <div class="fgrid wide">
+      <label class="check"><input type="checkbox" name="disclose_paid_partnership" {{ "checked" if v.disclose_paid_partnership }}>
+        Disclose paid partnerships</label>
+      <label class="field"><span>Disclosure tag</span>
+        <input type="text" name="disclosure_tag" value="{{ v.disclosure_tag }}" maxlength="40" placeholder="#ad"></label>
+    </div>
+    <h3>Platforms</h3>
+    <div class="plat-grid">
+      {% for p, label in platforms %}
+      <div class="plat-box">
+        <label class="check">{{ ui.platform(p) }}
+          <span class="row small" style="gap:6px"><input type="checkbox" name="{{ p }}_enabled" {{ "checked" if v[p ~ "_enabled"] }}> on</span></label>
+        <label class="field"><span>Posts per day</span>
+          <input type="number" name="{{ p }}_daily_cap" min="1" max="50" step="1" value="{{ v[p ~ '_daily_cap'] }}"></label>
+        <label class="field"><span>Min. gap (minutes)</span>
+          <input type="number" name="{{ p }}_min_gap_minutes" min="0" max="1440" step="1" value="{{ v[p ~ '_min_gap_minutes'] }}"></label>
+        <label class="field"><span>Max hashtags</span>
+          <input type="number" name="{{ p }}_max_hashtags" min="0" max="30" step="1" value="{{ v[p ~ '_max_hashtags'] }}"></label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Finding clips</h2>
+    <h3>Clip length (seconds)</h3>
+    <div class="fgrid three">
+      <label class="field"><span>Shortest</span>
+        <input type="number" name="min_clip_seconds" min="5" max="180" step="any" value="{{ v.min_clip_seconds }}"></label>
+      <label class="field"><span>Target</span>
+        <input type="number" name="target_clip_seconds" min="5" max="180" step="any" value="{{ v.target_clip_seconds }}"></label>
+      <label class="field"><span>Longest</span>
+        <input type="number" name="max_clip_seconds" min="5" max="180" step="any" value="{{ v.max_clip_seconds }}"></label>
+    </div>
+    <div class="fgrid">
+      <label class="field"><span>Clips per source</span>
+        <input type="number" name="clips_per_source" min="1" max="20" step="1" value="{{ v.clips_per_source }}"></label>
+      <label class="field"><span>Transcription model</span>
+        <select name="whisper_model">
+          {% for m in whisper_models %}<option value="{{ m }}" {{ "selected" if v.whisper_model == m }}>{{ m }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Language</span>
+        <input type="text" name="language" value="{{ v.language }}" maxlength="2" placeholder="auto">
+        <span class="hint">Blank = detect; or en, es…</span></label>
+    </div>
+    <p class="muted small" style="margin:0">tiny/base are fastest; medium/large-v3 are more accurate but much slower on a CPU.</p>
+  </div>
+
+  <div class="card">
+    <h2>Editing</h2>
+    <h3>Caption styles to A/B test</h3>
+    <div style="margin-bottom:14px">
+      {% for name, desc, split in styles %}
+      <label class="style-opt"><input type="checkbox" name="styles" value="{{ name }}" {{ "checked" if name in v.styles }}>
+        <span><strong>{{ name }}</strong>{% if split %} {{ ui.badge("needs gameplay folder", "muted") }}{% endif %}
+          <span class="muted small desc">{{ desc }}</span></span></label>
+      {% endfor %}
+    </div>
+    <div class="fgrid wide">
+      <label class="field"><span>Force one style</span>
+        <select name="force_style">
+          <option value="" {{ "selected" if not v.force_style }}>No — let the optimizer choose</option>
+          {% for name, desc, split in styles %}<option value="{{ name }}" {{ "selected" if v.force_style == name }}>{{ name }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Reframing</span>
+        <select name="reframe">
+          {% for r in reframes %}<option value="{{ r }}" {{ "selected" if v.reframe == r }}>{{ r }}</option>{% endfor %}
+        </select></label>
+    </div>
+    <div class="fgrid wide">
+      <label class="field"><span>Caption font</span>
+        <input type="text" name="font" value="{{ v.font }}" maxlength="100" placeholder="Inter Black"></label>
+      <label class="field"><span>Gameplay folder (on this server)</span>
+        <input type="text" name="gameplay_dir" value="{{ v.gameplay_dir }}" maxlength="500" placeholder="blank = off" spellcheck="false">
+        <span class="hint">Loops you own or royalty-free, for brainrot_stack.</span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Claude re-ranker <span class="muted small">(optional, paid API)</span></h2>
+    <label class="check"><input type="checkbox" name="llm_enabled" {{ "checked" if v.llm_enabled }}>
+      Re-rank clip candidates and write captions with Claude</label>
+    <div class="fgrid wide">
+      <label class="field"><span>Model</span>
+        <input type="text" name="llm_model" value="{{ v.llm_model }}" maxlength="100" spellcheck="false"></label>
+      <label class="field"><span>Effort</span>
+        <select name="llm_effort">
+          {% for e in efforts %}<option value="{{ e }}" {{ "selected" if v.llm_effort == e }}>{{ e }}</option>{% endfor %}
+        </select></label>
+    </div>
+    <p class="muted small" style="margin:0">Needs <code>ANTHROPIC_API_KEY</code> — add it on <a href="/connections#api-keys">Connections</a>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Ranking, optimizer &amp; discovery</h2>
+    <div class="fgrid">
+      <label class="field"><span>Campaigns per cycle</span>
+        <input type="number" name="campaigns_per_cycle" min="1" max="10" step="1" value="{{ v.campaigns_per_cycle }}"></label>
+      <label class="field"><span>Starting views guess / clip</span>
+        <input type="number" name="prior_views_per_clip" min="1" step="any" value="{{ v.prior_views_per_clip }}"></label>
+      <label class="field"><span>Optimizer half-life (days)</span>
+        <input type="number" name="half_life_days" min="1" max="60" step="any" value="{{ v.half_life_days }}"></label>
+    </div>
+    <div class="fgrid">
+      <label class="check"><input type="checkbox" name="whop_enabled" {{ "checked" if v.whop_enabled }}>
+        Discover Whop campaigns via Apify</label>
+      <label class="field"><span>Skip campaigns with under ($ left)</span>
+        <input type="number" name="min_budget_remaining_usd" min="0" step="any" value="{{ v.min_budget_remaining_usd }}"></label>
+      <label class="field"><span>Niche signal region</span>
+        <input type="text" name="region_code" value="{{ v.region_code }}" maxlength="2" placeholder="US"></label>
+    </div>
+  </div>
+
+  <div class="row save-row">
+    <button class="btn primary">Save settings</button>
+    <span class="muted small">Writes <code>{{ config_name }}</code> (previous copy kept as <code>{{ config_name }}.bak</code>;
+      comments aren't preserved). Secrets live on <a href="/connections">Connections</a>.</span>
+  </div>
+</form>
+</div>
+
+<div class="side-col">
+  <div class="card">
+    <div class="row between"><h2>System check</h2>
+      {{ ui.badge("all good", "ok") if checks_ok else ui.badge("needs attention", "warn") }}</div>
+    {% for c in checks %}
+    <div class="chk">
+      <div class="what">
+        <div class="small"><strong>{{ c.label }}</strong></div>
+        {% if c.detail %}<div class="muted small detail">{{ c.detail }}</div>{% endif %}
+        {% if c.hint %}<div class="small hint-err">{{ c.hint }}</div>{% endif %}
+      </div>
+      <div>{{ ui.badge("ok", "ok") if c.ok else ui.badge("missing", "muted" if c.optional else "err") }}</div>
+    </div>
+    {% endfor %}
+    <p class="muted small" style="margin:10px 0 0">Re-checked at most once a minute.</p>
+  </div>
+
+  <div class="card">
+    <h2>Render benchmark</h2>
+    <p class="muted small" style="margin-top:0">Renders a 20-second captioned test clip to estimate how many clips a day this
+      machine can make.</p>
+    {% if running %}
+      <p class="small">{{ ui.status("running") }} <a href="/jobs/{{ running.id }}">Benchmark job #{{ running.id }}</a></p>
+    {% elif benchmark and benchmark.ok %}
+      <div class="grid kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        {{ ui.kpi("Render time", benchmark.render_seconds ~ " s", benchmark.clip_seconds ~ " s clip") }}
+        {{ ui.kpi("Clips / day", benchmark.clips_per_day) }}
+      </div>
+      <p class="muted small" style="margin-bottom:0"><a href="/jobs/{{ benchmark.id }}">Job #{{ benchmark.id }}</a> ·
+        {{ fmt_ago(benchmark.finished_at) }}</p>
+    {% elif benchmark %}
+      <p class="small">{{ ui.status(benchmark.status) }} <a href="/jobs/{{ benchmark.id }}">Last benchmark (job #{{ benchmark.id }})</a>
+        didn't finish. Check the system check above, then run it again.</p>
+    {% else %}
+      {{ ui.empty("No benchmark yet. Press Benchmark (top right) to measure this machine.") }}
+    {% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}

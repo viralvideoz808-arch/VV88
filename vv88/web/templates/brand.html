@@ -79,8 +79,8 @@
     {% else %}{{ ui.badge("Waiting for your approval", "warn") }}{% endif %}
   </div>
   <div class="small muted bk-meta">Fingerprint <code>{{ fingerprint }}</code> ·
-    {% if approved %}approved {{ fmt_time(approved.approved_at) }}{% if approved.note %} (via {{ approved.note }}){% endif %}.
-      Any later change to the pictures or text resets the approval.
+    {% if approved %}approved {{ fmt_time(approved.approved_at) }}{% if approved.note == "web" %} on this page{% elif approved.note %}
+      (note: “{{ approved.note }}”){% endif %}. Any later change to the pictures or text resets the approval.
     {% elif stale_approval %}the kit changed since it was last approved: review it again and re-approve.
     {% else %}not approved yet. Nothing is changed on any account until you approve this exact kit.{% endif %}
   </div>
