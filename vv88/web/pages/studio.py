@@ -21,7 +21,6 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from vv88.editing.styles import STYLES
-from vv88.models import PLATFORMS
 from vv88.publishing.base import redact
 from vv88.web.core import context, flash, read_form, redirect, render, require_user, verify_csrf
 
@@ -185,9 +184,9 @@ def _page(request: Request, ctx, values: dict, status_code: int = 200):
                     else ("" if name in settings.editing.styles else "Not in the Auto rotation."),
             "stats": (f"{n} post{'s' if n != 1 else ''} · {pct:+.0f}% vs your average" if n else "not tested yet"),
         })
-    enabled = settings.publishing.enabled_platforms()
-    if not enabled and settings.publishing.backend == "dry_run":
-        enabled = list(PLATFORMS)
+    from vv88.pipeline import Engine
+
+    enabled = Engine(settings).platforms_for(selected)  # what "post after rendering" will really use
     footage = [c for c in campaigns if c.source_urls][:5] if selected is None else []
     response = render(
         request, "studio.html", title="Clip studio",

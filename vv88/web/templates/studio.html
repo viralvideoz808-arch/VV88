@@ -119,7 +119,7 @@
             <span class="check-hint">Not needed when you pick a campaign and use one of its own source videos. Uploads always need it.</span></span></label>
         <label class="check"><input type="checkbox" name="post" {{ "checked" if v.post }}>
           <span>Schedule posts on enabled platforms after rendering
-            <span class="check-hint">{% for p in post_platforms %}{{ ui.platform(p) }} {% else %}No platforms enabled — turn some on in Settings.{% endfor %}
+            <span class="check-hint">{% for p in post_platforms %}{{ ui.platform(p) }} {% else %}{% if selected and (selected.platforms or selected.other_platforms) %}None of this campaign's platforms ({{ (selected.platforms + selected.other_platforms)|join(", ") }}) can be posted to here: turn them on in Settings, or pick another campaign.{% else %}No platforms enabled — turn some on in Settings.{% endif %}{% endfor %}
               {% if backend == "dry_run" %}· dry-run: posts are written to the outbox, not published{% endif %}</span></span></label>
       </div>
 

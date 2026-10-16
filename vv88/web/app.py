@@ -21,6 +21,7 @@ from vv88.connect import AuthStart, clean_text, complete_authorization, start_au
 from vv88.publishing.base import PublishError, redact
 from vv88.web.core import (
     DEVICE_COOKIE,
+    DEVICE_COOKIE_HTTPS,
     DEVICE_MAX_AGE,
     WEB_DIR,
     BodyLimit,
@@ -37,6 +38,7 @@ from vv88.web.core import (
     require_user,
     resolve_media,
     safe_next,
+    same_origin,
     verify_csrf,
 )
 from vv88.web.jobs import JobManager
@@ -98,6 +100,7 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
     app.state.throttle = LoginThrottle()
     app.state.web_password = password
     app.state.session_secret = secret
+    app.state.device_cookie = DEVICE_COOKIE_HTTPS if https_cookies else DEVICE_COOKIE
     app.add_middleware(SessionMiddleware, secret_key=secret, session_cookie="vv88_session",
                        same_site="lax", https_only=https_cookies, max_age=7 * 86400)
 
@@ -129,6 +132,14 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
         form = await read_form(request, max_files=0, max_fields=10, max_part_size=8 * 1024)
         throttle: LoginThrottle = app.state.throttle
         nxt = safe_next(str(form.get("next") or "/"))
+        if not same_origin(request):
+            # Another site (even another port on this host) posting here: refuse without counting a failure,
+            # so it can't use up this browser's attempts.
+            response = render(request, "login.html", title="Sign in", next=nxt,
+                              error="This sign-in came from another site. Open this site's address directly and "
+                                    "sign in there (behind a proxy, set VV88_WEB_BASE_URL).")
+            response.status_code = 403
+            return response
         # A browser that signed in before is limited by its own device id (not its address) and is exempt from
         # the global cap, so nobody else's failed guesses can lock it out.
         device = known_device(request)
@@ -150,8 +161,8 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
         request.session["csrf"] = secrets.token_urlsafe(32)
         response = RedirectResponse(nxt, status_code=303)
         if not device:
-            response.set_cookie(DEVICE_COOKIE, new_device_token(request), max_age=DEVICE_MAX_AGE, httponly=True,
-                                samesite="lax", secure=https_cookies)
+            response.set_cookie(app.state.device_cookie, new_device_token(request), max_age=DEVICE_MAX_AGE,
+                                httponly=True, samesite="lax", secure=https_cookies, path="/")
         return response
 
     @app.post("/logout", dependencies=[Depends(verify_csrf)])

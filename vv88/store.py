@@ -149,6 +149,17 @@ class Store:
         self.db.execute("UPDATE campaigns SET score=? WHERE id=?", (score, campaign_id))
         self.db.commit()
 
+    def set_campaign_scores(self, scores: dict[str, float]) -> None:
+        """Replace every campaign's score: the given ones, 0 for all others."""
+        with self.db:
+            self.db.execute("UPDATE campaigns SET score=0")
+            self.db.executemany("UPDATE campaigns SET score=? WHERE id=?", [(v, k) for k, v in scores.items()])
+
+    def campaigns_missing(self, key: str) -> set[str]:
+        """Ids of stored campaigns whose JSON lacks `key` (rows written by an older version)."""
+        rows = self.db.execute("SELECT id FROM campaigns WHERE json_type(data, ?) IS NULL", (f"$.{key}",))
+        return {r["id"] for r in rows.fetchall()}
+
     # ---- sources ---------------------------------------------------------
     def add_source(self, src: SourceVideo) -> None:
         self.db.execute(

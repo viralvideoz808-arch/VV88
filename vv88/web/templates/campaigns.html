@@ -155,7 +155,7 @@
         <td data-label="Niche">{{ c.category }}</td>
         <td data-label="$/1K" class="num">${{ "%.2f"|format(c.reward_per_1k_usd) }}</td>
         <td data-label="Budget left" class="num">{% if c.budget_remaining_usd is not none %}${{ "{:,.0f}".format(c.budget_remaining_usd) }}{% else %}<span class="muted">—</span>{% endif %}</td>
-        <td data-label="Platforms"><span class="plats">{% for p in c.platforms %}{{ ui.platform(p) }}{% else %}<span class="muted small">any</span>{% endfor %}</span></td>
+        <td data-label="Platforms"><span class="plats">{% for p in c.platforms %}{{ ui.platform(p) }}{% else %}{% if not c.other_platforms %}<span class="muted small">any</span>{% endif %}{% endfor %}{% if c.other_platforms %} <span class="muted small" title="VV88 can't post to these">{{ c.other_platforms|join(", ") }} (not supported)</span>{% endif %}</span></td>
         <td data-label="Sources" class="num">{% if c.source_urls %}{{ c.source_urls|length }}{% else %}<span class="muted">0</span>{% endif %}</td>
         <td data-label="Exp. $/clip" class="num">{{ ui.badge("$" ~ "%.2f"|format(r.score) ~ "/clip", "accent" if r.score > 0 else "muted") }}</td>
         <td data-label="Status">{{ ui.badge("active", "ok") }}</td>

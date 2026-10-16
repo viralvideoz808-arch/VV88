@@ -375,3 +375,104 @@ def test_studio_upload_work_runs_off_the_event_loop():
     from vv88.web.pages import studio
 
     assert not inspect.iscoroutinefunction(studio._start_clip)
+
+
+# ---- third review round -------------------------------------------------------------------
+def _sign_in(c, **headers):
+    return c.post("/login", data={"password": "test-password"}, headers=headers, follow_redirects=False)
+
+
+def test_password_change_withdraws_device_trust(app, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as owner:
+        assert _sign_in(owner).status_code == 303
+        old = owner.cookies.get("vv88_device")
+        monkeypatch.setenv("VV88_WEB_PASSWORD", "rotated-long-password-123")
+        app.state.throttle.all_fails.extend([time.time()] * app.state.throttle.global_limit)
+        owner.cookies.delete("vv88_session")
+        r = owner.post("/login", data={"password": "rotated-long-password-123"}, follow_redirects=False)
+        assert "Too many attempts" in r.text  # the old device token no longer exempts this browser
+        app.state.throttle.all_fails.clear()
+        r = owner.post("/login", data={"password": "rotated-long-password-123"}, follow_redirects=False)
+        assert r.status_code == 303 and owner.cookies.get("vv88_device") != old  # re-issued for the new password
+
+
+def test_cross_origin_sign_in_is_refused_without_using_up_attempts(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as c:
+        for _ in range(8):  # another port on the same host posting wrong passwords with this browser's cookies
+            r = c.post("/login", data={"password": "nope"}, headers={"Origin": "http://testserver:9999"})
+            assert r.status_code == 403
+        assert c.post("/login", data={"password": "nope"}, headers={"Origin": "null"}).status_code == 403
+        assert not app.state.throttle.all_fails  # none of those counted
+        assert _sign_in(c, Origin="http://testserver").status_code == 303  # same origin is fine
+        c.cookies.delete("vv88_session")
+        assert _sign_in(c, Referer="http://testserver/login").status_code == 303
+
+
+def test_malformed_or_planted_device_cookies_do_not_break_sign_in(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as owner:
+        assert _sign_in(owner).status_code == 303
+        token = owner.cookies.get("vv88_device")
+    app.state.throttle.all_fails.extend([time.time()] * app.state.throttle.global_limit)
+    with TestClient(app) as c:
+        r = _sign_in(c, Cookie='vv88_device="x.\\351"')
+        assert r.status_code == 200 and "Too many attempts" in r.text  # not a 500; just an unknown browser
+        # a planted second cookie with the same name can't hide the real one
+        assert _sign_in(c, Cookie=f"vv88_device={token}; vv88_device=planted.0000").status_code == 303
+
+
+def test_https_mode_uses_a_host_only_device_cookie(demo_root, brand_dir):
+    from fastapi.testclient import TestClient
+
+    from vv88.web.app import create_app
+
+    app = create_app(demo_root / "config.yaml", env_path=demo_root / ".env", brand_dir=brand_dir, start_jobs=False,
+                     https_cookies=True)
+    with TestClient(app, base_url="https://testserver") as c:
+        r = _sign_in(c)
+        assert r.status_code == 303
+        set_cookie = " ".join(r.headers.get_list("set-cookie"))
+        assert "__Host-vv88_device=" in set_cookie and "Secure" in set_cookie and "Domain" not in set_cookie
+
+
+def test_campaigns_stored_by_older_versions_are_rebuilt(demo_root):
+    import yaml
+
+    from vv88.models import Campaign
+    from vv88.pipeline import Engine
+
+    path = demo_root / "campaigns.yaml"
+    doc = yaml.safe_load(path.read_text())
+    items = doc["campaigns"] if isinstance(doc, dict) else doc
+    items.append({"id": "fb-only", "title": "FB only", "reward_per_1k_usd": 5, "platforms": ["facebook"]})
+    path.write_text(yaml.safe_dump(doc))
+    store = _store(demo_root)
+    legacy = Campaign(id="fb-only", title="FB only", reward_per_1k_usd=5).to_dict()
+    del legacy["other_platforms"]  # how a pre-upgrade row looks
+    store.db.execute("INSERT OR REPLACE INTO campaigns(id, data, updated_at, score) VALUES(?,?,?,?)",
+                     ("fb-only", json.dumps(legacy), time.time(), 47.09))
+    store.db.commit()
+    store.kv_set("upgrade:other_platforms", None)
+    store.kv_set("last_discovery", time.time())
+
+    engine = Engine(load_settings(demo_root / "config.yaml", env_path=demo_root / ".env"))
+    assert engine.platforms_for(engine.store.campaign("fb-only")) == []
+    assert engine.store.kv_get("last_discovery") == 0  # next cycle rediscovers the rest
+    engine.rank()
+    assert engine.store.campaign_scores()["fb-only"] == 0  # its old score doesn't linger
+
+
+def test_studio_and_clip_page_explain_campaigns_without_usable_platforms(client, demo_root):
+    from vv88.models import Campaign
+
+    store = _store(demo_root)
+    store.upsert_campaigns([Campaign(id="fb-only", title="FB only", reward_per_1k_usd=5,
+                                     other_platforms=["facebook"])])
+    page = client.get("/studio?campaign=fb-only").text
+    assert "None of this campaign" in page and "facebook" in page
+    assert "facebook (not supported)" in client.get("/campaigns").text

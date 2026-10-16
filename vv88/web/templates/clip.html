@@ -79,7 +79,10 @@
 
     <div class="card">
       <h2>Schedule</h2>
-      {% if not options %}
+      {% if not options and campaign and (campaign.platforms or campaign.other_platforms) %}
+        {{ ui.empty("This clip's campaign only pays on " ~ (campaign.platforms + campaign.other_platforms)|join(", ") ~ ", and none of those can be posted to here (switched off in Settings, or not supported by VV88).") }}
+        <p class="small"><a href="/settings">Open Settings →</a></p>
+      {% elif not options %}
         {{ ui.empty("No platforms are switched on, so there is nowhere to post. Enable at least one platform in Settings, then come back here.") }}
         <p class="small"><a href="/settings">Open Settings →</a></p>
       {% elif not exists %}

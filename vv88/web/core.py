@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import re
 import secrets
 import time
 from collections import deque
@@ -86,12 +87,20 @@ def password_tag(request: Request) -> str:
 
 
 DEVICE_COOKIE = "vv88_device"
+DEVICE_COOKIE_HTTPS = "__Host-vv88_device"  # __Host-: no other host or subdomain can set or override it
 DEVICE_MAX_AGE = 365 * 86400
+_DEVICE_RE = re.compile(r"([A-Za-z0-9_-]{16,64})\.([0-9a-f]{32})")
+
+
+def device_cookie_name(request: Request) -> str:
+    return getattr(request.app.state, "device_cookie", DEVICE_COOKIE)
 
 
 def _device_sig(request: Request, device_id: str) -> str:
+    # Bound to the password: changing VV88_WEB_PASSWORD withdraws every browser's trusted status too.
     key = str(getattr(request.app.state, "session_secret", "")).encode()
-    return hmac.new(key, f"device:{device_id}".encode(), hashlib.sha256).hexdigest()[:32]
+    msg = f"device:{device_id}:{password_tag(request)}".encode()
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:32]
 
 
 def new_device_token(request: Request) -> str:
@@ -101,11 +110,37 @@ def new_device_token(request: Request) -> str:
 
 
 def known_device(request: Request) -> str:
-    """The device id from a valid vv88_device cookie, else ''."""
-    device_id, _, sig = (request.cookies.get(DEVICE_COOKIE) or "")[:200].partition(".")
-    if device_id and sig and hmac.compare_digest(sig, _device_sig(request, device_id)):
-        return device_id
+    """The device id from any valid device cookie in the request, else ''.
+
+    Reads the raw Cookie header(s) so a second cookie of the same name (planted from another port or a
+    sibling domain) can't hide the real one; anything not in the exact token format is ignored.
+    """
+    name = device_cookie_name(request)
+    for header in request.headers.getlist("cookie"):
+        for part in header.split(";"):
+            key, sep, value = part.strip().partition("=")
+            m = _DEVICE_RE.fullmatch(value.strip().strip('"')) if sep and key.strip() == name else None
+            if m and hmac.compare_digest(m.group(2).encode(), _device_sig(request, m.group(1)).encode()):
+                return m.group(1)
     return ""
+
+
+def same_origin(request: Request) -> bool:
+    """False when a browser says the form was posted from another origin (another port, host or subdomain).
+
+    Requests without Origin/Referer (scripts, curl) can't carry a victim's cookies, so they pass.
+    """
+    source = request.headers.get("origin") or request.headers.get("referer")
+    if not source:
+        return True
+    if source == "null":
+        return False
+    netloc = urlparse(source).netloc.lower()
+    allowed = {request.url.netloc.lower()}
+    base = os.environ.get("VV88_WEB_BASE_URL", "")
+    if base:
+        allowed.add(urlparse(base).netloc.lower())
+    return netloc in allowed
 
 
 def logged_in(request: Request) -> bool:
