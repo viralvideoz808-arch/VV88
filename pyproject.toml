@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vv88"
+version = "0.1.0"
+description = "Automated clipping engine: picks the best-paying clipping campaign, cuts viral vertical clips locally with FFmpeg + Whisper, and publishes to TikTok, YouTube Shorts, Instagram Reels and X."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "pydantic>=2.5",
+  "PyYAML>=6.0",
+  "requests>=2.31",
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+# Local, free, unlimited transcription with word timestamps.
+transcribe = ["faster-whisper>=1.0"]
+# Face-tracked 9:16 reframing (OpenCV 4.x ships the Haar face cascades; 5.x does not).
+vision = ["opencv-python-headless>=4.8,<5"]
+# Downloading campaign source videos (YouTube, Google Drive, Dropbox, direct links...).
+download = ["yt-dlp>=2024.1.0"]
+# Optional Claude-powered highlight re-ranking and copywriting (paid API, off by default).
+llm = ["anthropic>=1.0"]
+all = [
+  "faster-whisper>=1.0",
+  "opencv-python-headless>=4.8,<5",
+  "yt-dlp>=2024.1.0",
+  "anthropic>=1.0",
+]
+dev = ["pytest>=8"]
+
+[project.scripts]
+vv88 = "vv88.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vv88*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["ffmpeg: needs the ffmpeg binary with libass"]

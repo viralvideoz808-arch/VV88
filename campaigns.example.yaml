@@ -1,0 +1,20 @@
+# Copy to campaigns.yaml. One entry per clipping campaign you've joined
+# (Whop Content Rewards, ClipAffiliates, a direct deal with a creator...).
+campaigns:
+  - id: example-podcast
+    title: "Example Podcast clipping campaign"
+    brand: "Example Podcast"
+    category: podcast                      # the niche; used for traffic signal + learning
+    reward_per_1k_usd: 1.50                # what the campaign pays per 1,000 views
+    budget_remaining_usd: 4000
+    platforms: [tiktok, youtube, instagram, x]
+    campaign_url: https://whop.com/...     # where you submit your post links for payout
+    source_urls:                           # footage the campaign authorises you to clip
+      - https://www.youtube.com/watch?v=VIDEO_ID
+    required_hashtags: ["#examplepod"]
+    required_mentions: ["@examplepod"]
+    keywords: ["example podcast"]          # brand terms the clip should mention if possible
+    min_views_for_payout: 1000
+    paid_partnership: true
+    requirements: |
+      Clips must be 15-90 seconds, vertical, with captions. Tag @examplepod.

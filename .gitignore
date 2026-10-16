@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+
+# Runtime data: downloaded sources, renders, database, secrets
+data/
+*.db
+.env
+config.yaml
+campaigns.yaml
