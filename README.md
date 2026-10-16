@@ -99,6 +99,8 @@ Register `http://127.0.0.1:8788/callback/` as the redirect URI in each developer
 
 Secrets are masked in all logs and error messages.
 
+Setting the profiles and linking from your own logged-in browser: see `docs/LAPTOP_SETUP.md`.
+
 ## Brand kit: one look across all four accounts
 
 A brand kit is a folder: `brand.json` plus images. It holds one profile picture, names, bios sized to each platform's limit, a YouTube banner and an X header.
