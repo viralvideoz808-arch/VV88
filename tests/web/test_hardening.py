@@ -614,3 +614,22 @@ def test_sign_in_returns_to_the_full_original_url(app):
         r = c.post("/login", data={"password": "test-password", "next": target}, follow_redirects=False)
         assert r.headers["location"] == target
         assert 'value="https://www.youtube.com/watch?v=demo1&amp;t=5"' in c.get(r.headers["location"]).text
+
+
+# ---- seventh review round -----------------------------------------------------------------
+def test_very_long_return_urls_still_let_you_sign_in(app):
+    from urllib.parse import quote
+
+    from fastapi.testclient import TestClient
+
+    long_source = quote("https://example.googlevideo.com/videoplayback?" + "&".join(f"k{i}=v{i}" for i in range(700)),
+                        safe="")
+    target = f"/studio?campaign=money-talks&source={long_source}"
+    assert len(target) > 6000
+    with TestClient(app) as c:
+        login_url = c.get(target, follow_redirects=False).headers["location"]
+        page = c.get(login_url).text
+        nxt = re.search(r'name="next" value="([^"]*)"', page).group(1).replace("&amp;", "&")
+        assert nxt == "/studio"  # too long to carry through the form: back to the page itself
+        r = c.post("/login", data={"password": "test-password", "next": nxt}, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/studio"

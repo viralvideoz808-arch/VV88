@@ -307,6 +307,9 @@ def redirect(request: Request, url: str, message: str = "", kind: str = "info") 
     return RedirectResponse(safe_next(url), status_code=303)
 
 
+MAX_NEXT = 2000  # characters of return URL kept through sign-in
+
+
 def safe_next(url: str) -> str:
     """Only allow same-site relative paths (no open redirects); anything odd, even unparseable, becomes '/'."""
     url = url or "/"
@@ -316,7 +319,12 @@ def safe_next(url: str) -> str:
         parsed = urlparse(url)
     except ValueError:
         return "/"
-    return "/" if parsed.scheme or parsed.netloc else url
+    if parsed.scheme or parsed.netloc:
+        return "/"
+    if len(url) > MAX_NEXT:
+        # The login form re-encodes it (up to 3x) into an 8 KB field: keep just the page for very long links.
+        return parsed.path if len(parsed.path) <= MAX_NEXT else "/"
+    return url
 
 
 # ---- rendering --------------------------------------------------------------------------
