@@ -97,6 +97,7 @@ table.table { width: 100%; border-collapse: collapse; }
 .table th { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; font-weight: 650; }
 .table tr:hover td { background: rgba(255,255,255,.015); }
 .table-wrap { overflow-x: auto; }
+.table .right, .table th.right { text-align: right; }
 
 .flash { padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; border: 1px solid var(--line); background: var(--panel); }
 .flash.success { border-color: rgba(61,220,132,.4); color: var(--ok); }
