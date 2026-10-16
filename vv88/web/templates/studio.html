@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}<a class="btn" href="/clips">Clips</a><a class="btn" href="/campaigns">Campaigns</a>{% endblock %}
+{% block content %}
+<style>
+  .studio-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .studio-side > .card + .card { margin-top: 14px; }
+  .step { display: flex; align-items: center; gap: 10px; margin: 20px 0 12px; font-size: 15px; }
+  .step:first-of-type { margin-top: 0; }
+  .step b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+            background: var(--accent); color: var(--accent-ink); font-size: 12.5px; flex: none; }
+  .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 2px 0 12px;
+        text-transform: uppercase; letter-spacing: .08em; }
+  .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  input[type=file] { width: 100%; background: #0f0f11; color: var(--muted); border: 1px dashed var(--line);
+                     border-radius: 9px; padding: 12px; font: inherit; }
+  input[type=file]::file-selector-button { font: inherit; font-weight: 600; margin-right: 12px; padding: 6px 12px;
+       border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; }
+  .styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .style-opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px;
+               padding: 11px 12px; background: var(--panel-2); cursor: pointer; min-width: 0; }
+  .style-opt:hover { border-color: #444; }
+  .style-opt:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .style-opt.disabled { opacity: .5; cursor: not-allowed; }
+  .style-opt input { accent-color: var(--accent); margin: 3px 0 0; flex: none; width: 16px; height: 16px; }
+  .style-opt .body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .style-opt .name { font-weight: 700; }
+  .style-opt .desc { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+  .style-opt .stat { font-size: 11.5px; color: var(--info); }
+  .style-opt .warn { font-size: 11.5px; color: var(--warn); }
+  .checks { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 14px; }
+  .checks .check { align-items: flex-start; }
+  .checks .check input { margin-top: 2px; flex: none; }
+  .check-hint { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .submit-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .n-field { max-width: 160px; }
+  .src-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .src-list li { display: flex; gap: 8px; align-items: center; background: var(--panel-2); border: 1px solid var(--line);
+                 border-radius: 9px; padding: 7px 8px 7px 10px; }
+  .src-url { flex: 1; min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
+  .src-actions { display: flex; gap: 6px; flex: none; }
+  .camp-block + .camp-block { margin-top: 14px; }
+  .camp-block h3 { text-transform: none; letter-spacing: 0; color: var(--text); font-size: 13px; margin-bottom: 6px; }
+  .job-list { list-style: none; margin: 0; padding: 0; }
+  .job-list li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .job-list li:last-child { border-bottom: 0; }
+  .job-main { min-width: 0; }
+  .job-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; display: block; }
+  .job-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+  .quick-fill { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: -4px 0 12px; }
+  .quick-fill .btn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .req { white-space: pre-line; max-height: 120px; overflow: auto; }
+  @media (max-width: 1100px) { .studio-grid { grid-template-columns: 1fr; } }
+</style>
+
+{% if ffmpeg_missing %}
+  <div class="flash error">ffmpeg isn't installed on this computer, so clips can't be rendered yet. Install it
+    (<code>sudo apt install ffmpeg</code> / <code>brew install ffmpeg</code>) and reload.</div>
+{% endif %}
+
+<div class="studio-grid">
+  <div class="card">
+    <form method="post" action="/studio/clip" enctype="multipart/form-data">
+      {{ csrf_field() }}
+
+      <h2 class="step"><b>1</b> Footage</h2>
+      <label class="field"><span>Video link or path on this computer</span>
+        <input type="text" name="source" id="source" maxlength="2048" value="{{ v.source }}" autocomplete="off"
+               placeholder="https://… link  or  /path/to/video.mp4">
+        <span class="hint">YouTube, Twitch, Drive and direct .mp4 links work, or a full path on this computer.</span></label>
+      {% if selected and selected.source_urls and v.source not in selected.source_urls %}
+      <div class="quick-fill"><span class="muted small">Campaign video:</span>
+        {% for u in selected.source_urls[:4] %}<a class="btn small ghost" title="{{ u }}" href="/studio?campaign={{ selected.id|urlencode }}&amp;source={{ u|urlencode }}">{{ u|replace("https://", "")|replace("http://", "")|replace("www.", "")|truncate(34, True, "…") }}</a>{% endfor %}
+      </div>
+      {% endif %}
+      <div class="or">or</div>
+      <label class="field"><span>Upload a video</span>
+        <input type="file" name="upload" accept="{{ accept }}">
+        <span class="hint">{{ video_exts|join(" ") }} · up to 4 GB{% if v.upload_note %} · <strong>{{ v.upload_note }}</strong>{% endif %}</span></label>
+
+      <h2 class="step"><b>2</b> Campaign &amp; amount</h2>
+      <div class="grid cols-2">
+        <label class="field"><span>Campaign</span>
+          <select name="campaign_id">
+            <option value="">No campaign (your own footage)</option>
+            {% for c in campaigns %}
+              <option value="{{ c.id }}" {{ "selected" if selected and c.id == selected.id }}>{{ c.title }} · ${{ "%.2f"|format(scores.get(c.id) or 0) }}/clip</option>
+            {% endfor %}
+          </select>
+          <span class="hint">Applies its hashtags, mentions and #ad rule.</span></label>
+        <label class="field n-field"><span>Number of clips</span>
+          <input type="number" name="n" min="1" max="{{ max_clips }}" step="1" value="{{ v.n }}" required>
+          <span class="hint">1–{{ max_clips }}</span></label>
+      </div>
+
+      <h2 class="step"><b>3</b> Style</h2>
+      <div class="styles" role="radiogroup" aria-label="Caption style">
+        <label class="style-opt">
+          <input type="radio" name="style" value="" {{ "checked" if not v.style }}>
+          <span class="body"><span class="name">Auto — optimizer picks</span>
+            <span class="desc">A/B-tests the styles and shifts toward whatever is winning on your accounts this week.</span>
+            <span class="stat">recommended</span></span>
+        </label>
+        {% for s in styles %}
+        <label class="style-opt {{ 'disabled' if s.disabled }}">
+          <input type="radio" name="style" value="{{ s.name }}" {{ "checked" if v.style == s.name }} {{ "disabled" if s.disabled }}>
+          <span class="body"><span class="name">{{ s.label }}</span>
+            <span class="desc">{{ s.description }}</span>
+            {% if s.hint %}<span class="warn">{{ s.hint }}</span>{% endif %}
+            <span class="stat">{{ s.stats }}</span></span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <h2 class="step"><b>4</b> Rights &amp; posting</h2>
+      <div class="checks">
+        <label class="check"><input type="checkbox" name="i_have_rights" {{ "checked" if v.i_have_rights }}>
+          <span>I own this footage or have permission to clip it
+            <span class="check-hint">Not needed when you pick a campaign and use one of its own source videos. Uploads always need it.</span></span></label>
+        <label class="check"><input type="checkbox" name="post" {{ "checked" if v.post }}>
+          <span>Schedule posts on enabled platforms after rendering
+            <span class="check-hint">{% for p in post_platforms %}{{ ui.platform(p) }} {% else %}No platforms enabled — turn some on in Settings.{% endfor %}
+              {% if backend == "dry_run" %}· dry-run: posts are written to the outbox, not published{% endif %}</span></span></label>
+      </div>
+
+      <div class="submit-row">
+        <span class="muted small">Runs in the background: download → transcribe → find hooks → render.</span>
+        <button class="btn primary">Start clipping</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="studio-side">
+    <div class="card">
+      {% if selected %}
+        <div class="row between"><h2>{{ selected.title }}</h2>{{ ui.badge("$" ~ "%.2f"|format(scores.get(selected.id) or 0) ~ "/clip", "accent") }}</div>
+        <p class="muted small">{{ selected.brand or "no brand" }} · {{ selected.category }} · ${{ "%.2f"|format(selected.reward_per_1k_usd) }}/1K
+          {% if selected.required_hashtags or selected.required_mentions %}<br>Adds {{ (selected.required_mentions + selected.required_hashtags)|join(" ") }}{% endif %}</p>
+        {% if selected.source_urls %}
+          <h3>Source videos</h3>
+          <ul class="src-list">
+            {% for u in selected.source_urls %}
+            <li><span class="src-url mono">{{ u }}</span>
+              <span class="src-actions">
+                <a class="btn small" href="/studio?campaign={{ selected.id|urlencode }}&amp;source={{ u|urlencode }}">Use</a>
+                <button type="button" class="btn small ghost" data-copy="{{ u }}">Copy</button></span></li>
+            {% endfor %}
+          </ul>
+          <p class="muted small">These are the campaign's own footage, so no permission box is needed.</p>
+        {% else %}
+          {{ ui.empty("This campaign lists no source videos. Use your own footage (tick the permission box) or add links on the Campaigns page.") }}
+        {% endif %}
+        {% if selected.requirements %}<h3 style="margin-top:14px">Requirements</h3><p class="small muted req">{{ selected.requirements }}</p>{% endif %}
+      {% else %}
+        <h2>Campaign footage</h2>
+        {% if footage %}
+          {% for c in footage %}
+          <div class="camp-block">
+            <h3>{{ c.title }} <span class="muted small">· ${{ "%.2f"|format(scores.get(c.id) or 0) }}/clip</span></h3>
+            <ul class="src-list">
+              {% for u in c.source_urls[:3] %}
+              <li><span class="src-url mono">{{ u }}</span>
+                <span class="src-actions">
+                  <a class="btn small" href="/studio?campaign={{ c.id|urlencode }}&amp;source={{ u|urlencode }}">Use</a>
+                  <button type="button" class="btn small ghost" data-copy="{{ u }}">Copy</button></span></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        {% else %}
+          {{ ui.empty("None of your campaigns list source videos yet. Add links on the Campaigns page, or paste your own footage and tick the permission box.") }}
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="row between"><h2>Recent clip jobs</h2><a href="/jobs" class="small">All jobs →</a></div>
+      {% if jobs %}
+      <ul class="job-list">
+        {% for j in jobs %}
+        <li>
+          <div class="job-main">
+            <a href="/jobs/{{ j.id }}">#{{ j.id }}</a> <span class="job-src small" title="{{ j.label }}">{{ j.label }}</span>
+            {% if j.detail %}<span class="muted small">{{ j.detail }}</span>{% endif %}
+          </div>
+          <div class="job-meta">{{ ui.status(j.status) }}<span class="muted small nowrap">{{ fmt_ago(j.created_at) }}</span></div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ ui.empty("No clip jobs yet. Start one with the form — it shows up here with its progress.") }}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

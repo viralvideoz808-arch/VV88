@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  <a class="btn ghost" href="/clips">All clips</a>
+  {% if exists %}<a class="btn" href="{{ media_url(clip.path) }}" download="{{ clip.id }}.mp4">Download</a>{% endif %}
+{% endblock %}
+{% block content %}
+<style>
+  .clip-detail { display: grid; grid-template-columns: minmax(220px, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .clip-detail > .card + .card, .clip-side > .card + .card { margin-top: 0; }
+  .clip-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .clip-player { padding: 0; overflow: hidden; }
+  .clip-player video { width: 100%; aspect-ratio: 9 / 16; background: #000; display: block; }
+  .clip-player .novideo { aspect-ratio: 9 / 16; display: grid; place-items: center; color: var(--muted); padding: 16px; text-align: center; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 14px; margin: 0; }
+  .facts div { min-width: 0; }
+  .facts dt { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+  .facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+  .clip-title { font-size: 16px; margin: 0 0 4px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; }
+  details[open] > summary { margin-bottom: 8px; }
+  .captions { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .caption-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .caption-text { white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; }
+  .plats .check { margin-bottom: 8px; flex-wrap: wrap; }
+  .table th.num, .table td.num { text-align: right; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 900px) {
+    .clip-detail { grid-template-columns: 1fr; }
+    .clip-player { max-width: 340px; width: 100%; justify-self: center; }
+  }
+  @media (max-width: 640px) {
+    .rtable thead { display: none; }
+    .rtable, .rtable tbody { display: block; width: 100%; }
+    .rtable tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 12px 0;
+                 border-bottom: 1px solid var(--line); }
+    .rtable tr:last-child { border-bottom: 0; }
+    .rtable td { display: block; border: 0; padding: 0; min-width: 0; }
+    .rtable td.nil { display: none; }
+    .rtable td.c-when { margin-left: auto; text-align: right; line-height: 1.3; }
+    .rtable td.c-link { flex: 1 1 55%; }
+    .rtable td.c-views { margin-left: auto; }
+    .rtable td.c-views::after { content: " views"; color: var(--muted); font-size: 12px; }
+    .rtable td.c-act { flex: 1 1 100%; padding-top: 4px; }
+  }
+</style>
+
+<div class="clip-detail">
+  <div class="card clip-player">
+    {% if exists %}
+      <video src="{{ media_url(clip.path) }}" preload="metadata" controls playsinline></video>
+    {% else %}
+      <div class="novideo">The video file for this clip is missing on disk ({{ clip.id }}.mp4). Re-render it from the Clip studio.</div>
+    {% endif %}
+  </div>
+
+  <div class="clip-side">
+    <div class="card">
+      {% if clip.title and clip.title != clip.hook_text %}<p class="clip-title"><strong>{{ clip.title }}</strong></p>{% endif %}
+      <dl class="facts">
+        <div><dt>Campaign</dt><dd>{% if campaign %}{{ campaign.title }}{% else %}{{ campaign_title }}{% endif %}</dd></div>
+        <div><dt>Style</dt><dd>{{ ui.badge(clip.style) }}</dd></div>
+        <div><dt>Length</dt><dd>{{ "%.1f"|format(clip.duration) }}s <span class="muted small">({{ clip.length_bucket }})</span></dd></div>
+        <div><dt>Score</dt><dd>{{ "%.2f"|format(clip.score) }}</dd></div>
+        <div><dt>Hook type</dt><dd>{{ clip.hook_type|replace("_", " ") }}</dd></div>
+        <div><dt>Created</dt><dd>{{ fmt_ago(created_at) }}</dd></div>
+        <div><dt>From source</dt><dd>{% if source and source.url %}<a href="{{ source.url }}" rel="noopener noreferrer" target="_blank">{{ source.title }}</a>{% elif source %}{{ source.title }}{% else %}<span class="muted">unknown</span>{% endif %}
+          <div class="muted small">{{ "%d:%02d"|format(clip.start // 60, clip.start % 60) }}–{{ "%d:%02d"|format(clip.end // 60, clip.end % 60) }}</div></dd></div>
+      </dl>
+      {% if clip.hashtags %}
+        <h3 class="section">Hashtags</h3>
+        <div class="tags">{% for h in clip.hashtags %}{{ ui.badge(h) }}{% endfor %}</div>
+      {% endif %}
+      {% if clip.text %}
+        <details class="section"><summary>Transcript of this clip</summary><p class="small" style="margin:0">{{ clip.text }}</p></details>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Schedule</h2>
+      {% if not options %}
+        {{ ui.empty("No platforms are switched on, so there is nowhere to post. Enable at least one platform in Settings, then come back here.") }}
+        <p class="small"><a href="/settings">Open Settings →</a></p>
+      {% elif not exists %}
+        {{ ui.empty("This clip's video file is missing, so it can't be posted. Re-render it in the Clip studio.") }}
+      {% elif not any_available %}
+        <p class="muted small">This clip is already in the queue or posted on every enabled platform. Manage the posts in the table below or on the <a href="/queue">Queue</a>.</p>
+      {% else %}
+        <p class="muted small">Puts the clip in the next free posting slot on each platform you tick (spacing and daily caps from Settings apply).
+          {% if backend == "dry_run" %}Dry-run mode: posts are written to <code>data/outbox/</code>, not to the platforms.{% endif %}</p>
+        <form method="post" action="/clips/{{ clip.id }}/schedule">
+          {{ csrf_field() }}
+          <div class="plats">
+          {% for o in options %}
+            <label class="check">
+              <input type="checkbox" name="platforms" value="{{ o.platform }}" {% if not o.available %}disabled{% else %}checked{% endif %}>
+              {{ ui.platform(o.platform) }}
+              {% if o.status == "skipped" %}<span class="muted small">cancelled before — will be queued again</span>
+              {% elif o.status %}<span class="muted small">already {{ o.status }}</span>{% endif %}
+            </label>
+          {% endfor %}
+          </div>
+          <button class="btn primary">Schedule</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="row between"><h2>Posts</h2><a class="small" href="/queue">Queue →</a></div>
+  {% if posts %}
+  <div class="table-wrap"><table class="table rtable">
+    <thead><tr><th>Platform</th><th>Status</th><th>When</th><th>Link</th><th class="num">Views</th><th></th></tr></thead>
+    <tbody>
+    {% for p in posts %}
+      {% set when = p.posted_at or p.scheduled_at %}
+      <tr>
+        <td class="c-plat">{{ ui.platform(p.platform) }}</td>
+        <td class="c-status">{{ ui.status(p.status) }}</td>
+        <td class="c-when nowrap"><span>{{ fmt_time(when) }}<br><span class="muted small">{{ fmt_ago(when) }}</span></span></td>
+        <td class="c-link{{ ' nil' if not (p.link or p.remote_id or p.error) }}">{% if p.link %}<a href="{{ p.link }}" rel="noopener noreferrer" target="_blank">Open post</a>{% elif p.remote_id %}<span class="mono small">{{ p.remote_id }}</span>{% elif not p.error %}<span class="muted">—</span>{% endif %}
+          {% if p.error %}<div class="small" style="color:var(--err);overflow-wrap:anywhere">{{ p.error }}</div>{% endif %}</td>
+        <td class="c-views num{{ ' nil' if p.views is none }}">{{ "{:,}".format(p.views) if p.views is not none else "—" }}</td>
+        <td class="c-act{{ ' nil' if p.status not in ('scheduled', 'failed') }}"><div class="acts">
+          {% if p.status == "scheduled" %}
+            {{ ui.action("/queue/" ~ p.id ~ "/publish-now", "Publish now", csrf_field, "small primary") }}
+            {{ ui.action("/queue/" ~ p.id ~ "/cancel", "Cancel", csrf_field, "small danger", "Cancel this " ~ p.platform ~ " post?", {"back": "/clips/" ~ clip.id}) }}
+          {% elif p.status == "failed" %}
+            {{ ui.action("/queue/" ~ p.id ~ "/retry", "Retry", csrf_field, "small") }}
+          {% endif %}
+        </div></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+    {{ ui.empty("This clip hasn't been scheduled yet. Tick the platforms in the Schedule box above.") }}
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Captions</h2>
+  {% if captions %}
+  <div class="captions">
+    {% for c in captions %}
+    <div class="caption-item">
+      <div class="row between">
+        <div class="row">{% if c.platform in ("tiktok", "youtube", "instagram", "x") %}{{ ui.platform(c.platform) }}{% else %}{{ ui.badge("All platforms" if c.platform == "default" else c.platform) }}{% endif %}{% if c.draft %}<span class="muted small">draft</span>{% endif %}</div>
+        <button class="btn small ghost" type="button" data-copy-target="#caption-{{ loop.index }}">Copy</button>
+      </div>
+      {% if c.title %}<p class="small" style="margin:8px 0 0"><span class="muted">Title:</span> {{ c.title }}</p>{% endif %}
+      <p class="caption-text small" id="caption-{{ loop.index }}">{{ c.text }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    {{ ui.empty("Captions are written per platform when the clip is scheduled. Schedule it above to generate them.") }}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  {{ ui.action("/campaigns/discover", "Discover + rank", csrf_field, "primary") }}
+  {{ ui.action("/campaigns/rank", "Re-rank", csrf_field, "") }}
+{% endblock %}
+{% block content %}
+<style>
+  .niches { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .niche { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+           display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .niche-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .niche-name { font-weight: 700; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .niche-rank { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .niche-value { font-size: 22px; font-weight: 750; line-height: 1.1; }
+  .niche-value small { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .niche-top { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  details.card > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::before { content: "+"; display: inline-grid; place-items: center; width: 22px; height: 22px;
+           border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-weight: 900; flex: none; }
+  details.card[open] > summary::before { content: "−"; }
+  details.card[open] > summary { margin-bottom: 14px; }
+  .add-form .grid { gap: 0 14px; }
+  .plat-checks { display: flex; gap: 6px 16px; flex-wrap: wrap; }
+  .plat-checks .check { margin-bottom: 0; }
+  .group-label { color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 6px; display: block; }
+  .camp-title { font-weight: 650; }
+  .camp-sub { overflow-wrap: anywhere; }
+  .camp-table td.actions { white-space: nowrap; text-align: right; }
+  .camp-table td.actions .btn + form, .camp-table td.actions form + form { margin-left: 4px; }
+  .camp-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .plats { display: flex; gap: 4px; flex-wrap: wrap; }
+  @media (max-width: 760px) {
+    .camp-table thead { display: none; }
+    .camp-table, .camp-table tbody, .camp-table tr, .camp-table td { display: block; width: 100%; }
+    .camp-table tr { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel-2); }
+    .camp-table tr:hover td { background: transparent; }
+    .camp-table td { border: 0; padding: 3px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; }
+    .camp-table td::before { content: attr(data-label); color: var(--muted); font-size: 11px; text-transform: uppercase;
+                             letter-spacing: .05em; font-weight: 650; text-align: left; flex: none; }
+    .camp-table td.cell-title { display: block; text-align: left; padding-bottom: 6px; }
+    .camp-table td.cell-title::before, .camp-table td.actions::before { content: none; }
+    .camp-table td.actions { justify-content: flex-start; padding-top: 8px; gap: 6px; }
+    .camp-table td.actions .btn + form, .camp-table td.actions form + form { margin-left: 0; }
+    .camp-table td .plats { justify-content: flex-end; }
+    .niches { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .niche { padding: 10px 12px; }
+    .niche-value { font-size: 19px; }
+  }
+</style>
+
+{% if busy %}
+  <div class="flash info" role="status">{{ "Discovery" if busy.kind == "discover" else "Ranking" }} is {{ busy.status }}
+    (<a href="/jobs/{{ busy.id }}">job #{{ busy.id }}</a>). <a href="/campaigns">Reload</a> when it finishes to see fresh scores.</div>
+{% endif %}
+
+<div class="card">
+  <div class="row between">
+    <h2>Niche leaderboard</h2>
+    <span class="muted small">best expected $/clip per niche · last discovery {{ fmt_ago(last_discovery) if last_discovery else "never" }}</span>
+  </div>
+  {% if leaderboard %}
+  <div class="niches">
+    {% for n in leaderboard %}
+    <div class="niche">
+      <div class="niche-head"><span class="niche-name">{{ n.category }}</span><span class="niche-rank">#{{ loop.index }}</span></div>
+      <div class="niche-value">${{ "%.2f"|format(n.best) }}<small> /clip</small></div>
+      <div class="bar" title="relative to the best niche"><span style="width: {{ n.pct }}%"></span></div>
+      <div class="muted small niche-top" title="{{ n.top }}">{{ n.count }} campaign{{ "s" if n.count != 1 }} · top: {{ n.top }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    {{ ui.empty("No active campaigns yet. Add one you joined below, or press “Discover + rank” to pull listings"
+                ~ (" from Whop" if whop_enabled else " (turn on Whop discovery in Settings for automatic listings)") ~ ".") }}
+  {% endif %}
+</div>
+
+<details class="card add-campaign" id="add" {{ "open" if open_form }}>
+  <summary><strong>Add a campaign</strong>
+    <span class="muted small">one you joined on Whop, ClipAffiliates, Vyro or directly with a creator</span></summary>
+  <form method="post" action="/campaigns/add" class="add-form">
+    {{ csrf_field() }}
+    <div class="grid cols-2">
+      <label class="field"><span>Title *</span>
+        <input type="text" name="title" required maxlength="200" value="{{ form.title or '' }}" placeholder="Money Talks podcast clips"></label>
+      <label class="field"><span>Brand</span>
+        <input type="text" name="brand" maxlength="120" value="{{ form.brand or '' }}" placeholder="Money Talks"></label>
+      <label class="field"><span>Niche</span>
+        <input type="text" name="category" maxlength="40" list="niche-list" value="{{ form.category or '' }}" placeholder="finance">
+        <datalist id="niche-list">{% for n in known_niches %}<option value="{{ n }}">{% endfor %}</datalist>
+        <span class="hint">Used for the niche traffic signal. Empty = general.</span></label>
+      <label class="field"><span>Payout per 1,000 views (USD) *</span>
+        <input type="number" name="reward_per_1k_usd" required min="0" step="0.01" value="{{ form.reward_per_1k_usd or '' }}" placeholder="1.50"></label>
+      <label class="field"><span>Budget left (USD)</span>
+        <input type="number" name="budget_remaining_usd" min="0" step="any" value="{{ form.budget_remaining_usd or '' }}" placeholder="unknown">
+        <span class="hint">Nearly drained campaigns rank lower. Leave empty if unknown.</span></label>
+      <label class="field"><span>Campaign page</span>
+        <input type="url" name="campaign_url" maxlength="2048" value="{{ form.campaign_url or '' }}" placeholder="https://whop.com/…"></label>
+    </div>
+    <div class="field">
+      <span class="group-label">Platforms that pay</span>
+      <div class="plat-checks">
+        {% for p in platforms %}
+        <label class="check"><input type="checkbox" name="platforms" value="{{ p }}" {{ "checked" if p in (form.platforms or []) }}> {{ ui.platform(p) }}</label>
+        {% endfor %}
+      </div>
+      <span class="hint">None ticked = any platform you post to.</span>
+    </div>
+    <label class="field"><span>Source videos (one link per line)</span>
+      <textarea name="source_urls" rows="3" placeholder="https://www.youtube.com/watch?v=…">{{ form.source_urls or '' }}</textarea>
+      <span class="hint">Footage the campaign gives you to clip. The Clip studio downloads these without asking for extra permission.</span></label>
+    <div class="grid cols-3">
+      <label class="field"><span>Required hashtags</span>
+        <input type="text" name="required_hashtags" value="{{ form.required_hashtags or '' }}" placeholder="#moneytalks #ad"></label>
+      <label class="field"><span>Required mentions</span>
+        <input type="text" name="required_mentions" value="{{ form.required_mentions or '' }}" placeholder="@moneytalks"></label>
+      <label class="field"><span>Keywords</span>
+        <input type="text" name="keywords" value="{{ form.keywords or '' }}" placeholder="investing, side hustle">
+        <span class="hint">Use commas for multi-word phrases.</span></label>
+    </div>
+    <label class="field"><span>Requirements</span>
+      <textarea name="requirements" rows="3" data-maxlen="4000" placeholder="Min 15 s, show the podcast logo, no reuploads of full episodes…">{{ form.requirements or '' }}</textarea></label>
+    <div class="grid cols-2">
+      <label class="check"><input type="checkbox" name="paid_partnership" {{ "checked" if form.paid_partnership }}> Posts are a paid partnership (adds the #ad disclosure)</label>
+      <label class="field"><span>ID (optional)</span>
+        <input type="text" name="id" maxlength="64" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" value="{{ form.id or '' }}" placeholder="made from the title">
+        <span class="hint">Lowercase letters, digits and dashes.</span></label>
+    </div>
+    <div class="row between">
+      <span class="muted small">Saved to <code>{{ manual_file }}</code>, then ranked automatically.</span>
+      <button class="btn primary">Add campaign</button>
+    </div>
+  </form>
+</details>
+
+<div class="card">
+  <div class="row between">
+    <h2>Active campaigns</h2>
+    <span class="muted small">{{ active|length }} · best expected $/clip first</span>
+  </div>
+  {% if active %}
+  <div class="table-wrap"><table class="table camp-table">
+    <thead><tr><th>Campaign</th><th>Niche</th><th class="num">$/1K</th><th class="num">Budget left</th><th>Platforms</th>
+      <th class="num">Sources</th><th class="num">Exp. $/clip</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in active %}{% set c = r.c %}
+      <tr>
+        <td class="cell-title" data-label="Campaign">
+          <div class="camp-title">{{ c.title }}</div>
+          <div class="muted small camp-sub">{{ c.brand or "no brand" }}{% if r.link %} · <a href="{{ r.link }}" target="_blank" rel="noopener noreferrer">campaign page ↗</a>{% endif %}
+            {% if c.origin != "manual" %} · {{ c.origin }}{% endif %}</div>
+        </td>
+        <td data-label="Niche">{{ c.category }}</td>
+        <td data-label="$/1K" class="num">${{ "%.2f"|format(c.reward_per_1k_usd) }}</td>
+        <td data-label="Budget left" class="num">{% if c.budget_remaining_usd is not none %}${{ "{:,.0f}".format(c.budget_remaining_usd) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td data-label="Platforms"><span class="plats">{% for p in c.platforms %}{{ ui.platform(p) }}{% else %}<span class="muted small">any</span>{% endfor %}</span></td>
+        <td data-label="Sources" class="num">{% if c.source_urls %}{{ c.source_urls|length }}{% else %}<span class="muted">0</span>{% endif %}</td>
+        <td data-label="Exp. $/clip" class="num">{{ ui.badge("$" ~ "%.2f"|format(r.score) ~ "/clip", "accent" if r.score > 0 else "muted") }}</td>
+        <td data-label="Status">{{ ui.badge("active", "ok") }}</td>
+        <td class="actions">
+          <a class="btn primary small" href="/studio?campaign={{ c.id|urlencode }}">Clip</a>
+          {{ ui.action("/campaigns/" ~ (c.id|urlencode) ~ "/archive", "Archive", csrf_field, "small ghost",
+                       confirm="Archive “" ~ c.title ~ "”? It stops being clipped and ranked until you restore it.") }}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="muted small">Exp. $/clip = payout per 1K × expected views on the platforms you post to × budget left factor.
+    New campaigns show $0.00 until the next ranking.</p>
+  {% else %}
+    {{ ui.empty("Nothing to clip yet. Add a campaign you joined (above) or press “Discover + rank”.") }}
+  {% endif %}
+</div>
+
+{% if archived %}
+<details class="card">
+  <summary><strong>Archived</strong> <span class="muted small">{{ archived|length }} · not clipped or ranked</span></summary>
+  <div class="table-wrap"><table class="table camp-table">
+    <thead><tr><th>Campaign</th><th>Niche</th><th class="num">$/1K</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in archived %}{% set c = r.c %}
+      <tr>
+        <td class="cell-title" data-label="Campaign"><div class="camp-title">{{ c.title }}</div>
+          <div class="muted small camp-sub">{{ c.brand or "no brand" }}</div></td>
+        <td data-label="Niche">{{ c.category }}</td>
+        <td data-label="$/1K" class="num">${{ "%.2f"|format(c.reward_per_1k_usd) }}</td>
+        <td data-label="Status">{{ ui.badge(c.status) }}</td>
+        <td class="actions">{{ ui.action("/campaigns/" ~ (c.id|urlencode) ~ "/restore", "Restore", csrf_field, "small") }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</details>
+{% endif %}
+{% endblock %}

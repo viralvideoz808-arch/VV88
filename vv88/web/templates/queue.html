@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  {{ ui.action("/queue/publish-due", "Publish due now", csrf_field, "primary",
+               "Dry-run mode writes every scheduled post to the outbox now. Continue?" if backend == "dry_run" else "") }}
+{% endblock %}
+{% block content %}
+<style>
+  .qtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 12px; }
+  .qtabs .btn { display: inline-flex; align-items: center; gap: 6px; }
+  .qtabs .n { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: rgba(255,255,255,.08); }
+  .qtabs .btn.primary .n { background: rgba(0,0,0,.15); }
+  .qhook { color: var(--text); font-weight: 600; }
+  .qhook:hover { color: var(--accent); text-decoration: none; }
+  .qtable details { margin-top: 4px; }
+  .qtable details > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .qcap { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font-size: 12px; background: #0f0f11;
+          border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; max-width: 420px; }
+  .qerr { color: var(--err); font-size: 12px; max-width: 320px; overflow-wrap: anywhere; }
+  .qlink { max-width: 200px; overflow-wrap: anywhere; }
+  .table th.num, .table td.num { text-align: right; }
+  .acts { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; }
+  @media (max-width: 760px) {
+    .qtable thead { display: none; }
+    .qtable, .qtable tbody { display: block; width: 100%; }
+    .qtable tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 12px 0;
+                 border-bottom: 1px solid var(--line); }
+    .qtable tr:last-child { border-bottom: 0; }
+    .qtable td { display: block; border: 0; padding: 0; min-width: 0; }
+    .qtable td.nil { display: none; }
+    .qtable td.qclip { order: 0; flex: 1 1 100%; }
+    .qtable td.c-plat { order: 1; }
+    .qtable td.c-status { order: 2; }
+    .qtable td.c-when { order: 3; margin-left: auto; text-align: right; line-height: 1.3; }
+    .qtable td.c-link { order: 4; flex: 1 1 55%; }
+    .qtable td.c-views { order: 5; margin-left: auto; }
+    .qtable td.c-views::after { content: " views"; color: var(--muted); font-size: 12px; }
+    .qtable td.c-err { order: 6; flex: 1 1 100%; }
+    .qtable td.c-act { order: 7; flex: 1 1 100%; padding-top: 4px; }
+    .qcap, .qerr, .qlink { max-width: none; }
+    .qtable .acts { flex-wrap: wrap; }
+  }
+</style>
+
+{% if backend == "dry_run" %}
+  <div class="flash warning">Dry-run mode: publishing writes posts to <code>data/outbox/</code> instead of the platforms,
+    and every scheduled post is written as soon as a publish run starts. Switch the backend in <a href="/settings">Settings</a>.</div>
+{% endif %}
+
+<div class="grid kpis">
+  {{ ui.kpi("Scheduled", counts.scheduled, (due ~ " due now") if due else "") }}
+  {{ ui.kpi("Posted", counts.posted) }}
+  {{ ui.kpi("Failed", counts.failed, "needs a retry" if counts.failed else "") }}
+  {{ ui.kpi("Skipped", counts.skipped) }}
+</div>
+
+<nav class="qtabs" aria-label="Filter posts by status">
+  {% for t in tabs %}
+    <a class="btn small {{ 'primary' if t == status else 'ghost' }}" href="/queue?status={{ t }}"
+       {% if t == status %}aria-current="page"{% endif %}>{{ t|capitalize }} <span class="n">{{ counts[t] }}</span></a>
+  {% endfor %}
+</nav>
+
+<div class="card">
+  {% if posts %}
+  {% set has_errors = posts|selectattr("error")|list %}
+  <div class="table-wrap"><table class="table qtable">
+    <thead><tr>
+      <th>When</th><th>Platform</th><th>Clip</th><th>Status</th><th>Link / ID</th><th class="num">Views</th>
+      {% if has_errors %}<th>Error</th>{% endif %}<th></th>
+    </tr></thead>
+    <tbody>
+    {% for p in posts %}
+      <tr>
+        <td class="c-when nowrap"><span>{{ fmt_time(p.when) }}<br><span class="muted small">{{ fmt_ago(p.when) }}{% if p.due %} · due{% endif %}</span></span></td>
+        <td class="c-plat">{{ ui.platform(p.platform) }}</td>
+        <td class="qclip">
+          {% if p.clip_exists %}<a class="qhook" href="/clips/{{ p.clip_id }}">{{ p.hook or p.clip_id }}</a>
+          {% else %}<span class="muted mono small">{{ p.clip_id }} (clip removed)</span>{% endif %}
+          {% if p.caption %}
+            <details><summary>Caption{% if p.post_title %} &amp; title{% endif %}</summary>
+              {% if p.post_title %}<div class="small" style="margin-top:6px"><span class="muted">Title:</span> {{ p.post_title }}</div>{% endif %}
+              <p class="qcap">{{ p.caption }}</p>
+            </details>
+          {% endif %}
+        </td>
+        <td class="c-status">{{ ui.status(p.status) }}</td>
+        <td class="c-link qlink{{ ' nil' if not (p.link or p.remote_id) }}">{% if p.link %}<a class="nowrap" href="{{ p.link }}" rel="noopener noreferrer" target="_blank">Open post</a>{% elif p.remote_id %}<span class="mono small">{{ p.remote_id }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="c-views num{{ ' nil' if p.views is none }}">{{ "{:,}".format(p.views) if p.views is not none else "—" }}</td>
+        {% if has_errors %}<td class="c-err{{ ' nil' if not p.error }}">{% if p.error %}<div class="qerr">{{ p.error }}</div>{% endif %}</td>{% endif %}
+        <td class="c-act{{ ' nil' if p.status not in ('scheduled', 'failed') }}"><div class="acts">
+          {% if p.status == "scheduled" %}
+            {{ ui.action("/queue/" ~ p.id ~ "/publish-now", "Publish now", csrf_field, "small primary") }}
+            {{ ui.action("/queue/" ~ p.id ~ "/cancel", "Cancel", csrf_field, "small danger", "Cancel this " ~ p.platform ~ " post? It won't be published.", {"back": "/queue?status=" ~ status}) }}
+          {% elif p.status == "failed" %}
+            {{ ui.action("/queue/" ~ p.id ~ "/retry", "Retry", csrf_field, "small") }}
+          {% endif %}
+        </div></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if more %}<p class="muted small">Showing {{ posts|length }} posts; {{ more }} older ones are not listed.</p>{% endif %}
+  {% elif status == "scheduled" %}
+    {{ ui.empty("Nothing is waiting to be published. Schedule a clip from the Clips page, or run a full cycle from the Dashboard.") }}
+  {% elif status == "failed" %}
+    {{ ui.empty("No failed posts. Anything that fails to publish shows up here with the reason and a Retry button.") }}
+  {% elif status == "posted" %}
+    {{ ui.empty("Nothing has been posted yet. Scheduled posts go out when their slot arrives, or press Publish due now.") }}
+  {% elif status == "skipped" %}
+    {{ ui.empty("No cancelled posts. Posts you cancel from the Scheduled tab are kept here.") }}
+  {% else %}
+    {{ ui.empty("The queue is empty. Render clips in the Clip studio and schedule them from the Clips page.") }}
+  {% endif %}
+</div>
+{% endblock %}
