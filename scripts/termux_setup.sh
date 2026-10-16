@@ -25,7 +25,7 @@ pkg update -y
 # Non-interactive upgrade: take the packaged version of any changed config file instead of asking.
 apt-get -y -o Dpkg::Options::=--force-confnew full-upgrade
 pkg install -y python python-numpy ffmpeg git clang rust make cmake pkg-config libffi openssl libyaml \
-  binutils curl wget procps fontconfig
+  binutils curl wget fontconfig
 
 step 2/6 "OpenCV for face-tracked reframing (optional)"
 pkg install -y opencv-python 2>/dev/null || pkg install -y python-opencv-python 2>/dev/null \

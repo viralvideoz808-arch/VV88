@@ -6,15 +6,20 @@ cd "$(dirname "$0")/.." || exit 1
 mkdir -p data
 PORT="${VV88_PORT:-8088}"
 URL="http://127.0.0.1:$PORT"
+PIDFILE=data/web.pid
+
+running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
 
 termux-wake-lock 2>/dev/null || true   # keep Android from pausing it while the screen is off
 
-if pgrep -f "vv88 web" >/dev/null 2>&1; then
+if running || curl -s -o /dev/null "$URL/login"; then
   echo "VV88 is already running."
 else
   nohup vv88 web --host 127.0.0.1 --port "$PORT" >> data/web.log 2>&1 &
+  echo $! > "$PIDFILE"
   for _ in $(seq 1 60); do
     curl -s -o /dev/null "$URL/login" && break
+    running || break   # it exited: show the log below
     sleep 1
   done
 fi
@@ -27,6 +32,6 @@ if curl -s -o /dev/null "$URL/login"; then
   echo "Logs: tail -f data/web.log      Stop: bash scripts/termux_stop.sh"
 else
   echo "VV88 didn't start. Last lines of data/web.log:"
-  tail -n 20 data/web.log
+  tail -n 20 data/web.log 2>/dev/null
   exit 1
 fi
