@@ -58,7 +58,7 @@ def rank_campaigns(
     for c in campaigns:
         if c.status != "active" or c.reward_per_1k_usd <= 0:
             continue
-        usable = [p for p in (c.platforms or connected_platforms) if p in connected_platforms]
+        usable = c.platforms_on(connected_platforms)
         if not usable:
             continue
         mult = niche_multipliers.get(c.category, 1.0)

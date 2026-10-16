@@ -112,7 +112,7 @@ def save_upload(src: BinaryIO, ext: str, folder: Path, limit: int = MAX_UPLOAD_B
 def upload_size_guard(request: Request) -> None:
     """Refuse oversized bodies before the form parser spools them to disk."""
     length = request.headers.get("content-length", "")
-    if length.isascii() and length.isdigit() and int(length) > MAX_UPLOAD_BYTES + CHUNK:
+    if length.isascii() and length.isdigit() and (len(length) > 15 or int(length) > MAX_UPLOAD_BYTES + CHUNK):
         raise HTTPException(status_code=413, detail="That upload is over the 4 GB limit. Trim it first, or pass "
                                                     "its path on this computer instead.")
 
@@ -214,14 +214,15 @@ async def start_clip(request: Request):
     form = await read_form(request)
     upload = form.get("upload")
     try:
-        return await _start_clip(request, form, upload if isinstance(upload, UploadFile) else None)
+        # Validation, settings/DB access, the file copy and the job insert all block: keep them off the loop.
+        return await run_in_threadpool(_start_clip, request, form, upload if isinstance(upload, UploadFile) else None)
     finally:
         for _, value in form.multi_items():
             if isinstance(value, UploadFile):
                 await value.close()
 
 
-async def _start_clip(request: Request, form, upload: UploadFile | None):
+def _start_clip(request: Request, form, upload: UploadFile | None):
     ctx = context(request)
     settings = ctx.settings
     values = {"source": _s(form, "source"), "campaign_id": _s(form, "campaign_id", 200), "n": _s(form, "n", 10),
@@ -284,7 +285,7 @@ async def _start_clip(request: Request, form, upload: UploadFile | None):
 
     if not errors and has_upload:
         try:
-            saved = await run_in_threadpool(save_upload, upload.file, ext, settings.data_path / "uploads")
+            saved = save_upload(upload.file, ext, settings.data_path / "uploads")
             source = str(saved.resolve())
         except UploadRejected as e:
             errors.append(str(e))

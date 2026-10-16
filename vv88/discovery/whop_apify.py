@@ -72,7 +72,9 @@ class WhopApifySource:
         if isinstance(requirements, list):
             requirements = "\n".join(map(str, requirements))
         text = f"{item.get('description') or ''}\n{requirements}"
-        platforms = [p for p in (normalize_platform(str(x)) for x in item.get("platforms") or []) if p]
+        raw = [str(x) for x in item.get("platforms") or []]
+        platforms = [p for p in (normalize_platform(x) for x in raw) if p]
+        other = [x for x in raw if not normalize_platform(x)]
         return Campaign(
             id=f"whop:{cid}",
             title=item.get("title") or str(cid),
@@ -82,6 +84,7 @@ class WhopApifySource:
             budget_remaining_usd=_f(item.get("budgetRemainingUsd")),
             total_budget_usd=_f(item.get("totalBudgetUsd")),
             platforms=platforms,
+            other_platforms=other,
             source_urls=[u for u in resources if _VIDEO_HOSTS.search(u)],
             campaign_url=item.get("campaignUrl") or "",
             requirements=requirements,

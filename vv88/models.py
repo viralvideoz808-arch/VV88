@@ -39,6 +39,9 @@ class Campaign:
     budget_remaining_usd: float | None = None
     total_budget_usd: float | None = None
     platforms: list[str] = field(default_factory=list)
+    # Platforms the campaign named that VV88 can't post to (e.g. facebook, snapchat). Kept so that a campaign
+    # paying only there isn't mistaken for one that names no platforms (= pays anywhere).
+    other_platforms: list[str] = field(default_factory=list)
     source_urls: list[str] = field(default_factory=list)
     campaign_url: str = ""
     requirements: str = ""
@@ -52,6 +55,15 @@ class Campaign:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def platforms_on(self, available: list[str]) -> list[str]:
+        """Which of `available` this campaign pays for: its supported platforms, none if it only names
+        platforms VV88 can't post to, or all of them if it names no platforms at all."""
+        if self.platforms:
+            return [p for p in self.platforms if p in available]
+        if self.other_platforms:
+            return []
+        return list(available)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Campaign":

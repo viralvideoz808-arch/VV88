@@ -104,9 +104,12 @@ def publish_now(request: Request, post_id: str):
     if post is None:
         return redirect(request, "/queue", "That post doesn't exist any more.", "error")
     if post["status"] != "scheduled":
-        return redirect(request, f"/queue?status={post['status']}",
+        tab = post["status"] if post["status"] in TABS else "scheduled"  # 'publishing' rows live on Scheduled
+        return redirect(request, f"/queue?status={tab}",
                         f"Only scheduled posts can be published now (this one is {post['status']}).", "warning")
-    ctx.store.reschedule(pid, time.time())
+    if not ctx.store.reschedule(pid, time.time()):  # conditional: never touches a post already uploading
+        return redirect(request, "/queue?status=scheduled",
+                        f"The {post['platform']} post started uploading a moment ago.", "info")
     job_id, _ = _submit_publish(ctx)
     return redirect(request, f"/jobs/{job_id}", f"Publishing the {post['platform']} post now.", "success")
 

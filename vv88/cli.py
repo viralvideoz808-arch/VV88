@@ -138,8 +138,7 @@ def cmd_clip(settings: Settings, args) -> int:
     for c in clips:
         print(f"{c.path}  {c.duration:5.1f}s  {c.style:<15} hook[{c.hook_type}]: {c.hook_text}")
     if args.post:
-        platforms = campaign.platforms if campaign and campaign.platforms else engine.target_platforms()
-        platforms = [p for p in platforms if p in engine.target_platforms()]
+        platforms = engine.platforms_for(campaign)
         n = engine.schedule(clips, campaign, platforms)
         print(f"scheduled {n} posts")
         for r in engine.publish_due():

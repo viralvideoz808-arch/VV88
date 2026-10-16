@@ -74,12 +74,38 @@ def context(request: Request) -> Ctx:
 
 
 # ---- auth -------------------------------------------------------------------------------
+def current_password(request: Request) -> str:
+    """VV88_WEB_PASSWORD (it can change while running), else the one the app started with; never ''."""
+    return os.environ.get("VV88_WEB_PASSWORD") or getattr(request.app.state, "web_password", "")
+
+
 def password_tag(request: Request) -> str:
     """Ties a session to the current password: changing VV88_WEB_PASSWORD signs every browser out."""
-    state = request.app.state
-    password = os.environ.get("VV88_WEB_PASSWORD") or getattr(state, "web_password", "")
-    key = str(getattr(state, "session_secret", "")).encode()
-    return hmac.new(key, password.encode(), hashlib.sha256).hexdigest()[:24]
+    key = str(getattr(request.app.state, "session_secret", "")).encode()
+    return hmac.new(key, current_password(request).encode(), hashlib.sha256).hexdigest()[:24]
+
+
+DEVICE_COOKIE = "vv88_device"
+DEVICE_MAX_AGE = 365 * 86400
+
+
+def _device_sig(request: Request, device_id: str) -> str:
+    key = str(getattr(request.app.state, "session_secret", "")).encode()
+    return hmac.new(key, f"device:{device_id}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def new_device_token(request: Request) -> str:
+    """Signed id for a browser that has signed in successfully (survives logout; not a credential)."""
+    device_id = secrets.token_urlsafe(16)
+    return f"{device_id}.{_device_sig(request, device_id)}"
+
+
+def known_device(request: Request) -> str:
+    """The device id from a valid vv88_device cookie, else ''."""
+    device_id, _, sig = (request.cookies.get(DEVICE_COOKIE) or "")[:200].partition(".")
+    if device_id and sig and hmac.compare_digest(sig, _device_sig(request, device_id)):
+        return device_id
+    return ""
 
 
 def logged_in(request: Request) -> bool:
@@ -122,10 +148,11 @@ async def verify_csrf(request: Request) -> None:
 
 
 class LoginThrottle:
-    """Wrong-password limits per 10 minutes: 5 per client address, and 50 across all addresses.
+    """Wrong-password limits per 10 minutes: 5 per client, and 50 across all clients.
 
-    The global cap stops guessing from many addresses (or a spoofed X-Forwarded-For behind a proxy);
-    the per-client cap keeps one noisy client from using up the global budget alone.
+    The global cap stops guessing from many addresses (or a spoofed X-Forwarded-For behind a proxy). It does not
+    apply to browsers that have signed in before (trusted=True, keyed by their device cookie instead of their
+    address), so outsiders can't use it to lock the owner out.
     """
 
     def __init__(self, limit: int = 5, window_s: float = 600, global_limit: int = 50, max_keys: int = 5000):
@@ -142,7 +169,7 @@ class LoginThrottle:
             while len(self.fails) > self.max_keys:  # still too many: drop the oldest entries
                 del self.fails[next(iter(self.fails))]
 
-    def blocked(self, key: str) -> bool:
+    def blocked(self, key: str, trusted: bool = False) -> bool:
         now = time.time()
         self._prune(now)
         hits = [t for t in self.fails.get(key, []) if now - t < self.window]
@@ -150,7 +177,7 @@ class LoginThrottle:
             self.fails[key] = hits
         else:
             self.fails.pop(key, None)
-        return len(hits) >= self.limit or len(self.all_fails) >= self.global_limit
+        return len(hits) >= self.limit or (not trusted and len(self.all_fails) >= self.global_limit)
 
     def fail(self, key: str) -> None:
         now = time.time()
@@ -176,7 +203,8 @@ class BodyLimit:
         if scope["type"] != "http" or scope["path"] in self.exempt:
             return await self.app(scope, receive, send)
         declared = dict(scope.get("headers") or []).get(b"content-length")
-        if declared is not None and (not declared.isdigit() or int(declared) > self.limit):
+        # len() first: int() on thousands of digits raises (Python's digit limit) and would be a 500
+        if declared is not None and (not declared.isdigit() or len(declared) > 15 or int(declared) > self.limit):
             return await self._reject(scope, receive, send)
         seen = 0
         started = False

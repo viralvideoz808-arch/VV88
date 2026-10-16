@@ -234,11 +234,16 @@ class Store:
         )
         self.db.commit()
 
-    def reschedule(self, post_id: int, when: float) -> None:
-        """Move a post's slot; a claimed ('publishing') post goes back to 'scheduled'."""
-        self.db.execute(
-            "UPDATE posts SET scheduled_at=?, status=CASE WHEN status='publishing' THEN 'scheduled' ELSE status END, "
-            "posted_at=CASE WHEN status='publishing' THEN NULL ELSE posted_at END WHERE id=?", (when, post_id))
+    def reschedule(self, post_id: int, when: float) -> bool:
+        """Move a still-scheduled post's slot (never touches a post that is being uploaded)."""
+        cur = self.db.execute("UPDATE posts SET scheduled_at=? WHERE id=? AND status='scheduled'", (when, post_id))
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def release_claim(self, post_id: int, when: float) -> None:
+        """Publisher only: hand a claimed post back to the queue for a later slot (e.g. rate-limited)."""
+        self.db.execute("UPDATE posts SET status='scheduled', scheduled_at=?, posted_at=NULL "
+                        "WHERE id=? AND status='publishing'", (when, post_id))
         self.db.commit()
 
     def post_times(self, platform: str, since: float) -> list[float]:
@@ -313,7 +318,7 @@ class Store:
             "campaigns": q("SELECT COUNT(*) FROM campaigns").fetchone()[0],
             "sources": q("SELECT COUNT(*) FROM sources").fetchone()[0],
             "clips": q("SELECT COUNT(*) FROM clips").fetchone()[0],
-            "scheduled": q("SELECT COUNT(*) FROM posts WHERE status='scheduled'").fetchone()[0],
+            "scheduled": q("SELECT COUNT(*) FROM posts WHERE status IN ('scheduled','publishing')").fetchone()[0],
             "posted": q("SELECT COUNT(*) FROM posts WHERE status='posted'").fetchone()[0],
             "failed": q("SELECT COUNT(*) FROM posts WHERE status='failed'").fetchone()[0],
             "views": q("SELECT COALESCE(SUM(v),0) FROM (SELECT (SELECT views FROM metrics m WHERE m.post_id=p.id "
@@ -332,7 +337,9 @@ class Store:
         sql = ("SELECT p.*, (SELECT views FROM metrics m WHERE m.post_id=p.id ORDER BY fetched_at DESC LIMIT 1) "
                "AS views FROM posts p")
         args: tuple = ()
-        if status:
+        if status == "scheduled":  # posts being uploaded right now are still "upcoming"
+            sql += " WHERE p.status IN ('scheduled','publishing')"
+        elif status:
             sql += " WHERE p.status=?"
             args = (status,)
         sql += " ORDER BY CASE p.status WHEN 'scheduled' THEN 0 ELSE 1 END, p.scheduled_at DESC LIMIT ?"

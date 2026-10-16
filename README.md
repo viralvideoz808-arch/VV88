@@ -105,7 +105,7 @@ Security:
 - Media is served only from the clips, outbox and brand folders.
 - Secrets are never shown in the UI.
 - By default the site listens only on this computer. To reach it from elsewhere, put it behind an HTTPS reverse proxy and pass `vv88 web --host 0.0.0.0 --https-cookies`. Set `VV88_WEB_BASE_URL` to the public https address so the OAuth redirects match.
-- Behind a reverse proxy on the same machine, make the proxy *replace* `X-Forwarded-For` with the real client address (nginx: `proxy_set_header X-Forwarded-For $remote_addr;`) so the per-address sign-in limit works. Sign-in is also capped at 50 wrong passwords per 10 minutes across all addresses, so use a long random `VV88_WEB_PASSWORD` (the generated one is). Changing the password signs out every browser.
+- Behind a reverse proxy on the same machine, make the proxy *replace* `X-Forwarded-For` with the real client address (nginx: `proxy_set_header X-Forwarded-For $remote_addr;`) so the per-address sign-in limit works. Sign-in is also capped at 50 wrong passwords per 10 minutes across all addresses, except for browsers that have signed in before (they're remembered with a signed cookie), so others' failed guesses can't lock you out. Use a long random `VV88_WEB_PASSWORD` (the generated one is). Changing the password signs out every browser.
 
 For account linking from the website, register `<site address>/oauth/callback` as the redirect URI in each developer app.
 

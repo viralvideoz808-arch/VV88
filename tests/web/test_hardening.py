@@ -273,3 +273,105 @@ def test_malformed_multipart_is_a_400_not_a_500(app):
         assert r.status_code == 400
         r = c.post("/login", content=b"\0" * 100, headers={"content-type": "multipart/form-data; boundary=zz"})
         assert r.status_code == 400
+
+
+# ---- second review round ------------------------------------------------------------------
+def test_known_browser_can_sign_in_during_a_global_lockout(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as owner, TestClient(app) as stranger:
+        assert owner.post("/login", data={"password": "test-password"}, follow_redirects=False).status_code == 303
+        assert owner.cookies.get("vv88_device")
+        owner.cookies.delete("vv88_session")  # signed out, but the browser is remembered
+        throttle = app.state.throttle
+        throttle.all_fails.extend([time.time()] * throttle.global_limit)  # 50 failures from everywhere
+        r = stranger.post("/login", data={"password": "test-password"}, follow_redirects=False)
+        assert "Too many attempts" in r.text  # an unknown browser is still capped
+        stranger.cookies.set("vv88_device", "forged.0123456789abcdef0123456789abcdef")
+        assert "Too many attempts" in stranger.post("/login", data={"password": "test-password"}).text
+        r = owner.post("/login", data={"password": "test-password"}, follow_redirects=False)
+        assert r.status_code == 303  # the owner's own browser gets in
+
+
+def test_empty_password_env_never_allows_an_empty_password(app, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("VV88_WEB_PASSWORD", "")
+    with TestClient(app) as c:
+        assert "Wrong password" in c.post("/login", data={"password": ""}).text
+        assert c.post("/login", data={"password": "test-password"}, follow_redirects=False).status_code == 303
+
+
+def test_campaign_paying_only_on_unsupported_platforms_gets_none(tmp_path):
+    from vv88.config import RankingConfig
+    from vv88.discovery.manual import ManualCampaignSource
+    from vv88.discovery.ranker import rank_campaigns
+
+    (tmp_path / "c.yaml").write_text("campaigns:\n"
+                                     "  - {id: fb, title: FB only, reward_per_1k_usd: 2, platforms: [facebook]}\n"
+                                     "  - {id: any, title: Anywhere, reward_per_1k_usd: 2}\n")
+    by_id = {c.id: c for c in ManualCampaignSource(tmp_path / "c.yaml").fetch()}
+    assert by_id["fb"].platforms_on(["tiktok", "youtube"]) == []
+    assert by_id["any"].platforms_on(["tiktok", "youtube"]) == ["tiktok", "youtube"]
+    ranked = rank_campaigns(list(by_id.values()), ["tiktok", "youtube"], {}, {}, RankingConfig())
+    assert [r.campaign.id for r in ranked] == ["any"]
+
+
+def test_publish_now_never_unclaims_an_uploading_post(client, csrf, demo_root):
+    store = _store(demo_root)
+    pid = store.due_posts(now=1e18)[0]["id"]
+    assert store.claim_post(pid)  # the publish job is uploading it
+    assert store.reschedule(pid, time.time()) is False
+    r = client.post(f"/queue/{pid}/publish-now", data={"csrf": csrf("/queue")}, follow_redirects=False)
+    assert r.headers["location"] == "/queue?status=scheduled"  # 'publishing' isn't a tab of its own
+    assert store.post(pid)["status"] == "publishing"
+
+
+def test_error_loading_a_clip_after_the_claim_does_not_strand_the_post(demo_root, monkeypatch):
+    from vv88.pipeline import Engine
+
+    engine = Engine(load_settings(demo_root / "config.yaml", env_path=demo_root / ".env"))
+    pid = engine.store.due_posts(now=1e18)[0]["id"]
+
+    def broken(clip_id):
+        raise TypeError("unexpected keyword in stored clip")
+
+    monkeypatch.setattr(engine.store, "clip", broken)
+    engine.publish_due()
+    assert engine.store.post(pid)["status"] == "failed"
+
+
+def test_dashboard_counts_posts_that_are_uploading(demo_root, client):
+    store = _store(demo_root)
+    before = store.counts()["scheduled"]
+    pid = store.due_posts(now=1e18)[0]["id"]
+    assert store.claim_post(pid)
+    assert store.counts()["scheduled"] == before
+    assert any(p["id"] == pid for p in store.posts_list(status="scheduled"))
+
+
+def test_absurd_content_length_is_a_413_not_a_500():
+    import asyncio
+
+    from vv88.web.core import BodyLimit
+
+    sent = []
+
+    async def app(scope, receive, send):  # never reached
+        raise AssertionError
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": "http", "path": "/login", "method": "POST", "headers": [(b"content-length", b"0" * 5000 + b"5")]}
+    asyncio.run(BodyLimit(app)(scope, receive, send))
+    assert sent[0]["status"] == 413
+
+
+def test_studio_upload_work_runs_off_the_event_loop():
+    from vv88.web.pages import studio
+
+    assert not inspect.iscoroutinefunction(studio._start_clip)

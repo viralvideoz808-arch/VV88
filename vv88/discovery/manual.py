@@ -22,7 +22,9 @@ class ManualCampaignSource:
         items = doc.get("campaigns", doc if isinstance(doc, list) else [])
         out: list[Campaign] = []
         for item in items:
-            platforms = [p for p in (normalize_platform(x) for x in item.get("platforms", [])) if p]
+            raw = [str(x) for x in item.get("platforms") or []]
+            platforms = [p for p in (normalize_platform(x) for x in raw) if p]
+            other = [x for x in raw if not normalize_platform(x)]
             cid = str(item.get("id") or stable_id(item.get("title", ""), item.get("campaign_url", "")))
             out.append(
                 Campaign(
@@ -34,6 +36,7 @@ class ManualCampaignSource:
                     budget_remaining_usd=_opt_float(item.get("budget_remaining_usd")),
                     total_budget_usd=_opt_float(item.get("total_budget_usd")),
                     platforms=platforms,
+                    other_platforms=other,
                     source_urls=list(item.get("source_urls", [])),
                     campaign_url=item.get("campaign_url", ""),
                     requirements=item.get("requirements", ""),

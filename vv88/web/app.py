@@ -20,11 +20,16 @@ from vv88.config import load_settings
 from vv88.connect import AuthStart, clean_text, complete_authorization, start_authorization, update_env_file
 from vv88.publishing.base import PublishError, redact
 from vv88.web.core import (
+    DEVICE_COOKIE,
+    DEVICE_MAX_AGE,
     WEB_DIR,
     BodyLimit,
     LoginRequired,
     LoginThrottle,
     context,
+    current_password,
+    known_device,
+    new_device_token,
     password_tag,
     read_form,
     redirect,
@@ -122,23 +127,32 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
     @app.post("/login")
     async def login(request: Request):
         form = await read_form(request, max_files=0, max_fields=10, max_part_size=8 * 1024)
-        client = request.client.host if request.client else "?"
         throttle: LoginThrottle = app.state.throttle
         nxt = safe_next(str(form.get("next") or "/"))
-        if throttle.blocked(client):
+        # A browser that signed in before is limited by its own device id (not its address) and is exempt from
+        # the global cap, so nobody else's failed guesses can lock it out.
+        device = known_device(request)
+        key = f"device:{device}" if device else (request.client.host if request.client else "?")
+        if throttle.blocked(key, trusted=bool(device)):
             return render(request, "login.html", title="Sign in", next=nxt,
-                          error="Too many attempts. Wait 10 minutes and try again.")
-        current = os.environ.get("VV88_WEB_PASSWORD", password)
-        if not secrets.compare_digest(str(form.get("password") or "").encode(), current.encode()):
-            throttle.fail(client)
+                          error="Too many attempts. Wait 10 minutes and try again, or use a browser you've "
+                                "signed in with before.")
+        current = current_password(request)
+        sent = str(form.get("password") or "")
+        if not current or not secrets.compare_digest(sent.encode(), current.encode()):
+            throttle.fail(key)
             await asyncio.sleep(0.5)  # never time.sleep here: it would stall every other request
             return render(request, "login.html", title="Sign in", next=nxt, error="Wrong password.")
-        throttle.clear(client)
+        throttle.clear(key)
         request.session.clear()  # new session on login (no fixation)
         request.session["user"] = "owner"
         request.session["pw"] = password_tag(request)
         request.session["csrf"] = secrets.token_urlsafe(32)
-        return RedirectResponse(nxt, status_code=303)
+        response = RedirectResponse(nxt, status_code=303)
+        if not device:
+            response.set_cookie(DEVICE_COOKIE, new_device_token(request), max_age=DEVICE_MAX_AGE, httponly=True,
+                                samesite="lax", secure=https_cookies)
+        return response
 
     @app.post("/logout", dependencies=[Depends(verify_csrf)])
     def logout(request: Request):

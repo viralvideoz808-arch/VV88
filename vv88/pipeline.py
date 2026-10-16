@@ -54,9 +54,9 @@ class Engine:
         return enabled
 
     def platforms_for(self, campaign: Campaign | None) -> list[str]:
-        """Enabled platforms this campaign pays for (all enabled ones when it names none)."""
+        """Enabled platforms this campaign pays for (all enabled ones when it names none, or for own clips)."""
         targets = self.target_platforms()
-        return [p for p in (campaign.platforms if campaign and campaign.platforms else targets) if p in targets]
+        return campaign.platforms_on(targets) if campaign else targets
 
     def discover(self) -> list[Campaign]:
         found: list[Campaign] = []
@@ -207,28 +207,29 @@ class Engine:
             # Claim first: skips posts cancelled since the list was read, or taken by another publisher.
             if not self.store.claim_post(row["id"]):
                 continue
-            clip = self.store.clip(row["clip_id"])
-            if clip is None or not Path(clip.path).exists():
-                self.store.mark_post(row["id"], "failed", error="clip file missing")
-                continue
             platform = row["platform"]
+            clip_id = row["clip_id"]
             try:
+                clip = self.store.clip(clip_id)
+                if clip is None or not Path(clip.path).exists():
+                    self.store.mark_post(row["id"], "failed", error="clip file missing")
+                    continue
                 content = PostContent(**json.loads(row["content"]))
                 pub = publishers.get(platform) or make_publisher(platform, self.s, self.store)
                 publishers[platform] = pub
                 res = pub.publish(clip.path, content)
                 self.store.mark_post(row["id"], "posted", res.remote_id, res.url)
-                results.append({"platform": platform, "clip": clip.id, "ok": True, "url": res.url,
+                results.append({"platform": platform, "clip": clip_id, "ok": True, "url": res.url,
                                 "status": res.status})
             except (PublishError, OSError, ValueError, TypeError) as e:
                 msg = redact(str(e))  # error text can carry a URL with an access token
                 if any(k in msg.lower() for k in _RETRYABLE):
-                    self.store.reschedule(row["id"], time.time() + 2 * 3600)
+                    self.store.release_claim(row["id"], time.time() + 2 * 3600)
                     log.warning("%s rate-limited, retrying in 2h: %s", platform, msg)
                 else:
                     self.store.mark_post(row["id"], "failed", error=msg[:1000])
                     log.error("%s publish failed: %s", platform, msg)
-                results.append({"platform": platform, "clip": clip.id, "ok": False, "error": msg[:300]})
+                results.append({"platform": platform, "clip": clip_id, "ok": False, "error": msg[:300]})
             except BaseException as e:  # never leave a post claimed; the upload may or may not have gone out
                 self.store.mark_post(row["id"], "failed", error=f"interrupted during upload ({type(e).__name__}); "
                                                                 "check the platform before retrying")
