@@ -75,6 +75,40 @@ The default is `dry_run`. It writes each video plus its post copy to `data/outbo
 
 Posting faster than an account can absorb splits its reach and looks like spam. VV88 enforces a per-platform daily cap, a minimum gap between posts, and ±7 min jitter. It also stops rendering when the posting queues are two days deep.
 
+## Connect your accounts once (they stay linked)
+
+Run these **on your own computer**, in the browser where you're signed in, from the repo folder:
+
+```bash
+vv88 connect status      # what's linked
+vv88 connect all         # walks through every tool and account below
+```
+
+| target | how it links | stays linked because |
+|---|---|---|
+| `postiz` | paste API key → checked live → your Postiz channel IDs are saved automatically | Postiz keeps each platform's tokens fresh for you (simplest option) |
+| `youtube` | Google sign-in page (PKCE, local `127.0.0.1` callback) | Google refresh tokens don't expire, **once your Google Cloud OAuth consent screen is set to "In production"**. In "Testing" Google expires them after 7 days. |
+| `tiktok` | TikTok Login Kit for Desktop (PKCE) | refresh token rotates; the newest is always saved |
+| `x` | X OAuth 2.0 + `offline.access` | refresh token rotates; the newest is always saved |
+| `instagram` | Facebook Login for Business → your Instagram professional account | ~60-day token; `vv88 doctor` warns 10 days early and reconnecting is one click |
+| `apify`, `youtube-key`, `anthropic` | paste key (hidden input) → checked live | API keys don't expire until you revoke them |
+
+VV88 never sees or stores your passwords. It keeps only revocable tokens, in `.env` (permissions set to 600) and `data/vv88.db`. Register `http://127.0.0.1:8788/callback/` (Facebook: `http://localhost:8788/callback/`) as the redirect URI in each developer app.
+
+## Brand kit: one look across all four accounts
+
+A brand kit is a folder: `brand.json` plus images. It holds one profile picture, names, bios sized to each platform's limit, a YouTube banner and an X header.
+
+```bash
+vv88 brand show          # prints names/bios with character counts, flags anything over a limit
+vv88 brand approve       # you approve the exact images + text (type APPROVE)
+vv88 brand apply         # applies what the APIs allow, writes a checklist for the rest
+```
+
+Approval is tied to a fingerprint of the images and text, so changing anything afterwards needs a fresh approval. What gets applied automatically:
+- **YouTube:** channel description and keywords, via the API. Every other channel setting is preserved.
+- **TikTok, Instagram and X:** their APIs don't allow profile editing, and the API can't change YouTube's channel name or profile picture either. `brand apply` writes `APPLY_CHECKLIST.md` with the exact text to paste and the image to upload on each platform.
+
 ## Guardrails (on by default)
 
 - **Rights.** Only footage that a campaign lists as source material, or that matches your `rights_allowlist`, is downloaded. Clipping creators who haven't opted in gets your channels struck and your submissions rejected.
@@ -122,6 +156,8 @@ Set `llm.enabled: true` and `ANTHROPIC_API_KEY`. The heuristic shortlist (about 
 | `metrics` | pulls views for recent posts (needs read access on the direct APIs) |
 | `report` | optimizer results + estimated earnings from measured views |
 | `links` | posted URLs grouped by campaign |
+| `connect [target]` | link accounts/tools once (`status`, `all`, `youtube`, `tiktok`, `instagram`, `x`, `postiz`, `apify`, `youtube-key`, `anthropic`) |
+| `brand show/approve/apply` | profile picture + bios kit with an approval gate |
 | `styles` | lists caption/layout presets |
 | `benchmark` | measures clips/day on this machine |
 
@@ -135,6 +171,8 @@ vv88/
   editing/     styles.py, captions.py (ASS karaoke), reframe.py (face track), timeline.py (jump cuts), render.py
   publishing/  compose.py (copy/hashtags/disclosure), schedule.py, postiz.py, youtube.py, instagram.py,
                tiktok.py, x.py
+  connect.py   one-time OAuth linking (PKCE, local callback) + API-key checks; see docs/CONNECT.md
+  brand.py     brand kit validation, approval gate, YouTube channel update, profile checklist
   optimizer.py Thompson-sampling style/length/hook optimizer
   pipeline.py  the engine
   cli.py       `vv88` command

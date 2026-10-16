@@ -33,7 +33,13 @@ def load_dotenv(path: str | Path = ".env") -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
-        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+        val = val.strip()
+        if val[:1] in ("'", '"') and val[:1] in val[1:]:
+            val = val[1 : val.index(val[0], 1)]
+        else:
+            # Unquoted values may carry a trailing "# comment" (as in .env.example).
+            val = "" if val.startswith("#") else re.split(r"\s+#", val, maxsplit=1)[0].strip()
+        os.environ.setdefault(key.strip(), val)
 
 
 class _Model(BaseModel):
@@ -156,8 +162,15 @@ def _platform(**kw) -> PlatformConfig:
 class PostizConfig(_Model):
     api_url: str = "${POSTIZ_API_URL:-https://api.postiz.com/public/v1}"
     api_key: str = "${POSTIZ_API_KEY}"
-    # Postiz integration ids for each platform (see `GET /integrations`).
-    integrations: dict[str, str] = Field(default_factory=dict)
+    # Postiz integration ids per platform; `vv88 connect postiz` fills these in .env automatically.
+    integrations: dict[str, str] = Field(
+        default_factory=lambda: {
+            "tiktok": "${POSTIZ_INTEGRATION_TIKTOK}",
+            "youtube": "${POSTIZ_INTEGRATION_YOUTUBE}",
+            "instagram": "${POSTIZ_INTEGRATION_INSTAGRAM}",
+            "x": "${POSTIZ_INTEGRATION_X}",
+        }
+    )
 
 
 class DirectAPIConfig(_Model):
@@ -167,6 +180,8 @@ class DirectAPIConfig(_Model):
     youtube_category_id: str = "24"
     youtube_privacy: Literal["public", "unlisted", "private"] = "public"
 
+    facebook_app_id: str = "${FACEBOOK_APP_ID}"
+    facebook_app_secret: str = "${FACEBOOK_APP_SECRET}"
     instagram_user_id: str = "${INSTAGRAM_USER_ID}"
     instagram_access_token: str = "${INSTAGRAM_ACCESS_TOKEN}"
     instagram_graph_version: str = "v23.0"

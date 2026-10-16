@@ -76,6 +76,13 @@ def cmd_doctor(settings: Settings, _args) -> int:
         for p in enabled:
             line(bool(need.get(p)), f"{p} credentials")
     print(f"LLM re-ranking: {'on (' + settings.llm.model + ')' if settings.llm.enabled else 'off (free mode)'}")
+    from vv88.connect import link_status
+    from vv88.store import Store
+
+    print("Linked accounts & tools (`vv88 connect <name>` to link):")
+    store = Store(settings.data_path / "vv88.db")
+    for name, linked, detail in link_status(settings, store):
+        print(f"  [{'ok' if linked else '--'}] {name}{(' - ' + detail) if detail else ''}")
     return 0 if ok else 1
 
 
@@ -178,6 +185,77 @@ def cmd_links(settings: Settings, args) -> int:
     return 0
 
 
+def cmd_connect(settings: Settings, args) -> int:
+    from vv88 import connect as c
+    from vv88.publishing.base import PublishError
+    from vv88.store import Store
+
+    store = Store(settings.data_path / "vv88.db")
+    if args.target in (None, "status"):
+        for name, linked, detail in c.link_status(settings, store):
+            print(f"[{'linked' if linked else '  --  '}] {name:<12} {detail}")
+        return 0
+    targets = [args.target]
+    if args.target == "all":
+        targets = [*c.KEY_TOOLS, "youtube", "tiktok", "instagram", "x"]
+    failed = 0
+    for t in targets:
+        print(f"\n== {t} ==")
+        try:
+            if t in c.KEY_TOOLS:
+                res = c.connect_key(t, settings, env_path=args.env)
+            else:
+                res = c.connect_platform(t, settings, store, port=args.port, open_browser=not args.no_browser,
+                                         env_path=args.env)
+            print(c.dump(res))
+        except (PublishError, TimeoutError, ValueError, OSError) as e:
+            failed += 1
+            print(f"not linked: {e}")
+        if args.target == "all":
+            settings = load_settings(args.config)  # pick up keys saved to .env so far
+    return 1 if failed and args.target != "all" else 0
+
+
+def cmd_brand(settings: Settings, args) -> int:
+    from vv88 import brand as b
+    from vv88.store import Store
+
+    store = Store(settings.data_path / "vv88.db")
+    kit = b.load_kit(args.dir)
+    d = kit.data
+    if args.action == "show":
+        print(f"{d.get('concept_name', '')}  handle: @{d.get('unified_handle', '')}  fingerprint {kit.fingerprint()}")
+        print(f"profile picture: {kit.avatar}")
+        for k, v in d.get("display_names", {}).items():
+            print(f"  name/{k:<10} ({len(v):>3}) {v}")
+        for k, v in d.get("bios", {}).items():
+            print(f"  bio/{k:<19} ({len(v):>4}) {v if k != 'youtube_description' else v[:120] + '...'}")
+        print("problems: " + ("; ".join(kit.problems) if kit.problems else "none"))
+        print("approved: " + ("yes" if b.approval(kit, store) else "NO - nothing will be applied until approved"))
+        return 1 if kit.problems else 0
+    if args.action == "approve":
+        if not args.yes:
+            answer = input(f"Approve the profile picture {kit.avatar} and the bios shown by `vv88 brand show`? "
+                           "Type APPROVE: ")
+            if answer.strip() != "APPROVE":
+                print("not approved")
+                return 1
+        rec = b.approve(kit, store, note=args.note or "")
+        print(f"approved fingerprint {rec['fingerprint']}")
+        return 0
+    if args.action == "apply":
+        token = None
+        if settings.publishing.direct.youtube_refresh_token:
+            from vv88.publishing.youtube import YouTubePublisher
+
+            token = YouTubePublisher(settings.publishing.direct)._access_token()
+        result = b.apply(kit, store, youtube_access_token=token)
+        print(json.dumps(result, indent=2))
+        print(f"Finish the remaining steps from {result['checklist']}")
+        return 0
+    return 2
+
+
 def cmd_run(settings: Settings, args) -> int:
     engine = _engine(settings)
     while True:
@@ -258,6 +336,18 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("run", help="run the full loop")
     p.add_argument("--once", action="store_true")
     p.add_argument("--interval", type=float, default=30, help="minutes between cycles")
+    p = sub.add_parser("connect", help="link accounts/tools once (OAuth on your computer, keys checked live)")
+    p.add_argument("target", nargs="?", default=None,
+                   help="youtube | tiktok | instagram | x | apify | youtube-key | postiz | anthropic | all | status")
+    p.add_argument("--port", type=int, default=8788, help="local callback port (register "
+                   "http://127.0.0.1:8788/callback/ as the redirect URI)")
+    p.add_argument("--no-browser", action="store_true", help="print the sign-in link instead of opening it")
+    p.add_argument("--env", default=".env", help=".env file to save tokens/keys to")
+    p = sub.add_parser("brand", help="profile picture + bios kit: show, approve, apply")
+    p.add_argument("action", choices=["show", "approve", "apply"])
+    p.add_argument("--dir", default="brand", help="brand kit folder (brand.json + images)")
+    p.add_argument("--yes", action="store_true", help="approve without the interactive prompt")
+    p.add_argument("--note", default="")
     sub.add_parser("styles", help="list caption/layout styles")
     p = sub.add_parser("benchmark", help="measure local rendering throughput")
     p.add_argument("--seconds", type=float, default=30)
@@ -278,6 +368,8 @@ def main(argv: list[str] | None = None) -> int:
         "metrics": cmd_metrics,
         "report": cmd_report,
         "links": cmd_links,
+        "connect": cmd_connect,
+        "brand": cmd_brand,
         "run": cmd_run,
         "styles": cmd_styles,
         "benchmark": cmd_benchmark,
