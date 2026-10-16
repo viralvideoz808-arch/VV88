@@ -649,3 +649,26 @@ def test_non_ascii_return_urls_are_measured_encoded(app, path):
         assert len(quote(nxt, safe="")) <= 6000  # fits the 8 KB login field once the browser encodes it
         r = c.post("/login", data={"password": "test-password", "next": nxt}, follow_redirects=False)
         assert r.status_code == 303
+
+
+# ---- ninth review round -------------------------------------------------------------------
+def test_tilde_heavy_return_urls_fit_the_login_form(app):
+    from urllib.parse import quote
+
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as c:
+        login_url = c.get("/jobs/" + "~" * 2800, follow_redirects=False).headers["location"]
+        nxt = re.search(r'name="next" value="([^"]*)"', c.get(login_url).text).group(1)
+        # browsers send "~" as %7E (3 bytes): the value must still fit the 8 KB field
+        assert len(quote(nxt, safe="").replace("~", "%7E")) <= 6000
+
+
+def test_signed_out_form_posts_return_to_the_dashboard(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as c:
+        r = c.post("/queue/1/cancel", data={"csrf": "x"}, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/login?next=%2F"
+        assert c.get("/queue?status=failed", follow_redirects=False).headers["location"] == \
+            "/login?next=%2Fqueue%3Fstatus%3Dfailed"

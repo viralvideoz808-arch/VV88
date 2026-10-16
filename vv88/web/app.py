@@ -118,7 +118,11 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
 
     @app.exception_handler(LoginRequired)
     async def to_login(request: Request, exc: LoginRequired):
-        nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+        # Only pages can be returned to: after a form POST/action, land on the dashboard rather than a 405.
+        if request.method in ("GET", "HEAD"):
+            nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+        else:
+            nxt = "/"
         # Encode the whole target: unencoded, its own "&" would end the next= value and drop the rest.
         return RedirectResponse("/login?next=" + quote(safe_next(nxt), safe=""), status_code=303)
 

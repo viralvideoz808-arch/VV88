@@ -313,7 +313,8 @@ MAX_NEXT_ENCODED = 6000
 
 
 def _fits_login_form(url: str) -> bool:
-    return len(quote(url, safe="")) <= MAX_NEXT_ENCODED
+    # quote() leaves "~" bare but browsers send it as %7E; count it that way so this stays an upper bound.
+    return len(quote(url, safe="").replace("~", "%7E")) <= MAX_NEXT_ENCODED
 
 
 def safe_next(url: str) -> str:
