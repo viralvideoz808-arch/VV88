@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block content %}
+{% if running %}<div data-refresh="5"></div>{% endif %}
+<div class="card">
+  {% if jobs %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>Job</th><th>Status</th><th>Started</th><th>Took</th><th></th></tr></thead>
+    <tbody>
+    {% for j in jobs %}
+      <tr>
+        <td><a href="/jobs/{{ j.id }}">#{{ j.id }}</a></td>
+        <td>{{ j.label }}{% if j.params.source %} <span class="muted small">· {{ j.params.source }}</span>{% endif %}</td>
+        <td>{{ ui.status(j.status) }}</td>
+        <td class="muted small nowrap">{{ fmt_ago(j.started_at or j.created_at) }}</td>
+        <td class="muted small nowrap">{% if j.finished_at and j.started_at %}{{ "%.0f"|format(j.finished_at - j.started_at) }}s{% endif %}</td>
+        <td class="right">{% if j.status == "queued" %}{{ ui.action("/jobs/" ~ j.id ~ "/cancel", "Cancel", csrf_field, "small danger") }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}{{ ui.empty("No jobs yet. Start one from the Dashboard.") }}{% endif %}
+</div>
+{% endblock %}

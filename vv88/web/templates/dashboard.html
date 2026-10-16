@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  {% for kind, label in quick %}
+    {{ ui.action("/actions/" ~ kind, label.split(" (")[0], csrf_field, "primary" if loop.first else "") }}
+  {% endfor %}
+{% endblock %}
+{% block content %}
+{% if running %}<div data-refresh="10"></div>{% endif %}
+{% if backend == "dry_run" %}
+  <div class="flash warning">Publishing is in <strong>dry-run</strong> mode: posts go to <code>data/outbox/</code>, not to the
+    platforms. Switch the backend on the <a href="/settings">Settings</a> page once accounts are linked.</div>
+{% endif %}
+
+<div class="grid kpis">
+  {{ ui.kpi("Campaigns", counts.campaigns) }}
+  {{ ui.kpi("Clips rendered", counts.clips) }}
+  {{ ui.kpi("Scheduled", counts.scheduled) }}
+  {{ ui.kpi("Posted", counts.posted, counts.failed ~ " failed" if counts.failed else "") }}
+  {{ ui.kpi("Measured views", "{:,}".format(counts.views or 0)) }}
+  {{ ui.kpi("Est. earnings", "$" ~ "{:,.2f}".format(earnings.total_usd)) }}
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <div class="row between"><h2>Autopilot</h2>
+      {{ ui.badge("on", "ok") if autopilot.enabled else ui.badge("off") }}</div>
+    <p class="muted small">Runs the full cycle on a timer and publishes posts as their slots arrive.
+      Last run: {{ fmt_ago(autopilot.last_run) }}.</p>
+    <form method="post" action="/autopilot" class="row">
+      {{ csrf_field() }}
+      <label class="check"><input type="checkbox" name="enabled" {{ "checked" if autopilot.enabled }}> Enabled</label>
+      <label class="row small">every <input type="number" name="interval_min" min="10" step="5"
+        value="{{ autopilot.interval_min|int }}" style="width:80px"> min</label>
+      <button class="btn primary small">Save</button>
+    </form>
+  </div>
+  <div class="card">
+    <div class="row between"><h2>Accounts &amp; tools</h2><a href="/connections" class="small">Manage →</a></div>
+    <div class="row">
+      {% for r in links %}
+        {% set kind = "warn" if r.warning else ("ok" if r.linked else "muted") %}
+        <span class="badge {{ kind }}" title="{{ r.warning or r.detail }}">{{ r.name }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <div class="row between"><h2>Next posts</h2><a href="/queue" class="small">Queue →</a></div>
+    {% if upcoming %}
+    <table class="table"><tbody>
+      {% for p in upcoming %}
+      <tr><td>{{ ui.platform(p.platform) }}</td><td class="mono small">{{ p.clip_id[:8] }}</td>
+          <td class="right muted small nowrap">{{ fmt_ago(p.scheduled_at) }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}{{ ui.empty("Nothing scheduled. Clip something in the Clip studio or run a cycle.") }}{% endif %}
+  </div>
+  <div class="card">
+    <div class="row between"><h2>Top campaigns</h2><a href="/campaigns" class="small">All →</a></div>
+    {% if campaigns %}
+    <table class="table"><tbody>
+      {% for c in campaigns %}
+      <tr><td><strong>{{ c.title }}</strong><div class="muted small">{{ c.category }} · ${{ "%.2f"|format(c.reward_per_1k_usd) }}/1K</div></td>
+          <td class="right nowrap">{{ ui.badge("$" ~ "%.2f"|format(scores.get(c.id, 0)) ~ "/clip", "accent") }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}{{ ui.empty("No campaigns yet. Add one on the Campaigns page or connect Apify for Whop discovery.") }}{% endif %}
+  </div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <div class="row between"><h2>Latest clips</h2><a href="/clips" class="small">All →</a></div>
+    {% if clips %}
+    <div class="clips compact">
+      {% for c in clips %}
+      <div class="clip"><video src="{{ media_url(c.path) }}" preload="metadata" muted playsinline controls></video>
+        <div class="meta"><span class="hook small">{{ c.hook_text }}</span>
+          <span class="muted small">{{ c.style }} · {{ "%.0f"|format(c.duration) }}s</span></div></div>
+      {% endfor %}
+    </div>
+    {% else %}{{ ui.empty("No clips yet.") }}{% endif %}
+  </div>
+  <div class="card">
+    <div class="row between"><h2>Recent jobs</h2><a href="/jobs" class="small">All →</a></div>
+    {% if jobs %}
+    <table class="table"><tbody>
+      {% for j in jobs %}
+      <tr><td><a href="/jobs/{{ j.id }}">#{{ j.id }}</a> {{ j.kind }}</td><td>{{ ui.status(j.status) }}</td>
+          <td class="right muted small nowrap">{{ fmt_ago(j.created_at) }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}{{ ui.empty("No jobs yet.") }}{% endif %}
+  </div>
+</div>
+{% endblock %}

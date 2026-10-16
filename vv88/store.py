@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS kv (
     value TEXT NOT NULL,
     updated_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    params TEXT NOT NULL,
+    status TEXT NOT NULL,              -- queued | running | done | failed | cancelled
+    created_at REAL NOT NULL,
+    started_at REAL,
+    finished_at REAL,
+    log TEXT DEFAULT '',
+    result TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, id);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_metrics_post ON metrics(post_id, fetched_at);
 """
@@ -81,8 +93,10 @@ class Store:
                 os.chmod(self.path, 0o600)
             except OSError:
                 pass
-        self.db = sqlite3.connect(str(self.path))
+        # WAL + busy timeout: the web UI reads while the background worker writes.
+        self.db = sqlite3.connect(str(self.path), timeout=30)
         self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
         self.db.commit()
 
@@ -244,3 +258,70 @@ class Store:
             WHERE p.status = 'posted'
             """
         ).fetchall()
+
+    # ---- jobs (background work started from the web UI) ------------------------------
+    def add_job(self, kind: str, params: dict) -> int:
+        cur = self.db.execute(
+            "INSERT INTO jobs(kind, params, status, created_at) VALUES(?,?,?,?)",
+            (kind, json.dumps(params), "queued", time.time()),
+        )
+        self.db.commit()
+        return int(cur.lastrowid)
+
+    def update_job(self, job_id: int, **fields: Any) -> None:
+        if "result" in fields and not isinstance(fields["result"], (str, type(None))):
+            fields["result"] = json.dumps(fields["result"], default=str)
+        cols = ", ".join(f"{k}=?" for k in fields)
+        self.db.execute(f"UPDATE jobs SET {cols} WHERE id=?", (*fields.values(), job_id))
+        self.db.commit()
+
+    def job(self, job_id: int) -> sqlite3.Row | None:
+        return self.db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+
+    def jobs(self, limit: int = 50, status: str | None = None) -> list[sqlite3.Row]:
+        if status:
+            return self.db.execute("SELECT * FROM jobs WHERE status=? ORDER BY id DESC LIMIT ?",
+                                   (status, limit)).fetchall()
+        return self.db.execute("SELECT * FROM jobs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+
+    # ---- read helpers for the dashboard -----------------------------------------------
+    def counts(self) -> dict[str, int]:
+        q = self.db.execute
+        return {
+            "campaigns": q("SELECT COUNT(*) FROM campaigns").fetchone()[0],
+            "sources": q("SELECT COUNT(*) FROM sources").fetchone()[0],
+            "clips": q("SELECT COUNT(*) FROM clips").fetchone()[0],
+            "scheduled": q("SELECT COUNT(*) FROM posts WHERE status='scheduled'").fetchone()[0],
+            "posted": q("SELECT COUNT(*) FROM posts WHERE status='posted'").fetchone()[0],
+            "failed": q("SELECT COUNT(*) FROM posts WHERE status='failed'").fetchone()[0],
+            "views": q("SELECT COALESCE(SUM(v),0) FROM (SELECT (SELECT views FROM metrics m WHERE m.post_id=p.id "
+                       "ORDER BY fetched_at DESC LIMIT 1) AS v FROM posts p WHERE status='posted')").fetchone()[0],
+        }
+
+    def clips_list(self, limit: int = 100, campaign_id: str | None = None) -> list[RenderedClip]:
+        if campaign_id:
+            rows = self.db.execute("SELECT data FROM clips WHERE campaign_id=? ORDER BY created_at DESC LIMIT ?",
+                                   (campaign_id, limit)).fetchall()
+        else:
+            rows = self.db.execute("SELECT data FROM clips ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return [RenderedClip(**json.loads(r["data"])) for r in rows]
+
+    def posts_list(self, status: str | None = None, limit: int = 200) -> list[sqlite3.Row]:
+        sql = ("SELECT p.*, (SELECT views FROM metrics m WHERE m.post_id=p.id ORDER BY fetched_at DESC LIMIT 1) "
+               "AS views FROM posts p")
+        args: tuple = ()
+        if status:
+            sql += " WHERE p.status=?"
+            args = (status,)
+        sql += " ORDER BY CASE p.status WHEN 'scheduled' THEN 0 ELSE 1 END, p.scheduled_at DESC LIMIT ?"
+        return self.db.execute(sql, (*args, limit)).fetchall()
+
+    def post(self, post_id: int) -> sqlite3.Row | None:
+        return self.db.execute("SELECT * FROM posts WHERE id=?", (post_id,)).fetchone()
+
+    def cancel_post(self, post_id: int) -> None:
+        self.db.execute("UPDATE posts SET status='skipped' WHERE id=? AND status='scheduled'", (post_id,))
+        self.db.commit()
+
+    def campaign_scores(self) -> dict[str, float]:
+        return {r["id"]: r["score"] or 0.0 for r in self.db.execute("SELECT id, score FROM campaigns").fetchall()}

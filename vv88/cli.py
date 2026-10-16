@@ -298,6 +298,17 @@ def cmd_brand(settings: Settings, args) -> int:
     return 2
 
 
+def cmd_web(settings: Settings, args) -> int:
+    try:
+        from vv88.web.app import serve
+    except ImportError as e:  # pragma: no cover - optional dependency
+        print(f"the web UI needs extra packages: pip install 'vv88[web]' ({e})")
+        return 1
+    serve(host=args.host, port=args.port, config_path=args.config, env_path=args.env, brand_dir=args.brand_dir,
+          https_cookies=args.https_cookies)
+    return 0
+
+
 def cmd_run(settings: Settings, args) -> int:
     engine = _engine(settings)
     while True:
@@ -393,6 +404,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dir", default="brand", help="brand kit folder (brand.json + images)")
     p.add_argument("--fingerprint", default=None, help="fingerprint printed by `vv88 brand show` (approve)")
     p.add_argument("--note", default="")
+    p = sub.add_parser("web", help="start the control website (dashboard, studio, queue, brand, connections)")
+    p.add_argument("--host", default="127.0.0.1", help="interface to listen on (default: this computer only)")
+    p.add_argument("--port", type=int, default=8088)
+    p.add_argument("--env", default=".env", help=".env file with keys/tokens and the web password")
+    p.add_argument("--brand-dir", default="brand")
+    p.add_argument("--https-cookies", action="store_true", help="set when served behind an HTTPS reverse proxy")
     sub.add_parser("styles", help="list caption/layout styles")
     p = sub.add_parser("benchmark", help="measure local rendering throughput")
     p.add_argument("--seconds", type=float, default=30)
@@ -420,6 +437,7 @@ def main(argv: list[str] | None = None) -> int:
         "report": cmd_report,
         "links": cmd_links,
         "connect": cmd_connect,
+        "web": cmd_web,
         "brand": cmd_brand,
         "run": cmd_run,
         "styles": cmd_styles,

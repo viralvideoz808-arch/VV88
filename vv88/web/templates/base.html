@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title ~ " · " if title }}VV88</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="/">
+      {% if brand_avatar %}<img class="logo-img" src="{{ media_url(brand_avatar) }}" alt="">
+      {% else %}<span class="logo" aria-hidden="true">8</span>{% endif %}
+      <span class="brand-text"><strong>VV88</strong><small>clipping engine</small></span>
+    </a>
+    <nav>
+      {% for href, label in nav %}
+        <a href="{{ href }}" class="{{ 'active' if (href == '/' and path == '/') or (href != '/' and path.startswith(href)) }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    {% if user %}
+    <form method="post" action="/logout" class="logout">{{ csrf_field() }}<button class="btn ghost small">Sign out</button></form>
+    {% endif %}
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1>{{ title }}</h1>
+      <div class="top-actions">{% block actions %}{% endblock %}</div>
+    </header>
+    {% for f in flashes %}
+      <div class="flash {{ f.kind }}" role="status">{{ f.message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

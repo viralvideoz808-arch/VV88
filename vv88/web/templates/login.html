@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · VV88</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="login-body">
+  <form method="post" action="/login" class="login card">
+    <div class="brand center"><span class="logo" aria-hidden="true">8</span>
+      <span class="brand-text"><strong>VV88</strong><small>clipping engine</small></span></div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <label class="field"><span>Password</span>
+      <input type="password" name="password" autocomplete="current-password" autofocus required></label>
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+    <button class="btn primary wide">Sign in</button>
+    <p class="muted small">The password is <code>VV88_WEB_PASSWORD</code> in your <code>.env</code> file
+      (printed in the terminal the first time <code>vv88 web</code> runs).</p>
+  </form>
+</body>
+</html>

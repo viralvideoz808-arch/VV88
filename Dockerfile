@@ -14,4 +14,7 @@ RUN pip install --no-cache-dir ".[all]"
 WORKDIR /work
 VOLUME ["/work/data"]
 ENTRYPOINT ["vv88"]
-CMD ["run", "--interval", "30"]
+# Control website (turn on Autopilot there). Publish the port to localhost only:
+#   docker run -p 127.0.0.1:8088:8088 -v $PWD:/work vv88
+EXPOSE 8088
+CMD ["web", "--host", "0.0.0.0", "--port", "8088"]

@@ -1,0 +1,33 @@
+{# Shared components. Import with: {% import "_macros.html" as ui %} #}
+
+{% macro badge(text, kind="muted") -%}
+  <span class="badge {{ kind }}">{{ text }}</span>
+{%- endmacro %}
+
+{% macro status(s) -%}
+  {%- set kinds = {"done": "ok", "posted": "ok", "linked": "ok", "running": "info", "queued": "muted",
+                   "scheduled": "info", "failed": "err", "cancelled": "muted", "skipped": "muted",
+                   "dry_run": "warn"} -%}
+  <span class="badge {{ kinds.get(s, 'muted') }}">{{ s }}</span>
+{%- endmacro %}
+
+{% macro kpi(label, value, sub="") -%}
+  <div class="kpi"><div class="kpi-label">{{ label }}</div><div class="kpi-value">{{ value }}</div>
+  {% if sub %}<div class="kpi-sub">{{ sub }}</div>{% endif %}</div>
+{%- endmacro %}
+
+{% macro empty(message) -%}
+  <div class="empty">{{ message }}</div>
+{%- endmacro %}
+
+{% macro action(url, label, csrf_field, kind="primary", confirm="", hidden={}) -%}
+  <form method="post" action="{{ url }}" class="inline">
+    {{ csrf_field() }}
+    {% for k, v in hidden.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <button class="btn {{ kind }}" {% if confirm %}data-confirm="{{ confirm }}"{% endif %}>{{ label }}</button>
+  </form>
+{%- endmacro %}
+
+{% macro platform(p) -%}
+  <span class="plat plat-{{ p }}">{{ {"tiktok": "TikTok", "youtube": "YouTube", "instagram": "Instagram", "x": "X"}.get(p, p) }}</span>
+{%- endmacro %}

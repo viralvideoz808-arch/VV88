@@ -385,23 +385,69 @@ def _authorize(url: str, port: int, state: str, open_browser: bool, paste: bool 
     return cb.code
 
 
-def connect_platform(platform: str, settings: Settings, store: Store, port: int = DEFAULT_PORT,
-                     open_browser: bool = True, env_path: str | Path = ".env",
-                     http: requests.Session | None = None, paste: bool = False,
-                     redirect: str | None = None) -> dict:
-    http = http or requests.Session()
+@dataclass
+class AuthStart:
+    """Everything needed to finish a sign-in after the browser comes back (kept server-side)."""
+
+    platform: str
+    url: str
+    state: str
+    verifier: str
+    redirect: str
+
+    def to_dict(self) -> dict:
+        return {k: getattr(self, k) for k in ("platform", "url", "state", "verifier", "redirect")}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "AuthStart":
+        return cls(**{k: d[k] for k in ("platform", "url", "state", "verifier", "redirect")})
+
+
+def start_authorization(platform: str, settings: Settings, redirect: str) -> AuthStart:
+    """Check prerequisites and build the consent URL for `platform` with a fresh state + PKCE pair."""
     d = settings.publishing.direct
     state = secrets.token_urlsafe(24)
-
     if platform == "youtube":
         if not (d.youtube_client_id and d.youtube_client_secret):
             raise PublishError("set YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET (Google Cloud > Credentials > "
-                               "OAuth client ID > Desktop app) in .env first")
+                               "OAuth client ID > Desktop app) first")
         verifier, challenge = pkce_pair()
-        redirect = redirect or redirect_uri(port)
-        code = _authorize(youtube_authorize_url(d.youtube_client_id, redirect, state, challenge), port, state,
-                          open_browser, paste)
-        tok = exchange_youtube(http, d.youtube_client_id, d.youtube_client_secret, code, redirect, verifier)
+        url = youtube_authorize_url(d.youtube_client_id, redirect, state, challenge)
+    elif platform == "tiktok":
+        if not (d.tiktok_client_key and d.tiktok_client_secret):
+            raise PublishError("set TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET (TikTok developer app with "
+                               "Login Kit for Desktop + Content Posting API) first")
+        verifier, challenge = pkce_pair(hex_challenge=True)
+        url = tiktok_authorize_url(d.tiktok_client_key, redirect, state, challenge)
+    elif platform == "x":
+        if not d.x_client_id:
+            raise PublishError("set X_CLIENT_ID (and X_CLIENT_SECRET for a confidential app) first, and register "
+                               f"{redirect} as a callback URL in the X developer portal")
+        verifier, challenge = pkce_pair()
+        url = x_authorize_url(d.x_client_id, redirect, state, challenge)
+    elif platform == "instagram":
+        if not (d.facebook_app_id and d.facebook_app_secret):
+            raise PublishError("set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET (Meta app with Facebook Login for "
+                               "Business + Instagram Graph API) first. Meta allows an http://localhost redirect "
+                               "only while the app is in Development mode and you have a role on it; otherwise "
+                               "register an https URL")
+        verifier = ""
+        url = facebook_authorize_url(d.facebook_app_id, redirect, state, d.instagram_graph_version,
+                                     d.facebook_login_config_id)
+    else:
+        raise ValueError(f"unknown platform {platform!r}")
+    return AuthStart(platform, url, state, verifier, redirect)
+
+
+def complete_authorization(start: AuthStart, code: str, settings: Settings, store: Store,
+                           env_path: str | Path = ".env", http: requests.Session | None = None) -> dict:
+    """Swap the authorization code for tokens and save them so the account stays linked."""
+    http = http or requests.Session()
+    d = settings.publishing.direct
+    platform, redirect = start.platform, start.redirect
+
+    if platform == "youtube":
+        tok = exchange_youtube(http, d.youtube_client_id, d.youtube_client_secret, code, redirect, start.verifier)
         if not tok.get("refresh_token"):
             raise PublishError("Google returned no refresh token; remove VV88 at "
                                "https://myaccount.google.com/permissions and connect again")
@@ -426,28 +472,14 @@ def connect_platform(platform: str, settings: Settings, store: Store, port: int 
         return out
 
     if platform == "tiktok":
-        if not (d.tiktok_client_key and d.tiktok_client_secret):
-            raise PublishError("set TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET (TikTok developer app with "
-                               "Login Kit for Desktop + Content Posting API) in .env first")
-        verifier, challenge = pkce_pair(hex_challenge=True)
-        redirect = redirect or redirect_uri(port)
-        code = _authorize(tiktok_authorize_url(d.tiktok_client_key, redirect, state, challenge), port, state,
-                          open_browser, paste)
-        tok = exchange_tiktok(http, d.tiktok_client_key, d.tiktok_client_secret, code, redirect, verifier)
+        tok = exchange_tiktok(http, d.tiktok_client_key, d.tiktok_client_secret, code, redirect, start.verifier)
         TokenVault(store, "tiktok", "", "").save(tok["access_token"], tok.get("refresh_token"), tok.get("expires_in"))
         update_env_file({"TIKTOK_REFRESH_TOKEN": tok.get("refresh_token", ""),
                          "TIKTOK_ACCESS_TOKEN": tok["access_token"]}, env_path)
         return {"platform": "tiktok", "open_id": tok.get("open_id", ""), "scope": tok.get("scope", "")}
 
     if platform == "x":
-        if not d.x_client_id:
-            raise PublishError("set X_CLIENT_ID (and X_CLIENT_SECRET for a confidential app) in .env first; "
-                               f"register {redirect_uri(port)} as a callback URL in the X developer portal")
-        verifier, challenge = pkce_pair()
-        redirect = redirect or redirect_uri(port)
-        code = _authorize(x_authorize_url(d.x_client_id, redirect, state, challenge), port, state, open_browser,
-                          paste)
-        tok = exchange_x(http, d.x_client_id, d.x_client_secret, code, redirect, verifier)
+        tok = exchange_x(http, d.x_client_id, d.x_client_secret, code, redirect, start.verifier)
         TokenVault(store, "x", "", "").save(tok["access_token"], tok.get("refresh_token"), tok.get("expires_in"))
         update_env_file({"X_REFRESH_TOKEN": tok.get("refresh_token", ""), "X_ACCESS_TOKEN": tok["access_token"]},
                         env_path)
@@ -461,18 +493,8 @@ def connect_platform(platform: str, settings: Settings, store: Store, port: int 
         return out
 
     if platform == "instagram":
-        fb_app_id, fb_app_secret = d.facebook_app_id, d.facebook_app_secret
-        if not (fb_app_id and fb_app_secret):
-            raise PublishError("set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET (Meta app with Facebook Login for "
-                               "Business + Instagram Graph API) in .env first. Meta allows an http://localhost "
-                               "redirect only while the app is in Development mode and you have a role on it; "
-                               "otherwise register an https URL and use --paste --redirect <that url>")
-        version = d.instagram_graph_version
-        redirect = redirect or d.facebook_redirect_uri or redirect_uri(port, host="localhost")
-        local = redirect.startswith(f"http://localhost:{port}") or redirect.startswith(f"http://127.0.0.1:{port}")
-        code = _authorize(facebook_authorize_url(fb_app_id, redirect, state, version, d.facebook_login_config_id),
-                          port, state, open_browser, paste or not local, also_ipv6=True)
-        tok = exchange_facebook(http, fb_app_id, fb_app_secret, code, redirect, version)
+        tok = exchange_facebook(http, d.facebook_app_id, d.facebook_app_secret, code, redirect,
+                                d.instagram_graph_version)
         if not tok["accounts"]:
             raise PublishError("no Instagram professional account is linked to a Facebook Page you manage; "
                                "switch the IG account to Creator/Business and link it to a Page")
@@ -486,6 +508,23 @@ def connect_platform(platform: str, settings: Settings, store: Store, port: int 
                 "other_accounts": [a["username"] for a in tok["accounts"][1:]]}
 
     raise ValueError(f"unknown platform {platform!r}")
+
+
+def connect_platform(platform: str, settings: Settings, store: Store, port: int = DEFAULT_PORT,
+                     open_browser: bool = True, env_path: str | Path = ".env",
+                     http: requests.Session | None = None, paste: bool = False,
+                     redirect: str | None = None) -> dict:
+    """CLI flow: start, wait for the local callback (or a pasted URL), complete."""
+    d = settings.publishing.direct
+    if platform == "instagram":
+        redirect = redirect or d.facebook_redirect_uri or redirect_uri(port, host="localhost")
+        local = redirect.startswith((f"http://localhost:{port}", f"http://127.0.0.1:{port}"))
+        paste = paste or not local
+    else:
+        redirect = redirect or redirect_uri(port)
+    start = start_authorization(platform, settings, redirect)
+    code = _authorize(start.url, port, start.state, open_browser, paste, also_ipv6=platform == "instagram")
+    return complete_authorization(start, code, settings, store, env_path, http)
 
 
 # ---- API-key tools -----------------------------------------------------------------------

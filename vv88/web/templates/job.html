@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}<a class="btn" href="/jobs">All jobs</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="row between">
+    <div><strong>{{ job.label }}</strong> {{ ui.status(job.status) }}</div>
+    <div class="muted small">created {{ fmt_time(job.created_at) }}{% if job.finished_at %} · finished {{ fmt_time(job.finished_at) }}{% endif %}</div>
+  </div>
+  {% if job.params %}<p class="muted small mono">{{ job.params | tojson }}</p>{% endif %}
+</div>
+<div class="card">
+  <h2>Log</h2>
+  <pre class="log" {% if job.status in ("running", "queued") %}data-poll="/jobs/{{ job.id }}/log.json"{% endif %}>{{ job.log or ("(waiting for output…)" if job.status in ("running", "queued") else "(no output)") }}</pre>
+</div>
+{% if job.result %}
+<div class="card">
+  <h2>Result</h2>
+  <pre class="log">{{ result_json }}</pre>
+</div>
+{% endif %}
+{% endblock %}

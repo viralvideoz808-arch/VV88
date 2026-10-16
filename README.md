@@ -75,6 +75,39 @@ The default is `dry_run`. It writes each video plus its post copy to `data/outbo
 
 Posting faster than an account can absorb splits its reach and looks like spam. VV88 enforces a per-platform daily cap, a minimum gap between posts, and ±7 min jitter. It also stops rendering when the posting queues are two days deep.
 
+## The control website
+
+```bash
+pip install -e ".[all]"
+vv88 web                 # http://127.0.0.1:8088. The first run prints the password and saves it to .env
+```
+
+Everything runs from the browser:
+
+| Page | What you do there |
+|---|---|
+| **Dashboard** | KPIs, the autopilot switch, one-click full cycle / discover / publish / pull metrics |
+| **Campaigns** | campaigns ranked by expected $ per clip, the niche leaderboard, add or archive campaigns |
+| **Clip studio** | paste a URL or upload footage; pick campaign, clip count and style |
+| **Clips** | watch every rendered clip, see where it's posted, schedule it |
+| **Queue** | scheduled, posted and failed posts; publish now, cancel or retry |
+| **Performance** | the winning style / length / hook this week, views, earnings, payout links |
+| **Brand** | profile picture, banners and bios with character counts; approve, then apply |
+| **Connections** | one-click account linking (OAuth), API keys, developer-app credentials |
+| **Settings** | posting caps and slots, clip lengths, styles, AI re-ranking, system check, benchmark |
+| **Jobs** | every background job, with live logs |
+
+Long work (downloading, rendering, publishing) runs in a background worker, so the site stays responsive. Autopilot runs the full cycle on a timer and publishes posts as their slots arrive.
+
+Security:
+- Password login, locked for 10 minutes after 5 failed attempts.
+- CSRF tokens on every form, and a strict Content-Security-Policy.
+- Media is served only from the clips, outbox and brand folders.
+- Secrets are never shown in the UI.
+- By default the site listens only on this computer. To reach it from elsewhere, put it behind an HTTPS reverse proxy and pass `vv88 web --host 0.0.0.0 --https-cookies`. Set `VV88_WEB_BASE_URL` to the public https address so the OAuth redirects match.
+
+For account linking from the website, register `<site address>/oauth/callback` as the redirect URI in each developer app.
+
 ## Connect your accounts once (they stay linked)
 
 Run these **on your own computer**, in the browser where you're signed in, from the repo folder:
@@ -143,7 +176,7 @@ vv88 report                                # which style/length/hook is winning 
 vv88 links                                 # posted URLs per campaign, to submit for payout
 ```
 
-Run it 24/7 with Docker (`docker build -t vv88 . && docker run -v $PWD:/work vv88`), with cron (`*/30 * * * * cd /path && vv88 run --once`), or as a systemd service.
+Run it 24/7 with Docker (`docker build -t vv88 . && docker run -p 127.0.0.1:8088:8088 -v $PWD:/work vv88`, which starts the control website; turn on Autopilot there), with cron (`*/30 * * * * cd /path && vv88 run --once`), or as a systemd service.
 
 ### Optional: Claude as editor-in-chief
 
