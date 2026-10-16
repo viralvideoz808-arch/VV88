@@ -311,6 +311,10 @@ def _start_clip(request: Request, form, upload: UploadFile | None):
         from vv88.pipeline import Engine
 
         if not Engine(settings).platforms_for(campaign):
-            flash(request, "Nothing will be scheduled: none of this campaign's platforms can be posted to here "
-                           "(switched off in Settings, or not supported).", "warning")
+            if campaign and (campaign.platforms or campaign.other_platforms):
+                why = ("none of this campaign's platforms can be posted to here (switched off in Settings, or not "
+                       "supported).")
+            else:
+                why = "no platforms are enabled. Turn some on in Settings."
+            flash(request, "Nothing will be scheduled: " + why, "warning")
     return redirect(request, f"/jobs/{job_id}", f"Clipping started: {what} (job #{job_id}).", "success")

@@ -73,6 +73,8 @@
       if (n) n.textContent = named;
     };
     sel.addEventListener("change", update);
+    window.addEventListener("pageshow", update);  // Back/reload restore the select without a change event
+    update();
   });
 
   // <div data-refresh="15">: reload the page every N seconds (dashboard while jobs run).

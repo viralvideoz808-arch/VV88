@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sqlite3
 import time
@@ -11,6 +12,22 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from vv88.models import Campaign, RenderedClip, SourceVideo
+
+
+def _finite(obj):
+    """NaN/±Infinity -> None, recursively. json.dumps writes them as bare NaN/Infinity, which SQLite before
+    3.42 can't parse, so every json_extract on such a row (queue, performance, ranking) would fail."""
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return None
+    if isinstance(obj, dict):
+        return {k: _finite(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_finite(v) for v in obj]
+    return obj
+
+
+def _dumps(obj, **kwargs) -> str:
+    return json.dumps(_finite(obj), allow_nan=False, **kwargs)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS campaigns (
@@ -99,6 +116,22 @@ class Store:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
         self.db.commit()
+        self._repair_nonfinite_json()
+
+    def _repair_nonfinite_json(self) -> None:
+        """Rewrite rows saved by older versions with bare NaN/Infinity in their JSON (once)."""
+        if self.kv_get("repair:nonfinite_json"):
+            return
+        for table in ("campaigns", "clips", "sources"):
+            rows = self.db.execute(f"SELECT rowid AS rid, data FROM {table} "
+                                   "WHERE data LIKE '%NaN%' OR data LIKE '%Infinity%'").fetchall()
+            for r in rows:
+                try:
+                    data = json.loads(r["data"])
+                except ValueError:
+                    continue
+                self.db.execute(f"UPDATE {table} SET data=? WHERE rowid=?", (_dumps(data), r["rid"]))
+        self.kv_set("repair:nonfinite_json", True)
 
     def close(self) -> None:
         self.db.close()
@@ -116,7 +149,7 @@ class Store:
         self.db.execute(
             "INSERT INTO kv(key, value, updated_at) VALUES(?,?,?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            (key, json.dumps(value), time.time()),
+            (key, _dumps(value), time.time()),
         )
         self.db.commit()
 
@@ -128,7 +161,7 @@ class Store:
             self.db.execute(
                 "INSERT INTO campaigns(id, data, updated_at) VALUES(?,?,?) "
                 "ON CONFLICT(id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at",
-                (c.id, json.dumps(c.to_dict()), now),
+                (c.id, _dumps(c.to_dict()), now),
             )
             n += 1
         self.db.commit()
@@ -175,7 +208,7 @@ class Store:
     def add_source(self, src: SourceVideo) -> None:
         self.db.execute(
             "INSERT OR REPLACE INTO sources(id, campaign_id, url, data, created_at) VALUES(?,?,?,?,?)",
-            (src.id, src.campaign_id, src.url, json.dumps(asdict(src)), time.time()),
+            (src.id, src.campaign_id, src.url, _dumps(asdict(src)), time.time()),
         )
         self.db.commit()
 
@@ -201,7 +234,7 @@ class Store:
                 clip.style,
                 clip.length_bucket,
                 clip.hook_type,
-                json.dumps(asdict(clip)),
+                _dumps(asdict(clip)),
                 time.time(),
             ),
         )
@@ -219,7 +252,7 @@ class Store:
     def schedule_post(self, clip_id: str, platform: str, when: float, content: dict) -> int | None:
         cur = self.db.execute(
             "INSERT OR IGNORE INTO posts(clip_id, platform, status, scheduled_at, content) VALUES(?,?,?,?,?)",
-            (clip_id, platform, "scheduled", when, json.dumps(content)),
+            (clip_id, platform, "scheduled", when, _dumps(content)),
         )
         self.db.commit()
         return cur.lastrowid if cur.rowcount else None
@@ -312,14 +345,14 @@ class Store:
     def add_job(self, kind: str, params: dict) -> int:
         cur = self.db.execute(
             "INSERT INTO jobs(kind, params, status, created_at) VALUES(?,?,?,?)",
-            (kind, json.dumps(params), "queued", time.time()),
+            (kind, _dumps(params), "queued", time.time()),
         )
         self.db.commit()
         return int(cur.lastrowid)
 
     def update_job(self, job_id: int, **fields: Any) -> None:
         if "result" in fields and not isinstance(fields["result"], (str, type(None))):
-            fields["result"] = json.dumps(fields["result"], default=str)
+            fields["result"] = _dumps(fields["result"], default=str)
         cols = ", ".join(f"{k}=?" for k in fields)
         self.db.execute(f"UPDATE jobs SET {cols} WHERE id=?", (*fields.values(), job_id))
         self.db.commit()

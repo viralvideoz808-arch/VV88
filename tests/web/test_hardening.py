@@ -552,3 +552,46 @@ def test_studio_hint_carries_per_campaign_platforms_and_warns(client, csrf, demo
     r = client.post("/studio/clip", data={"csrf": csrf("/studio"), "source": str(src), "campaign_id": "fb-only",
                                           "n": "1", "i_have_rights": "on", "post": "on"}, follow_redirects=True)
     assert "Nothing will be scheduled" in r.text
+
+
+# ---- fifth review round -------------------------------------------------------------------
+@pytest.mark.parametrize("nxt", ["//[", "//[::1", "//[x]", "//＃", "/\\evil.example", "https://evil.example"])
+def test_login_next_parameter_never_500s_or_redirects_off_site(app, nxt):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        assert c.get("/login", params={"next": nxt}).status_code == 200
+        r = c.post("/login", data={"password": "test-password", "next": nxt}, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/"
+
+
+def test_store_never_writes_nan_or_infinity_and_repairs_old_rows(tmp_path):
+    from vv88.models import Campaign
+
+    store = Store(tmp_path / "vv88.db")
+    store.upsert_campaigns([Campaign(id="uncapped", title="U", reward_per_1k_usd=float("inf"),
+                                     budget_remaining_usd=float("inf"), total_budget_usd=float("nan"))])
+    raw = store.db.execute("SELECT data FROM campaigns WHERE id='uncapped'").fetchone()["data"]
+    assert "Infinity" not in raw and "NaN" not in raw
+    c = store.campaign("uncapped")
+    assert c.reward_per_1k_usd == 0.0 and c.budget_remaining_usd is None and c.total_budget_usd is None
+    # a row written by an older version with bare Infinity gets rewritten once on open
+    store.db.execute("INSERT INTO campaigns(id, data, updated_at) VALUES('old', ?, 0)",
+                     ('{"id": "old", "title": "Old", "reward_per_1k_usd": 1.5, "budget_remaining_usd": Infinity}',))
+    store.db.commit()
+    store.kv_set("repair:nonfinite_json", None)
+    store = Store(tmp_path / "vv88.db")
+    raw = store.db.execute("SELECT data FROM campaigns WHERE id='old'").fetchone()["data"]
+    assert "Infinity" not in raw and store.campaign("old").budget_remaining_usd is None
+    assert json.loads(raw)["reward_per_1k_usd"] == 1.5
+
+
+def test_studio_warning_names_the_real_cause_without_a_campaign(client, csrf, demo_root):
+    cfg = demo_root / "config.yaml"
+    text = cfg.read_text().replace("backend: dry_run", "backend: direct").replace("enabled: true", "enabled: false")
+    cfg.write_text(text)
+    src = demo_root / "own.mp4"
+    src.write_bytes(b"\0\0\0\x18ftypmp42" + b"\0" * 64)
+    r = client.post("/studio/clip", data={"csrf": csrf("/studio"), "source": str(src), "campaign_id": "", "n": "1",
+                                          "i_have_rights": "on", "post": "on"}, follow_redirects=True)
+    assert "no platforms are enabled" in r.text and "this campaign" not in r.text

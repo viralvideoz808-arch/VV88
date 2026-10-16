@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -29,6 +30,10 @@ def normalize_platform(name: str) -> str | None:
     return _PLATFORM_ALIASES.get(name.strip().lower())
 
 
+def _finite_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
 @dataclass
 class Campaign:
     id: str
@@ -52,6 +57,14 @@ class Campaign:
     paid_partnership: bool = True
     status: str = "active"
     origin: str = "manual"
+
+    def __post_init__(self) -> None:
+        # `budget_remaining_usd: inf` in YAML or a NaN from a scraper means "no limit"/"unknown", not a number.
+        if not _finite_number(self.reward_per_1k_usd):
+            self.reward_per_1k_usd = 0.0
+        for name in ("budget_remaining_usd", "total_budget_usd"):
+            if getattr(self, name) is not None and not _finite_number(getattr(self, name)):
+                setattr(self, name, None)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

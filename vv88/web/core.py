@@ -308,11 +308,15 @@ def redirect(request: Request, url: str, message: str = "", kind: str = "info") 
 
 
 def safe_next(url: str) -> str:
-    """Only allow same-site relative paths (no open redirects)."""
-    parsed = urlparse(url or "/")
-    if parsed.scheme or parsed.netloc or not (url or "/").startswith("/") or url.startswith("//"):
+    """Only allow same-site relative paths (no open redirects); anything odd, even unparseable, becomes '/'."""
+    url = url or "/"
+    if not url.startswith("/") or url.startswith(("//", "/\\")):
         return "/"
-    return url
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return "/"
+    return "/" if parsed.scheme or parsed.netloc else url
 
 
 # ---- rendering --------------------------------------------------------------------------
