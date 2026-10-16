@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import json
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 
 from vv88.web.core import context, redirect, render, require_user, verify_csrf
-from vv88.web.jobs import JOB_KINDS
+from vv88.web.jobs import JOB_KINDS, redact_obj
 
 router = APIRouter()
+JobId = Annotated[int, Path(ge=1, le=2**63 - 1)]  # SQLite INTEGER range; anything else: 422, not 500
 
 
 def _row(job, jobs_manager) -> dict:
     d = dict(job)
     d["label"] = JOB_KINDS.get(d["kind"], (d["kind"],))[0]
     d["params"] = json.loads(d["params"] or "{}")
-    d["result"] = json.loads(d["result"]) if d.get("result") else None
+    d["result"] = redact_obj(json.loads(d["result"])) if d.get("result") else None  # older rows too
     d["log"] = jobs_manager.log_text(job)
     return d
 
@@ -29,7 +31,7 @@ def jobs_page(request: Request):
 
 
 @router.get("/jobs/{job_id}", dependencies=[Depends(require_user)])
-def job_page(request: Request, job_id: int):
+def job_page(request: Request, job_id: JobId):
     ctx = context(request)
     job = ctx.store.job(job_id)
     if job is None:
@@ -39,7 +41,7 @@ def job_page(request: Request, job_id: int):
 
 
 @router.get("/jobs/{job_id}/log.json", dependencies=[Depends(require_user)])
-def job_log(request: Request, job_id: int):
+def job_log(request: Request, job_id: JobId):
     ctx = context(request)
     job = ctx.store.job(job_id)
     if job is None:
@@ -48,7 +50,7 @@ def job_log(request: Request, job_id: int):
 
 
 @router.post("/jobs/{job_id}/cancel", dependencies=[Depends(require_user), Depends(verify_csrf)])
-def job_cancel(request: Request, job_id: int):
+def job_cancel(request: Request, job_id: JobId):
     ctx = context(request)
     job = ctx.store.job(job_id)
     if job is None or job["status"] != "queued":

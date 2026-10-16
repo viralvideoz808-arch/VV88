@@ -10,11 +10,12 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
+from starlette.datastructures import FormData
 
 from vv88 import brand as b
 from vv88.connect import link_status
 from vv88.publishing.base import redact
-from vv88.web.core import context, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, form_data, redirect, render, require_user, verify_csrf
 
 router = APIRouter()
 
@@ -158,8 +159,7 @@ def brand_page(request: Request):
 
 
 @router.post("/brand/approve", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def approve(request: Request):
-    form = await request.form()
+def approve(request: Request, form: FormData = Depends(form_data)):
     sent = str(form.get("fingerprint") or "").strip().lower()
     if str(form.get("reviewed") or "") != "yes":
         return redirect(request, "/brand#approve", "Tick “I reviewed the picture, banners and every word above” "

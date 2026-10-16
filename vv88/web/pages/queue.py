@@ -7,9 +7,10 @@ import re
 import time
 
 from fastapi import APIRouter, Depends, Request
+from starlette.datastructures import FormData
 
 from vv88.publishing.base import redact
-from vv88.web.core import context, flash, redirect, render, require_user, safe_next, verify_csrf
+from vv88.web.core import context, flash, form_data, redirect, render, require_user, safe_next, verify_csrf
 
 router = APIRouter()
 
@@ -21,7 +22,7 @@ _BACK_RE = re.compile(r"^/(queue(\?status=[a-z]+)?|clips/[A-Za-z0-9_-]{1,64})$")
 
 def _post_id(raw: str) -> int | None:
     raw = (raw or "").strip()
-    return int(raw) if raw.isdigit() and len(raw) <= 12 else None
+    return int(raw) if raw.isascii() and raw.isdigit() and len(raw) <= 12 else None
 
 
 def _back(value, default: str) -> str:
@@ -48,7 +49,8 @@ def queue_page(request: Request, status: str = "scheduled"):
 
     counts = {s: 0 for s in STATUSES}
     for r in db.execute("SELECT status, COUNT(*) AS n FROM posts GROUP BY status").fetchall():
-        counts[r["status"]] = r["n"]
+        key = "scheduled" if r["status"] == "publishing" else r["status"]  # uploading now: still on the Scheduled tab
+        counts[key] = counts.get(key, 0) + r["n"]
     counts["all"] = sum(counts.values())
     now = time.time()
     due = db.execute("SELECT COUNT(*) FROM posts WHERE status='scheduled' AND scheduled_at<=?", (now,)).fetchone()[0]
@@ -57,7 +59,8 @@ def queue_page(request: Request, status: str = "scheduled"):
            "json_extract(c.data, '$.hook_text') AS hook, c.id AS clip_exists FROM posts p "
            "LEFT JOIN clips c ON c.id = p.clip_id")
     if status == "scheduled":
-        rows = db.execute(sql + " WHERE p.status='scheduled' ORDER BY p.scheduled_at ASC LIMIT ?", (LIMIT,))
+        rows = db.execute(sql + " WHERE p.status IN ('scheduled','publishing') "
+                          "ORDER BY p.status='scheduled', p.scheduled_at ASC LIMIT ?", (LIMIT,))
     elif status == "all":
         # Upcoming posts first (soonest at the top), then everything else newest first.
         rows = db.execute(sql + " ORDER BY CASE p.status WHEN 'scheduled' THEN 0 ELSE 1 END, "
@@ -109,8 +112,7 @@ def publish_now(request: Request, post_id: str):
 
 
 @router.post("/queue/{post_id}/cancel", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def cancel(request: Request, post_id: str):
-    form = await request.form()
+def cancel(request: Request, post_id: str, form: FormData = Depends(form_data)):
     ctx = context(request)
     back = _back(form.get("back"), "/queue?status=scheduled")
     pid = _post_id(post_id)
@@ -120,7 +122,9 @@ async def cancel(request: Request, post_id: str):
     if post["status"] != "scheduled":
         return redirect(request, back, f"Only scheduled posts can be cancelled (this one is {post['status']}).",
                         "warning")
-    ctx.store.cancel_post(pid)
+    if not ctx.store.cancel_post(pid):
+        return redirect(request, back, f"Too late: the {post['platform']} post started uploading a moment ago.",
+                        "warning")
     return redirect(request, back, f"Cancelled the {post['platform']} post. It won't be published.", "success")
 
 

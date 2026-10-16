@@ -18,9 +18,18 @@ from vv88.discovery.whop_apify import WhopApifySource
 from vv88.editing.render import RenderJob, render_clip
 from vv88.editing.styles import STYLES, get_style
 from vv88.media import audio_rms_db, probe, require_ffmpeg, scene_cuts
-from vv88.models import PLATFORMS, Campaign, ClipCandidate, PostContent, RenderedClip, SourceVideo, length_bucket, stable_id
+from vv88.models import (
+    PLATFORMS,
+    Campaign,
+    ClipCandidate,
+    PostContent,
+    RenderedClip,
+    SourceVideo,
+    length_bucket,
+    stable_id,
+)
 from vv88.optimizer import LENGTH_TARGETS, Optimizer
-from vv88.publishing.base import PublishError
+from vv88.publishing.base import PublishError, redact
 from vv88.publishing.compose import compose_post
 from vv88.publishing.factory import make_metrics_reader, make_publisher
 from vv88.publishing.schedule import next_slot
@@ -43,6 +52,11 @@ class Engine:
         if not enabled and self.s.publishing.backend == "dry_run":
             return list(PLATFORMS)
         return enabled
+
+    def platforms_for(self, campaign: Campaign | None) -> list[str]:
+        """Enabled platforms this campaign pays for (all enabled ones when it names none)."""
+        targets = self.target_platforms()
+        return [p for p in (campaign.platforms if campaign and campaign.platforms else targets) if p in targets]
 
     def discover(self) -> list[Campaign]:
         found: list[Campaign] = []
@@ -182,25 +196,32 @@ class Engine:
     def publish_due(self) -> list[dict]:
         dry = self.s.publishing.backend == "dry_run"
         # Dry runs write straight to the outbox; real backends wait for each slot.
+        stale = self.store.release_stale_claims()
+        if stale:
+            log.warning("%d post(s) were interrupted mid-upload earlier; marked failed so you can check and retry",
+                        stale)
         rows = self.store.due_posts(now=1e18 if dry else None)
         publishers: dict = {}
         results = []
         for row in rows:
+            # Claim first: skips posts cancelled since the list was read, or taken by another publisher.
+            if not self.store.claim_post(row["id"]):
+                continue
             clip = self.store.clip(row["clip_id"])
             if clip is None or not Path(clip.path).exists():
                 self.store.mark_post(row["id"], "failed", error="clip file missing")
                 continue
             platform = row["platform"]
-            content = PostContent(**json.loads(row["content"]))
             try:
+                content = PostContent(**json.loads(row["content"]))
                 pub = publishers.get(platform) or make_publisher(platform, self.s, self.store)
                 publishers[platform] = pub
                 res = pub.publish(clip.path, content)
                 self.store.mark_post(row["id"], "posted", res.remote_id, res.url)
                 results.append({"platform": platform, "clip": clip.id, "ok": True, "url": res.url,
                                 "status": res.status})
-            except (PublishError, OSError, ValueError) as e:
-                msg = str(e)
+            except (PublishError, OSError, ValueError, TypeError) as e:
+                msg = redact(str(e))  # error text can carry a URL with an access token
                 if any(k in msg.lower() for k in _RETRYABLE):
                     self.store.reschedule(row["id"], time.time() + 2 * 3600)
                     log.warning("%s rate-limited, retrying in 2h: %s", platform, msg)
@@ -208,6 +229,10 @@ class Engine:
                     self.store.mark_post(row["id"], "failed", error=msg[:1000])
                     log.error("%s publish failed: %s", platform, msg)
                 results.append({"platform": platform, "clip": clip.id, "ok": False, "error": msg[:300]})
+            except BaseException as e:  # never leave a post claimed; the upload may or may not have gone out
+                self.store.mark_post(row["id"], "failed", error=f"interrupted during upload ({type(e).__name__}); "
+                                                                "check the platform before retrying")
+                raise
         return results
 
     # ---- learning --------------------------------------------------------------------

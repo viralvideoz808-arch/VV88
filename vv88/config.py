@@ -172,6 +172,16 @@ class PostizConfig(_Model):
         }
     )
 
+    @field_validator("integrations", mode="after")
+    @classmethod
+    def _env_fallback(cls, v: dict[str, str]) -> dict[str, str]:
+        # An empty id in config.yaml (older example files had them) must not hide the one saved in .env.
+        out = dict(v)
+        for p in ("tiktok", "youtube", "instagram", "x"):
+            if not out.get(p):
+                out[p] = os.environ.get(f"POSTIZ_INTEGRATION_{p.upper()}", "")
+        return out
+
 
 class DirectAPIConfig(_Model):
     youtube_client_id: str = "${YOUTUBE_CLIENT_ID}"

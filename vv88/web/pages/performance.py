@@ -33,7 +33,7 @@ def _days(raw: str) -> tuple[int, str]:
     s = (raw or "").strip()
     if not s:
         return DEFAULT_DAYS, ""
-    if s.isdigit() and len(s) <= 4 and 1 <= int(s) <= MAX_DAYS:
+    if s.isascii() and s.isdigit() and len(s) <= 4 and 1 <= int(s) <= MAX_DAYS:
         return int(s), ""
     return DEFAULT_DAYS, f"Days must be a whole number from 1 to {MAX_DAYS}; showing the last {DEFAULT_DAYS} days."
 

@@ -12,10 +12,11 @@ import re
 
 import requests
 from fastapi import APIRouter, Depends, Request
+from starlette.datastructures import FormData
 
 from vv88 import connect
 from vv88.publishing.base import PublishError, redact
-from vv88.web.core import context, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, form_data, redirect, render, require_user, verify_csrf
 
 router = APIRouter()
 
@@ -111,8 +112,7 @@ def connections_page(request: Request):
 
 
 @router.post("/connections/app-credentials", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def save_app_credentials(request: Request):
-    form = await request.form()
+def save_app_credentials(request: Request, form: FormData = Depends(form_data)):
     values: dict[str, str] = {}
     problems: list[str] = []
     for name in APP_CREDENTIALS:
@@ -142,10 +142,9 @@ async def save_app_credentials(request: Request):
 
 
 @router.post("/connections/key/{tool}", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def save_key(request: Request, tool: str):
+def save_key(request: Request, tool: str, form: FormData = Depends(form_data)):
     if tool not in connect.KEY_TOOLS:
         return redirect(request, "/connections", "Unknown tool.", "error")
-    form = await request.form()
     raw = form.get("key")
     key = raw.strip() if isinstance(raw, str) else ""
     label = LABELS.get(tool, tool)

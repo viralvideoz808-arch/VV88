@@ -6,7 +6,7 @@
 
 {% macro status(s) -%}
   {%- set kinds = {"done": "ok", "posted": "ok", "linked": "ok", "running": "info", "queued": "muted",
-                   "scheduled": "info", "failed": "err", "cancelled": "muted", "skipped": "muted",
+                   "scheduled": "info", "publishing": "info", "failed": "err", "cancelled": "muted", "skipped": "muted",
                    "dry_run": "warn"} -%}
   <span class="badge {{ kinds.get(s, 'muted') }}">{{ s }}</span>
 {%- endmacro %}

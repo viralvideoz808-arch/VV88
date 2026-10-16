@@ -3,9 +3,10 @@ from __future__ import annotations
 import time
 
 from fastapi import APIRouter, Depends, Request
+from starlette.datastructures import FormData
 
 from vv88.connect import link_status
-from vv88.web.core import context, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, form_data, redirect, render, require_user, verify_csrf
 from vv88.web.jobs import JOB_KINDS
 
 router = APIRouter()
@@ -57,13 +58,8 @@ def quick_action(request: Request, kind: str):
 
 
 @router.post("/autopilot", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def autopilot(request: Request):
-    form = await request.form()
+def autopilot(request: Request, form: FormData = Depends(form_data)):
     ctx = context(request)
-    try:
-        interval = float(form.get("interval_min") or 30)
-    except ValueError:
-        interval = 30.0
-    cfg = ctx.jobs.set_autopilot(form.get("enabled") == "on", interval)
+    cfg = ctx.jobs.set_autopilot(form.get("enabled") == "on", form.get("interval_min") or 30)  # clamped there
     state = "on" if cfg["enabled"] else "off"
     return redirect(request, "/", f"Autopilot {state} (every {cfg['interval_min']:.0f} min).", "success")

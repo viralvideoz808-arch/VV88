@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import logging
 import os
@@ -20,9 +21,12 @@ from vv88.connect import AuthStart, clean_text, complete_authorization, start_au
 from vv88.publishing.base import PublishError, redact
 from vv88.web.core import (
     WEB_DIR,
+    BodyLimit,
     LoginRequired,
     LoginThrottle,
     context,
+    password_tag,
+    read_form,
     redirect,
     render,
     require_user,
@@ -37,6 +41,8 @@ log = logging.getLogger(__name__)
 PAGES = ["dashboard", "jobs", "campaigns", "studio", "clips", "queue", "performance", "brand", "connections",
          "settings"]
 OAUTH_TTL_S = 900
+UPLOAD_ROUTES = ("/studio/clip",)  # the only routes allowed bodies over 1 MB (they require login first)
+MIN_PASSWORD_LEN = 12
 OAUTH_PLATFORMS = ("youtube", "tiktok", "instagram", "x")
 
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
@@ -67,6 +73,9 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
     password, secret, created = ensure_web_secrets(env_path)
     if created:
         print(f"\n  VV88 web password (saved to {env_path} as VV88_WEB_PASSWORD): {password}\n")
+    elif len(password) < MIN_PASSWORD_LEN:
+        print(f"  ! VV88_WEB_PASSWORD is shorter than {MIN_PASSWORD_LEN} characters. Use a long random one before "
+              "letting anyone else reach this site.")
 
     jobs = JobManager(config_path, env_path)
 
@@ -82,6 +91,8 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
     app.state.env_path = str(env_path)
     app.state.brand_dir = str(brand_dir)
     app.state.throttle = LoginThrottle()
+    app.state.web_password = password
+    app.state.session_secret = secret
     app.add_middleware(SessionMiddleware, secret_key=secret, session_cookie="vv88_session",
                        same_site="lax", https_only=https_cookies, max_age=7 * 86400)
 
@@ -110,7 +121,7 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
 
     @app.post("/login")
     async def login(request: Request):
-        form = await request.form()
+        form = await read_form(request, max_files=0, max_fields=10, max_part_size=8 * 1024)
         client = request.client.host if request.client else "?"
         throttle: LoginThrottle = app.state.throttle
         nxt = safe_next(str(form.get("next") or "/"))
@@ -120,11 +131,12 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
         current = os.environ.get("VV88_WEB_PASSWORD", password)
         if not secrets.compare_digest(str(form.get("password") or "").encode(), current.encode()):
             throttle.fail(client)
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)  # never time.sleep here: it would stall every other request
             return render(request, "login.html", title="Sign in", next=nxt, error="Wrong password.")
         throttle.clear(client)
         request.session.clear()  # new session on login (no fixation)
         request.session["user"] = "owner"
+        request.session["pw"] = password_tag(request)
         request.session["csrf"] = secrets.token_urlsafe(32)
         return RedirectResponse(nxt, status_code=303)
 
@@ -196,6 +208,8 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
             raise
         app.include_router(module.router)
 
+    # Added last = outermost: oversized bodies are refused before sessions, forms or routes see them.
+    app.add_middleware(BodyLimit, limit=1024 * 1024, exempt=UPLOAD_ROUTES)
     return app
 
 

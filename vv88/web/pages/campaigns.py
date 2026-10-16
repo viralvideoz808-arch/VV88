@@ -18,11 +18,12 @@ from urllib.parse import urlparse
 
 import yaml
 from fastapi import APIRouter, Depends, Request
+from starlette.datastructures import FormData
 
 from vv88.discovery.manual import ManualCampaignSource
 from vv88.models import PLATFORMS, Campaign, stable_id
 from vv88.publishing.base import redact
-from vv88.web.core import context, flash, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, flash, form_data, redirect, render, require_user, verify_csrf
 
 router = APIRouter()
 
@@ -331,8 +332,7 @@ def _start(request: Request, kind: str):
 
 
 @router.post("/campaigns/add", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def add_campaign(request: Request):
-    form = await request.form()
+def add_campaign(request: Request, form: FormData = Depends(form_data)):
     ctx = context(request)
     item, values, errors = parse_campaign_form(form)
     path = manual_path(ctx.settings)

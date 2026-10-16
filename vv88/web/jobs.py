@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import queue
 import threading
 import time
@@ -23,6 +24,29 @@ log = logging.getLogger(__name__)
 
 AUTOPILOT_KEY = "web:autopilot"
 PUBLISH_EVERY_S = 300
+AUTOPILOT_MIN, AUTOPILOT_MAX, AUTOPILOT_DEFAULT = 10.0, 7 * 24 * 60.0, 30.0
+
+
+def autopilot_interval(value) -> float:
+    """Minutes between autopilot cycles, clamped to 10 min - 1 week (junk or non-finite -> 30)."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return AUTOPILOT_DEFAULT
+    if not math.isfinite(v):
+        return AUTOPILOT_DEFAULT
+    return min(max(v, AUTOPILOT_MIN), AUTOPILOT_MAX)
+
+
+def redact_obj(obj):
+    """redact() every string inside a job result (publish errors can quote URLs with access tokens)."""
+    if isinstance(obj, str):
+        return redact(obj)
+    if isinstance(obj, dict):
+        return {k: redact_obj(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [redact_obj(v) for v in obj]
+    return obj
 
 
 # ---- job implementations ----------------------------------------------------------------
@@ -61,9 +85,7 @@ def job_clip(settings: Settings, params: dict) -> dict:
     clips = engine.produce_clips(src, campaign, n=params.get("n") or None, style=params.get("style") or None)
     scheduled = 0
     if params.get("post"):
-        targets = engine.target_platforms()
-        platforms = [p for p in (campaign.platforms if campaign and campaign.platforms else targets) if p in targets]
-        scheduled = engine.schedule(clips, campaign, platforms)
+        scheduled = engine.schedule(clips, campaign, engine.platforms_for(campaign))
     return {"clips": [{"id": c.id, "style": c.style, "duration": round(c.duration, 1), "hook": c.hook_text}
                       for c in clips], "scheduled": scheduled}
 
@@ -74,8 +96,8 @@ def job_schedule_clip(settings: Settings, params: dict) -> dict:
     if clip is None:
         raise ValueError("clip not found")
     campaign = engine.store.campaign(clip.campaign_id)
-    targets = engine.target_platforms()
-    platforms = [p for p in params.get("platforms") or targets if p in targets]
+    allowed = engine.platforms_for(campaign)  # never post a campaign's clip where the campaign doesn't pay
+    platforms = [p for p in params.get("platforms") or allowed if p in allowed]
     return {"scheduled": engine.schedule([clip], campaign, platforms)}
 
 
@@ -176,13 +198,26 @@ class JobManager:
         self._stop = threading.Event()
         self._handler = _JobLogHandler(self)
         self._last_publish = 0.0
+        self._db_path: Path | None = None
+        self._started = False
+        self._worker_thread: threading.Thread | None = None
+        self._worker_lock = threading.Lock()
 
     # settings / store are loaded per use so the Settings page takes effect immediately
     def settings(self) -> Settings:
         return load_settings(self.config_path, env_path=self.env_path)
 
     def store(self) -> Store:
-        return Store(self.settings().data_path / "vv88.db")
+        try:
+            path = self.settings().data_path / "vv88.db"
+        except Exception:
+            # config.yaml is mid-edit or broken: keep recording job state in the last good database
+            if self._db_path is None:
+                raise
+            path = self._db_path
+        else:
+            self._db_path = path
+        return Store(path)
 
     def start(self) -> None:
         root = logging.getLogger()
@@ -197,8 +232,20 @@ class JobManager:
                              log=(row["log"] or "") + "\ninterrupted: the server restarted")
         for row in reversed(store.jobs(limit=500, status="queued")):
             self.q.put(row["id"])
-        threading.Thread(target=self._worker, name="vv88-worker", daemon=True).start()
+        self._started = True
+        self._ensure_worker()
         threading.Thread(target=self._autopilot, name="vv88-autopilot", daemon=True).start()
+
+    def _ensure_worker(self) -> None:
+        """Start the worker thread, or a new one if it ever died, so queued jobs can't sit forever."""
+        with self._worker_lock:
+            if not self._started or self._stop.is_set():
+                return
+            if self._worker_thread is None or not self._worker_thread.is_alive():
+                if self._worker_thread is not None:
+                    log.error("job worker had stopped; starting a new one")
+                self._worker_thread = threading.Thread(target=self._worker, name="vv88-worker", daemon=True)
+                self._worker_thread.start()
 
     def stop(self) -> None:
         self._stop.set()
@@ -209,6 +256,7 @@ class JobManager:
             raise ValueError(f"unknown job {kind!r}")
         job_id = self.store().add_job(kind, params or {})
         self.q.put(job_id)
+        self._ensure_worker()
         return job_id
 
     def busy_with(self, kind: str) -> bool:
@@ -228,38 +276,63 @@ class JobManager:
                 job_id = self.q.get(timeout=1)
             except queue.Empty:
                 continue
-            store = self.store()
-            row = store.job(job_id)
-            if row is None or row["status"] != "queued":
-                continue
-            self.current = job_id
-            self.live[job_id] = []
-            store.update_job(job_id, status="running", started_at=time.time())
-            status, result = "done", None
             try:
-                _, fn = JOB_KINDS[row["kind"]]
-                result = fn(self.settings(), json.loads(row["params"]))
-            except Exception as e:  # noqa: BLE001 - a failed job must not kill the worker
-                status = "failed"
-                result = {"error": redact(str(e))[:1000]}
-                self.live[job_id].append(redact(traceback.format_exc())[-4000:])
+                self._run(job_id)
+            except Exception:  # noqa: BLE001 - nothing may end this loop (e.g. config.yaml mid-edit)
+                log.exception("job #%s could not be run", job_id)
+                self._fail_stuck(job_id)
             finally:
                 self.current = None
-            store = self.store()
-            store.update_job(job_id, status=status, finished_at=time.time(), result=result,
+
+    def _run(self, job_id: int) -> None:
+        store = self.store()  # job state is written through this one connection, even if config breaks meanwhile
+        row = store.job(job_id)
+        if row is None or row["status"] != "queued":
+            return
+        self.current = job_id
+        self.live[job_id] = []
+        store.update_job(job_id, status="running", started_at=time.time())
+        status, result = "done", None
+        try:
+            _, fn = JOB_KINDS[row["kind"]]
+            result = fn(self.settings(), json.loads(row["params"]))
+        except Exception as e:  # noqa: BLE001 - a failed job must not kill the worker
+            status = "failed"
+            result = {"error": redact(str(e))[:1000]}
+            self.live[job_id].append(redact(traceback.format_exc())[-4000:])
+        finally:
+            self.current = None
+            store.update_job(job_id, status=status, finished_at=time.time(), result=redact_obj(result),
                              log="\n".join(self.live.pop(job_id, []))[-200_000:])
 
-    def autopilot(self) -> dict:
-        return self.store().kv_get(AUTOPILOT_KEY) or {"enabled": False, "interval_min": 30, "last_run": 0}
+    def _fail_stuck(self, job_id: int) -> None:
+        try:
+            store = self.store()
+            row = store.job(job_id)
+            if row is not None and row["status"] in ("queued", "running"):
+                store.update_job(job_id, status="failed", finished_at=time.time(),
+                                 log=(row["log"] or "") + "\ncould not run: see the server log",
+                                 result={"error": "the job could not start (is config.yaml valid?)"})
+        except Exception:  # noqa: BLE001
+            log.exception("could not mark job #%s failed", job_id)
+        self.live.pop(job_id, None)
 
-    def set_autopilot(self, enabled: bool, interval_min: float) -> dict:
-        cfg = {**self.autopilot(), "enabled": bool(enabled), "interval_min": max(10.0, float(interval_min))}
+    def autopilot(self) -> dict:
+        cfg = self.store().kv_get(AUTOPILOT_KEY)
+        cfg = cfg if isinstance(cfg, dict) else {}
+        last = cfg.get("last_run")
+        return {"enabled": bool(cfg.get("enabled")), "interval_min": autopilot_interval(cfg.get("interval_min", 30)),
+                "last_run": float(last) if isinstance(last, (int, float)) and math.isfinite(last) else 0.0}
+
+    def set_autopilot(self, enabled: bool, interval_min) -> dict:
+        cfg = {**self.autopilot(), "enabled": bool(enabled), "interval_min": autopilot_interval(interval_min)}
         self.store().kv_set(AUTOPILOT_KEY, cfg)
         return cfg
 
     def _autopilot(self) -> None:
         while not self._stop.wait(30):
             try:
+                self._ensure_worker()
                 cfg = self.autopilot()
                 if not cfg.get("enabled"):
                     continue

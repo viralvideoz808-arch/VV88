@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     clip_id TEXT NOT NULL,
     platform TEXT NOT NULL,
-    status TEXT NOT NULL,              -- scheduled | posted | failed | skipped
+    status TEXT NOT NULL,              -- scheduled | publishing | posted | failed | skipped
     scheduled_at REAL NOT NULL,
     posted_at REAL,
     remote_id TEXT,
@@ -209,6 +209,24 @@ class Store:
             (now,),
         ).fetchall()
 
+    def claim_post(self, post_id: int) -> bool:
+        """Atomically move a scheduled post to 'publishing' so only one publisher (web job, CLI, cancel) wins.
+
+        While publishing, posted_at holds the claim time; mark_post or reschedule replace it.
+        """
+        cur = self.db.execute("UPDATE posts SET status='publishing', posted_at=? WHERE id=? AND status='scheduled'",
+                              (time.time(), post_id))
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def release_stale_claims(self, older_than_s: float = 2 * 3600) -> int:
+        """Fail posts stuck in 'publishing' (the process died mid-upload); the owner checks and retries them."""
+        cur = self.db.execute(
+            "UPDATE posts SET status='failed', posted_at=NULL, error=? WHERE status='publishing' AND posted_at<?",
+            ("interrupted while publishing; check the platform before retrying", time.time() - older_than_s))
+        self.db.commit()
+        return cur.rowcount
+
     def mark_post(self, post_id: int, status: str, remote_id: str = "", url: str = "", error: str = "") -> None:
         self.db.execute(
             "UPDATE posts SET status=?, remote_id=?, url=?, error=?, posted_at=? WHERE id=?",
@@ -217,14 +235,18 @@ class Store:
         self.db.commit()
 
     def reschedule(self, post_id: int, when: float) -> None:
-        self.db.execute("UPDATE posts SET scheduled_at=? WHERE id=?", (when, post_id))
+        """Move a post's slot; a claimed ('publishing') post goes back to 'scheduled'."""
+        self.db.execute(
+            "UPDATE posts SET scheduled_at=?, status=CASE WHEN status='publishing' THEN 'scheduled' ELSE status END, "
+            "posted_at=CASE WHEN status='publishing' THEN NULL ELSE posted_at END WHERE id=?", (when, post_id))
         self.db.commit()
 
     def post_times(self, platform: str, since: float) -> list[float]:
         """Scheduled or posted times for a platform (used for caps and spacing)."""
         rows = self.db.execute(
             "SELECT COALESCE(posted_at, scheduled_at) AS t FROM posts "
-            "WHERE platform=? AND status IN ('scheduled','posted') AND COALESCE(posted_at, scheduled_at)>=?",
+            "WHERE platform=? AND status IN ('scheduled','publishing','posted') "
+            "AND COALESCE(posted_at, scheduled_at)>=?",
             (platform, since),
         ).fetchall()
         return sorted(r["t"] for r in rows)
@@ -319,9 +341,11 @@ class Store:
     def post(self, post_id: int) -> sqlite3.Row | None:
         return self.db.execute("SELECT * FROM posts WHERE id=?", (post_id,)).fetchone()
 
-    def cancel_post(self, post_id: int) -> None:
-        self.db.execute("UPDATE posts SET status='skipped' WHERE id=? AND status='scheduled'", (post_id,))
+    def cancel_post(self, post_id: int) -> bool:
+        """Skip a scheduled post; False if it was already claimed for publishing (or isn't scheduled)."""
+        cur = self.db.execute("UPDATE posts SET status='skipped' WHERE id=? AND status='scheduled'", (post_id,))
         self.db.commit()
+        return cur.rowcount == 1
 
     def campaign_scores(self) -> dict[str, float]:
         return {r["id"]: r["score"] or 0.0 for r in self.db.execute("SELECT id, score FROM campaigns").fetchall()}

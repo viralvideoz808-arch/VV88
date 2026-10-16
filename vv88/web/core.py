@@ -10,8 +10,7 @@ Page modules (vv88/web/pages/*.py) follow one contract:
         return render(request, "thing.html", title="Thing", rows=...)
 
     @router.post("/thing/do", dependencies=[Depends(require_user), Depends(verify_csrf)])
-    async def do(request: Request):
-        form = await request.form()
+    def do(request: Request, form: FormData = Depends(form_data)):   # plain def: runs off the event loop
         job_id = ctx.jobs.submit("clip", {...})      # long work always goes through a job
         return redirect(request, "/jobs/{id}", f"Started job #{id}")
 
@@ -20,17 +19,22 @@ Templates extend base.html and must render every POST form with {{ csrf_field() 
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import os
 import secrets
 import time
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
 from fastapi import HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
+from starlette.datastructures import FormData
 
 from vv88.config import Settings
 from vv88.store import Store
@@ -70,9 +74,35 @@ def context(request: Request) -> Ctx:
 
 
 # ---- auth -------------------------------------------------------------------------------
+def password_tag(request: Request) -> str:
+    """Ties a session to the current password: changing VV88_WEB_PASSWORD signs every browser out."""
+    state = request.app.state
+    password = os.environ.get("VV88_WEB_PASSWORD") or getattr(state, "web_password", "")
+    key = str(getattr(state, "session_secret", "")).encode()
+    return hmac.new(key, password.encode(), hashlib.sha256).hexdigest()[:24]
+
+
+def logged_in(request: Request) -> bool:
+    return request.session.get("user") == "owner" and hmac.compare_digest(
+        str(request.session.get("pw") or ""), password_tag(request))
+
+
 def require_user(request: Request) -> None:
-    if not request.session.get("user"):
+    if not logged_in(request):
         raise LoginRequired()
+
+
+async def read_form(request: Request, **limits) -> FormData:
+    """request.form(), but a malformed body is a 400 instead of a 500 (python-multipart raises ValueErrors)."""
+    try:
+        return await request.form(**limits)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="That form couldn't be read. Reload the page and retry.") from None
+
+
+async def form_data(request: Request) -> FormData:
+    """The parsed form (shared with verify_csrf), so POST handlers can be plain `def`s run in the threadpool."""
+    return await read_form(request)
 
 
 def csrf_token(request: Request) -> str:
@@ -84,7 +114,7 @@ def csrf_token(request: Request) -> str:
 
 
 async def verify_csrf(request: Request) -> None:
-    form = await request.form()
+    form = await read_form(request)
     sent = str(form.get("csrf") or request.headers.get("x-csrf-token") or "")
     expected = request.session.get("csrf") or ""
     if not expected or not secrets.compare_digest(sent.encode(), expected.encode()):
@@ -92,23 +122,102 @@ async def verify_csrf(request: Request) -> None:
 
 
 class LoginThrottle:
-    """5 wrong passwords per client within 10 minutes -> locked out for the rest of the window."""
+    """Wrong-password limits per 10 minutes: 5 per client address, and 50 across all addresses.
 
-    def __init__(self, limit: int = 5, window_s: float = 600):
-        self.limit, self.window = limit, window_s
+    The global cap stops guessing from many addresses (or a spoofed X-Forwarded-For behind a proxy);
+    the per-client cap keeps one noisy client from using up the global budget alone.
+    """
+
+    def __init__(self, limit: int = 5, window_s: float = 600, global_limit: int = 50, max_keys: int = 5000):
+        self.limit, self.window, self.global_limit, self.max_keys = limit, window_s, global_limit, max_keys
         self.fails: dict[str, list[float]] = {}
+        self.all_fails: deque[float] = deque()
+
+    def _prune(self, now: float) -> None:
+        while self.all_fails and now - self.all_fails[0] >= self.window:
+            self.all_fails.popleft()
+        if len(self.fails) > self.max_keys:
+            for k in [k for k, v in self.fails.items() if not v or now - v[-1] >= self.window]:
+                del self.fails[k]
+            while len(self.fails) > self.max_keys:  # still too many: drop the oldest entries
+                del self.fails[next(iter(self.fails))]
 
     def blocked(self, key: str) -> bool:
         now = time.time()
+        self._prune(now)
         hits = [t for t in self.fails.get(key, []) if now - t < self.window]
-        self.fails[key] = hits
-        return len(hits) >= self.limit
+        if hits:
+            self.fails[key] = hits
+        else:
+            self.fails.pop(key, None)
+        return len(hits) >= self.limit or len(self.all_fails) >= self.global_limit
 
     def fail(self, key: str) -> None:
-        self.fails.setdefault(key, []).append(time.time())
+        now = time.time()
+        self.fails.setdefault(key, []).append(now)
+        self.all_fails.append(now)
+        self._prune(now)
 
     def clear(self, key: str) -> None:
         self.fails.pop(key, None)
+
+
+class BodyLimit:
+    """ASGI middleware: cap request bodies (declared or streamed) except on the upload route(s).
+
+    Stops anonymous clients from spooling huge multipart bodies to disk via /login or /logout before
+    any check runs. Upload routes are exempt; they require login before reading the body.
+    """
+
+    def __init__(self, app, limit: int = 1024 * 1024, exempt: tuple[str, ...] = ()):
+        self.app, self.limit, self.exempt = app, limit, set(exempt)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["path"] in self.exempt:
+            return await self.app(scope, receive, send)
+        declared = dict(scope.get("headers") or []).get(b"content-length")
+        if declared is not None and (not declared.isdigit() or int(declared) > self.limit):
+            return await self._reject(scope, receive, send)
+        seen = 0
+        started = False
+
+        async def limited_receive():
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > self.limit:
+                    raise _BodyTooLarge()
+            return message
+
+        async def tracking_send(message):
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, limited_receive, tracking_send)
+        except BaseException as exc:  # may arrive wrapped in an ExceptionGroup from an inner task group
+            if not _only_too_large(exc):
+                raise
+            if not started:
+                await self._reject(scope, receive, send)
+
+    async def _reject(self, scope, receive, send):
+        response = PlainTextResponse("Request body too large.", status_code=413, headers={"Connection": "close"})
+        await response(scope, receive, send)
+
+
+class _BodyTooLarge(Exception):
+    pass
+
+
+def _only_too_large(exc: BaseException) -> bool:
+    inner = getattr(exc, "exceptions", None)  # (Base)ExceptionGroup, incl. the 3.10 backport
+    if inner is not None:
+        return bool(inner) and all(_only_too_large(e) for e in inner)
+    return isinstance(exc, _BodyTooLarge)
 
 
 # ---- flash + redirects ------------------------------------------------------------------
@@ -174,7 +283,7 @@ def render(request: Request, template: str, **ctx):
         "fmt_time": fmt_time,
         "fmt_ago": fmt_ago,
         "media_url": media_url,
-        "user": request.session.get("user"),
+        "user": request.session.get("user") if logged_in(request) else None,
         "brand_avatar": _brand_avatar(request),
     }
     base.update(ctx)

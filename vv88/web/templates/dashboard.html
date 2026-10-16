@@ -30,7 +30,7 @@
     <form method="post" action="/autopilot" class="row">
       {{ csrf_field() }}
       <label class="check"><input type="checkbox" name="enabled" {{ "checked" if autopilot.enabled }}> Enabled</label>
-      <label class="row small">every <input type="number" name="interval_min" min="10" step="5"
+      <label class="row small">every <input type="number" name="interval_min" min="10" max="10080" step="5"
         value="{{ autopilot.interval_min|int }}" style="width:80px"> min</label>
       <button class="btn primary small">Save</button>
     </form>

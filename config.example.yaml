@@ -55,12 +55,10 @@ publishing:
     youtube:   {enabled: true, daily_cap: 8, min_gap_minutes: 60}
     instagram: {enabled: true, daily_cap: 8, min_gap_minutes: 60}
     x:         {enabled: true, daily_cap: 8, min_gap_minutes: 45}
-  postiz:
-    integrations:                    # ids from `postiz integrations:list`
-      tiktok: ""
-      youtube: ""
-      instagram: ""
-      x: ""
+  # postiz:
+  #   Channel ids are saved to .env (POSTIZ_INTEGRATION_*) when you add the Postiz key on the
+  #   Connections page or run `vv88 connect postiz`. Only set them here to override that:
+  #   integrations: {tiktok: "<id>", youtube: "<id>", instagram: "<id>", x: "<id>"}
 
 optimizer:
   half_life_days: 7                  # results older than a week count half as much

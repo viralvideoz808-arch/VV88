@@ -23,7 +23,7 @@ from starlette.datastructures import UploadFile
 from vv88.editing.styles import STYLES
 from vv88.models import PLATFORMS
 from vv88.publishing.base import redact
-from vv88.web.core import context, flash, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, flash, read_form, redirect, render, require_user, verify_csrf
 
 router = APIRouter()
 
@@ -112,7 +112,7 @@ def save_upload(src: BinaryIO, ext: str, folder: Path, limit: int = MAX_UPLOAD_B
 def upload_size_guard(request: Request) -> None:
     """Refuse oversized bodies before the form parser spools them to disk."""
     length = request.headers.get("content-length", "")
-    if length.isdigit() and int(length) > MAX_UPLOAD_BYTES + CHUNK:
+    if length.isascii() and length.isdigit() and int(length) > MAX_UPLOAD_BYTES + CHUNK:
         raise HTTPException(status_code=413, detail="That upload is over the 4 GB limit. Trim it first, or pass "
                                                     "its path on this computer instead.")
 
@@ -211,7 +211,7 @@ def studio(request: Request, campaign: str = "", source: str = ""):
 @router.post("/studio/clip",
              dependencies=[Depends(require_user), Depends(upload_size_guard), Depends(verify_csrf)])
 async def start_clip(request: Request):
-    form = await request.form()
+    form = await read_form(request)
     upload = form.get("upload")
     try:
         return await _start_clip(request, form, upload if isinstance(upload, UploadFile) else None)

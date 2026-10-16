@@ -8,11 +8,12 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
+from starlette.datastructures import FormData
 
 from vv88.editing.styles import STYLES
 from vv88.models import PLATFORMS, RenderedClip
 from vv88.publishing.base import redact
-from vv88.web.core import context, flash, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, flash, form_data, redirect, render, require_user, verify_csrf
 
 router = APIRouter()
 
@@ -46,10 +47,11 @@ def _posts_by_clip(store, clip_ids: list[str]) -> dict[str, list[dict]]:
     return out
 
 
-def _target_platforms(settings) -> list[str]:
+def _target_platforms(settings, campaign=None) -> list[str]:
+    """Enabled platforms, narrowed to the ones the clip's campaign pays for (same rule as the clip job)."""
     from vv88.pipeline import Engine
 
-    return Engine(settings).target_platforms()
+    return Engine(settings).platforms_for(campaign)
 
 
 @router.get("/clips", dependencies=[Depends(require_user)])
@@ -129,7 +131,7 @@ def clip_page(request: Request, clip_id: str):
     captions += [{"platform": k, "text": v, "title": "", "draft": True}
                  for k, v in (clip.captions or {}).items() if v and k not in covered]
 
-    targets = _target_platforms(ctx.settings)
+    targets = _target_platforms(ctx.settings, campaign)
     options = []
     for p in targets:
         status = existing.get(p)
@@ -150,8 +152,7 @@ def clip_page(request: Request, clip_id: str):
 
 
 @router.post("/clips/{clip_id}/schedule", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def clip_schedule(request: Request, clip_id: str):
-    form = await request.form()
+def clip_schedule(request: Request, clip_id: str, form: FormData = Depends(form_data)):
     ctx = context(request)
     store = ctx.store
     clip = store.clip(clip_id) if _valid_clip_id(clip_id) else None
@@ -161,14 +162,19 @@ async def clip_schedule(request: Request, clip_id: str):
     if not Path(clip.path).is_file():
         return redirect(request, back, "The video file for this clip is missing, so it can't be scheduled.", "error")
 
-    targets = _target_platforms(ctx.settings)
+    campaign = store.campaign(clip.campaign_id)
+    enabled = _target_platforms(ctx.settings)
+    targets = _target_platforms(ctx.settings, campaign)
     picked: list[str] = []
     for raw in form.getlist("platforms"):
         p = str(raw).strip().lower()
         if p not in PLATFORMS:
             return redirect(request, back, "Unknown platform in the form. Reload the page and try again.", "error")
-        if p not in targets:
+        if p not in enabled:
             return redirect(request, back, f"{p.title()} isn't enabled. Turn it on in Settings first.", "error")
+        if p not in targets:
+            return redirect(request, back, f"This clip's campaign doesn't pay for {p.title()} posts, so it isn't "
+                            "offered there.", "error")
         if p not in picked:
             picked.append(p)
     if not picked:

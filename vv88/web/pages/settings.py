@@ -23,12 +23,13 @@ from pathlib import Path
 import yaml
 from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
+from starlette.datastructures import FormData
 
 from vv88.config import Settings, deep_merge
 from vv88.editing.styles import STYLES
 from vv88.models import PLATFORMS
 from vv88.publishing.base import redact
-from vv88.web.core import context, flash, redirect, render, require_user, verify_csrf
+from vv88.web.core import context, flash, form_data, redirect, render, require_user, verify_csrf
 
 router = APIRouter()
 
@@ -455,8 +456,7 @@ def settings_page(request: Request):
 
 
 @router.post("/settings", dependencies=[Depends(require_user), Depends(verify_csrf)])
-async def save_settings(request: Request):
-    form = await request.form()
+def save_settings(request: Request, form: FormData = Depends(form_data)):
     ctx = context(request)
     values = values_from_form(form)
     edited, errors = parse_values(values)
