@@ -133,6 +133,10 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon():
+        return RedirectResponse("/static/icon.png", status_code=301)
+
     # ---- media (clips, outbox, brand kit) ----------------------------------------------
     @app.get("/media", dependencies=[Depends(require_user)])
     def media(request: Request, path: str):
