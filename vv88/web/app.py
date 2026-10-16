@@ -10,6 +10,7 @@ import secrets
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse
@@ -118,7 +119,8 @@ def create_app(config_path: str | Path | None = None, env_path: str | Path = ".e
     @app.exception_handler(LoginRequired)
     async def to_login(request: Request, exc: LoginRequired):
         nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
-        return RedirectResponse(f"/login?next={safe_next(nxt)}", status_code=303)
+        # Encode the whole target: unencoded, its own "&" would end the next= value and drop the rest.
+        return RedirectResponse("/login?next=" + quote(safe_next(nxt), safe=""), status_code=303)
 
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 

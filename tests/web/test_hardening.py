@@ -595,3 +595,22 @@ def test_studio_warning_names_the_real_cause_without_a_campaign(client, csrf, de
     r = client.post("/studio/clip", data={"csrf": csrf("/studio"), "source": str(src), "campaign_id": "", "n": "1",
                                           "i_have_rights": "on", "post": "on"}, follow_redirects=True)
     assert "no platforms are enabled" in r.text and "this campaign" not in r.text
+
+
+# ---- sixth review round -------------------------------------------------------------------
+def test_sign_in_returns_to_the_full_original_url(app):
+    from urllib.parse import parse_qs, urlparse
+
+    from fastapi.testclient import TestClient
+
+    target = "/studio?campaign=money-talks&source=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Ddemo1%26t%3D5"
+    with TestClient(app) as c:
+        r = c.get(target, follow_redirects=False)
+        assert r.status_code == 303
+        login_url = r.headers["location"]
+        assert parse_qs(urlparse(login_url).query)["next"] == [target]
+        page = c.get(login_url).text
+        assert re.search(r'name="next" value="([^"]*)"', page).group(1).replace("&amp;", "&") == target
+        r = c.post("/login", data={"password": "test-password", "next": target}, follow_redirects=False)
+        assert r.headers["location"] == target
+        assert 'value="https://www.youtube.com/watch?v=demo1&amp;t=5"' in c.get(r.headers["location"]).text
