@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  {{ ui.action("/performance/pull-metrics", "Pull view counts", csrf_field, "primary") }}
+{% endblock %}
+{% block content %}
+<style>
+  .pf .num { text-align: right; }
+  .pf .table td, .pf .table th { vertical-align: middle; }
+  .pf-up { color: var(--ok); font-weight: 650; }
+  .pf-down { color: var(--err); font-weight: 650; }
+  .pf .bar { min-width: 56px; }
+  .pf .bar.neg > span { background: var(--err); }
+  .pf .bar.soft > span { background: var(--info); }
+  .pf-barcell { width: 34%; }
+  .pf-dim h3 { margin-top: 2px; }
+  .pf-note { margin: -4px 0 14px; }
+  .pf-url { overflow-wrap: anywhere; word-break: break-word; }
+  .pf-hook { font-weight: 600; color: var(--text); }
+  .pf-hook:hover { color: var(--accent); text-decoration: none; }
+  .pf-days { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pf-days select { width: auto; padding: 6px 10px; }
+  .pf-group + .pf-group { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .pf-group h3 { color: var(--text); text-transform: none; letter-spacing: 0; font-size: 14px; margin: 0; }
+  .pf-group details { margin-top: 8px; }
+  .pf-group summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .pf-links { list-style: none; margin: 8px 0 0; padding: 0; }
+  .pf-links li { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .pf-links li:last-child { border-bottom: 0; }
+  .pf-links .pf-url { flex: 1 1 auto; min-width: 0; }
+  .pf .sm-only { display: none; }
+  @media (max-width: 760px) {
+    .pf-barcell { width: 26%; }
+    .pf .table th, .pf .table td { padding: 8px 6px; }
+    .pf-hide-sm { display: none; }
+    .pf .sm-only { display: inline; }
+  }
+</style>
+
+<div class="pf">
+<div class="grid kpis">
+  {{ ui.kpi("Measured views", "{:,}".format(total_views), "views last pulled " ~ fmt_ago(last_pull) if last_pull else "no view counts pulled yet") }}
+  {{ ui.kpi("Posts with metrics", measured, "of " ~ posted ~ " posted") }}
+  {{ ui.kpi("Est. earnings", "$" ~ "{:,.2f}".format(earnings.total_usd), "views × each campaign's $/1K") }}
+</div>
+
+<div class="card section">
+  <div class="row between">
+    <h2>What's winning this week</h2>
+    {% if has_winning %}<span class="muted small">from {{ usable }} post{{ "s" if usable != 1 }} at least {{ min_age_h }}h old</span>{% endif %}
+  </div>
+  <p class="muted small pf-note">Uplift is views compared with the platform average for posts with that choice. Results decay with a
+    {{ half_life }}-day half-life, so this follows what works now, and new clips lean toward the winners automatically.</p>
+  {% if has_winning %}
+  <div class="grid cols-3">
+    {% for w in winning %}
+    <div class="pf-dim">
+      <h3>{{ w.title }}</h3>
+      {% if w.entries %}
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Choice</th><th class="num">Posts</th><th class="num">Uplift</th><th class="pf-barcell"></th></tr></thead>
+        <tbody>
+        {% for it in w.entries %}
+          <tr>
+            <td {% if it.hint %}title="{{ it.hint }}"{% endif %}>{{ it.name }}</td>
+            <td class="num">{{ it.n }}</td>
+            <td class="num nowrap {{ 'pf-down' if it.neg else 'pf-up' }}">{{ it.uplift_txt }}</td>
+            <td class="pf-barcell"><div class="bar{{ ' neg' if it.neg }}" role="img" aria-label="{{ it.uplift_txt }} vs platform average"><span style="width: {{ it.width }}%"></span></div></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}{{ ui.empty("No data for this yet.") }}{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    {{ ui.empty("Nothing to compare yet. A post counts once it is " ~ min_age_h ~ " hours old and has a view count: publish a few clips from the Queue, then press “Pull view counts”.") }}
+  {% endif %}
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Views by platform</h2>
+    {% if platforms %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Platform</th><th class="num">Posts</th><th class="num">Views</th><th class="num pf-hide-sm">Avg / post</th><th class="pf-barcell">Share</th></tr></thead>
+      <tbody>
+      {% for p in platforms %}
+        <tr>
+          <td>{{ ui.platform(p.platform) }}</td>
+          <td class="num">{{ p.posts }}{% if p.measured != p.posts %}<div class="muted small">{{ p.measured }} measured</div>{% endif %}</td>
+          <td class="num nowrap">{{ "{:,}".format(p.views) }}</td>
+          <td class="num nowrap pf-hide-sm">{{ "{:,}".format(p.avg) if p.avg is not none else "—" }}</td>
+          <td class="pf-barcell"><div class="bar soft" role="img" aria-label="{{ p.share }}% of views"><span style="width: {{ p.width }}%"></span></div>
+            <div class="muted small">{{ p.share }}%</div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}{{ ui.empty("No posts published yet. Schedule clips from the Clips page; they show up here once they're live.") }}{% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Earnings by campaign</h2>
+    {% if by_campaign %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Campaign</th><th class="num">Views</th><th class="num">Est. earned</th></tr></thead>
+      <tbody>
+      {% for c in by_campaign %}
+        <tr>
+          <td><strong>{{ c.title }}</strong>
+            <div class="muted small">{{ c.posts }} post{{ "s" if c.posts != 1 }} ·
+              {% if c.rate is not none %}${{ "%.2f"|format(c.rate) }}/1K{% else %}no $/1K rate set{% endif %}</div></td>
+          <td class="num nowrap">{{ "{:,}".format(c.views) }}</td>
+          <td class="num nowrap"><strong>${{ "{:,.2f}".format(c.usd) }}</strong></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="muted small">Estimates only: the campaign decides what counts (minimum views, approved posts).</p>
+    {% else %}{{ ui.empty("No earnings yet. Earnings appear once posts are live and view counts have been pulled.") }}{% endif %}
+  </div>
+</div>
+
+<div class="card section">
+  <h2>Top 10 posts by views</h2>
+  {% if top %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Platform</th><th>Hook</th><th class="num">Views</th><th class="pf-hide-sm">Link</th></tr></thead>
+    <tbody>
+    {% for p in top %}
+      <tr>
+        <td>{{ ui.platform(p.platform) }}</td>
+        <td>
+          {% if p.clip_exists %}<a class="pf-hook" href="/clips/{{ p.clip_id }}">{{ p.hook or p.clip_id }}</a>
+          {% else %}<span class="muted">{{ p.hook or "(clip removed)" }}</span>{% endif %}
+          <div class="muted small">posted {{ fmt_ago(p.posted_at) }}
+            {% if p.link %}<span class="sm-only"> · <a href="{{ p.link }}" target="_blank" rel="noopener noreferrer">open ↗</a></span>{% endif %}</div>
+        </td>
+        <td class="num nowrap"><strong>{{ "{:,}".format(p.views) }}</strong></td>
+        <td class="pf-url small pf-hide-sm">{% if p.link %}<a href="{{ p.link }}" target="_blank" rel="noopener noreferrer">{{ p.short }}</a>{% else %}<span class="muted">no link</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}{{ ui.empty("No measured posts yet. Press “Pull view counts” once posts have been live for a few hours.") }}{% endif %}
+</div>
+
+<div class="card section" id="payouts">
+  <div class="row between">
+    <h2>Payout links</h2>
+    <form method="get" action="/performance#payouts" class="pf-days">
+      <label class="small muted" for="pf-days">Posted in the last</label>
+      <select id="pf-days" name="days">
+        {% for d in day_choices %}<option value="{{ d }}" {{ "selected" if d == days }}>{{ d }} day{{ "s" if d != 1 }}</option>{% endfor %}
+      </select>
+      <button class="btn small">Show</button>
+    </form>
+  </div>
+  <p class="muted small pf-note">Paste these into each campaign's payout or submission form. Copy all puts one URL per line on your clipboard.</p>
+  {% if payouts %}
+    {% for g in payouts %}
+    <div class="pf-group">
+      <div class="row between">
+        <div>
+          <h3>{{ g.title }}</h3>
+          <div class="muted small">{{ g.links|length }} link{{ "s" if g.links|length != 1 }} · {{ "{:,}".format(g.views) }} views
+            {% if g.missing %}· {{ g.missing }} post{{ "s" if g.missing != 1 }} without a link{% endif %}</div>
+        </div>
+        <div class="row">
+          {% if g.campaign_url %}<a class="btn small ghost" href="{{ g.campaign_url }}" target="_blank" rel="noopener noreferrer">Campaign page ↗</a>{% endif %}
+          {% if g.links %}<button type="button" class="btn small primary" data-copy-target="#payout-{{ loop.index }}">Copy all {{ g.links|length }}</button>{% endif %}
+        </div>
+      </div>
+      {% if g.links %}
+      <textarea id="payout-{{ loop.index }}" hidden readonly aria-hidden="true">{{ g.text }}</textarea>
+      <details>
+        <summary>Show links</summary>
+        <ul class="pf-links">
+          {% for x in g.links %}
+          <li>{{ ui.platform(x.platform) }}
+            <a class="pf-url small" href="{{ x.url }}" target="_blank" rel="noopener noreferrer">{{ x.url }}</a>
+            <span class="muted small nowrap">{{ "{:,}".format(x.views) ~ " views" if x.views is not none else "no views yet" }}</span></li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    {{ ui.empty("Nothing posted in the last " ~ days ~ " day" ~ ("s" if days != 1 else "") ~ ". Pick a longer window above, or publish due posts from the Queue.") }}
+  {% endif %}
+</div>
+</div>
+{% endblock %}

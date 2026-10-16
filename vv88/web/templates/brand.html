@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block actions %}
+  {% if kit and approved %}
+    {{ ui.action("/brand/apply", "Apply to profiles", csrf_field, "primary",
+                 "Write the profile checklist and update the YouTube description and keywords now?") }}
+  {% elif kit and not problems %}
+    <a class="btn primary" href="#approve">Review &amp; approve</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<style>
+  .bk-head { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .bk-who { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .bk-who h2 { margin: 0; font-size: 18px; }
+  .bk-meta { margin-top: 10px; overflow-wrap: anywhere; }
+  .bk-ok { color: var(--ok); margin-top: 10px; }
+  .bk-problems { margin: 12px 0 0; }
+  .bk-problems ul { margin: 6px 0 0; padding-left: 18px; }
+  .bk-figs { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+  .bk-fig { margin: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; min-width: 0; }
+  .bk-fig figcaption, .bk-cap { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .bk-alt { width: 96px; height: 96px; }
+  .bk-banner + .bk-banner { margin-top: 16px; }
+  .bk-banner .bk-cap { margin-top: 6px; }
+  .bk-item + .bk-item { margin-top: 16px; }
+  .bk-item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .bk-item-head strong { flex: 1 1 auto; }
+  .bk-text { white-space: pre-wrap; overflow-wrap: anywhere; background: #0f0f11; border: 1px solid var(--line);
+             border-radius: 9px; padding: 9px 11px; margin: 0; }
+  .bk .counter { display: inline-block; text-align: right; font-variant-numeric: tabular-nums; }
+  .bk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .bk-pal { list-style: none; padding: 0; margin: 0; }
+  .bk-pal li { display: flex; gap: 10px; align-items: center; padding: 5px 0; }
+  .bk-pal .swatch { flex: 0 0 auto; width: 28px; height: 28px; }
+  .bk-dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 14px; margin: 0; align-items: center; }
+  .bk-dl dt { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .bk-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .bk-names td { vertical-align: middle; }
+  .bk-names .num { text-align: right; }
+  .bk details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 12px; }
+  .bk details p { white-space: pre-wrap; margin: 8px 0 0; }
+  .bk-approved { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .bk-steps { margin: 8px 0 0; padding-left: 18px; }
+  .bk-steps li + li { margin-top: 4px; }
+  @media (max-width: 760px) {
+    .bk-dl { grid-template-columns: 1fr; gap: 2px; }
+    .bk-dl dd { margin-bottom: 8px; }
+    .bk-names th, .bk-names td { padding: 8px 6px; }
+  }
+</style>
+
+{% if not kit %}
+<div class="card">
+  {% if load_error == "missing" %}
+  <div class="empty">
+    <p><strong>No brand kit yet.</strong></p>
+    <p><code>brand/brand.json</code> (with the profile picture and banners next to it) is created by the brand design
+      step. Once it exists in <code>{{ brand_dir }}</code>, this page shows every picture and word for review, and nothing
+      is changed on any account until you approve it here.</p>
+  </div>
+  {% else %}
+  <div class="flash error" role="status">The brand kit can't be read: {{ load_error }}</div>
+  <p class="muted">Fix <code>brand.json</code> in <code>{{ brand_dir }}</code> so it is valid JSON with the fields the brand
+    design step writes, then reload this page.</p>
+  {% endif %}
+</div>
+{% else %}
+<div class="bk">
+
+<div class="card">
+  <div class="bk-head">
+    <div class="bk-who">
+      {% if kit.avatar %}<img class="avatar-sm" src="{{ media_url(kit.avatar.path) }}" alt="">{% endif %}
+      <div><h2>{{ kit.concept }}</h2>{% if kit.handle %}<div class="muted small">@{{ kit.handle }}</div>{% endif %}</div>
+    </div>
+    {% if approved %}{{ ui.badge("Approved", "ok") }}
+    {% elif problems %}{{ ui.badge(problems|length ~ (" problem" if problems|length == 1 else " problems"), "err") }}
+    {% else %}{{ ui.badge("Waiting for your approval", "warn") }}{% endif %}
+  </div>
+  <div class="small muted bk-meta">Fingerprint <code>{{ fingerprint }}</code> ·
+    {% if approved %}approved {{ fmt_time(approved.approved_at) }}{% if approved.note %} (via {{ approved.note }}){% endif %}.
+      Any later change to the pictures or text resets the approval.
+    {% elif stale_approval %}the kit changed since it was last approved: review it again and re-approve.
+    {% else %}not approved yet. Nothing is changed on any account until you approve this exact kit.{% endif %}
+  </div>
+  {% if problems %}
+  <div class="flash error bk-problems" role="status"><strong>Fix these in brand.json before approving:</strong>
+    <ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>
+  {% else %}
+  <div class="small bk-ok">✓ No problems: the handle is valid and every name and bio fits its platform's limit.</div>
+  {% endif %}
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Profile picture</h2>
+    {% if kit.avatar %}
+    <div class="bk-figs">
+      <figure class="bk-fig"><img class="avatar-xl" src="{{ media_url(kit.avatar.path) }}" alt="Profile picture">
+        <figcaption>{{ kit.avatar.name }} · used on every platform</figcaption></figure>
+    </div>
+    {% else %}{{ ui.empty("The profile picture is missing from the kit folder.") }}{% endif %}
+    {% if kit.alternates %}
+    <h3 class="section">Alternates</h3>
+    <div class="bk-figs">
+      {% for a in kit.alternates %}
+      <figure class="bk-fig"><img class="avatar-xl bk-alt" src="{{ media_url(a.path) }}" alt="Alternate picture {{ loop.index }}">
+        <figcaption>{{ a.name }}</figcaption></figure>
+      {% endfor %}
+    </div>
+    <p class="muted small">Alternates are spares; only the main picture above is applied.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>Banners</h2>
+    <div class="bk-banner">
+      <h3>YouTube banner</h3>
+      {% if kit.youtube_banner %}<img class="banner" src="{{ media_url(kit.youtube_banner.path) }}" alt="YouTube banner">
+        <div class="bk-cap">{{ kit.youtube_banner.name }} · upload in YouTube Studio › Customization › Branding</div>
+      {% else %}{{ ui.empty("No YouTube banner in the kit.") }}{% endif %}
+    </div>
+    <div class="bk-banner">
+      <h3>X header</h3>
+      {% if kit.x_header %}<img class="banner" src="{{ media_url(kit.x_header.path) }}" alt="X header">
+        <div class="bk-cap">{{ kit.x_header.name }} · upload in X › Edit profile</div>
+      {% else %}{{ ui.empty("No X header in the kit.") }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Identity</h2>
+    <dl class="bk-dl">
+      <dt>Concept</dt><dd>{{ kit.concept }}</dd>
+      <dt>Handle</dt>
+      <dd>{% if kit.handle %}<span class="row"><strong id="bk-handle">{{ kit.handle }}</strong>
+          <span class="muted small">(@{{ kit.handle }}, same on every platform)</span>
+          <button type="button" class="btn small ghost" data-copy-target="#bk-handle">Copy</button></span>
+        {% else %}<span class="muted">none set</span>{% endif %}</dd>
+      <dt>Fallbacks</dt>
+      <dd>{% if kit.fallbacks %}{% for h in kit.fallbacks %}<code>@{{ h }}</code>{{ " " if not loop.last }}{% endfor %}
+        {% else %}<span class="muted">none</span>{% endif %}</dd>
+      {% if kit.link_hint %}<dt>Link in bio</dt><dd class="small">{{ kit.link_hint }}</dd>{% endif %}
+    </dl>
+    {% if kit.rationale %}<details><summary>Why this design</summary><p class="small muted">{{ kit.rationale }}</p></details>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Palette</h2>
+    {% if kit.palette %}
+    <ul class="bk-pal">
+      {% for c in kit.palette %}
+      <li><span class="swatch" style="background: {{ c.hex }}"></span><code>{{ c.hex }}</code>
+        {% if c.role %}<span class="muted small">{{ c.role }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}{{ ui.empty("No palette listed in brand.json.") }}{% endif %}
+  </div>
+</div>
+
+<div class="card section">
+  <h2>Display names</h2>
+  <div class="table-wrap"><table class="table bk-names">
+    <thead><tr><th>Platform</th><th>Name</th><th class="num">Length</th><th></th></tr></thead>
+    <tbody>
+    {% for n in kit.names %}
+      <tr>
+        <td>{{ ui.platform(n.key) }}</td>
+        <td>{% if n.text %}<span id="bk-name-{{ n.key }}">{{ n.text }}</span>{% else %}<span class="muted">not set</span>{% endif %}</td>
+        <td class="num"><span class="counter{{ ' over' if n.over }}">{{ n.n }} / {{ n.limit }}</span></td>
+        <td class="num">{% if n.text %}<button type="button" class="btn small ghost" data-copy-target="#bk-name-{{ n.key }}">Copy</button>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card section">
+  <h2>Bios</h2>
+  {% for bio in kit.bios %}
+  <div class="bk-item">
+    <div class="bk-item-head">
+      <strong>{% if bio.key == "youtube_description" %}{{ ui.platform("youtube") }} channel description{% else %}{{ ui.platform(bio.key) }} bio{% endif %}</strong>
+      <span class="counter{{ ' over' if bio.over }}">{{ bio.n }} / {{ bio.limit }}</span>
+      {% if bio.text %}<button type="button" class="btn small ghost" data-copy-target="#bk-bio-{{ bio.key }}">Copy</button>{% endif %}
+    </div>
+    {% if bio.text %}<div class="bk-text" id="bk-bio-{{ bio.key }}">{{ bio.text }}</div>
+    {% else %}<div class="flash error">Missing: add <code>bios.{{ bio.key }}</code> to brand.json.</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card section">
+  <div class="row between"><h2>YouTube keywords</h2>
+    <span class="counter{{ ' over' if kit.kw_n > kit.kw_limit }}">{{ kit.kw_n }} / {{ kit.kw_limit }}</span></div>
+  {% if kit.keywords %}
+  <div class="bk-chips">{% for k in kit.keywords %}{{ ui.badge(k) }}{% endfor %}</div>
+  <div class="bk-item-head"><span class="muted small">As sent to YouTube (multi-word keywords are quoted):</span>
+    <button type="button" class="btn small ghost" data-copy-target="#bk-keywords">Copy</button></div>
+  <div class="bk-text small" id="bk-keywords">{{ kit.kw_text }}</div>
+  {% else %}{{ ui.empty("No YouTube keywords in the kit.") }}{% endif %}
+</div>
+
+<div class="card section" id="approve">
+  <h2>Approval</h2>
+  {% if approved %}
+    <div class="bk-approved">{{ ui.badge("Approved", "ok") }}
+      <span class="small muted">{{ fmt_time(approved.approved_at) }} · fingerprint <code>{{ fingerprint }}</code></span></div>
+    <p class="small">Apply writes the click-by-click profile checklist below and updates the YouTube description and
+      keywords{% if not youtube_linked %} once YouTube is linked{% endif %}.</p>
+    {{ ui.action("/brand/apply", "Apply to profiles", csrf_field, "primary",
+                 "Write the profile checklist and update the YouTube description and keywords now?") }}
+    {% if applied %}
+    <p class="small muted">Last applied {{ fmt_ago(applied.at) }}{% if not applied.current %} (for an earlier version of the kit){% endif %}:
+      {{ ui.badge(applied.yt_text, applied.yt_kind) }}</p>
+    {% endif %}
+  {% elif problems %}
+    <p class="muted">Approval is locked until the {{ "problem" if problems|length == 1 else problems|length ~ " problems" }} at the
+      top of this page {{ "is" if problems|length == 1 else "are" }} fixed in <code>brand.json</code>. Reload this page after editing it.</p>
+  {% else %}
+    <p class="small muted">Approving locks in this exact version (fingerprint <code>{{ fingerprint }}</code>). If the pictures
+      or text change later, you'll be asked to approve again.</p>
+    <form method="post" action="/brand/approve">
+      {{ csrf_field() }}
+      <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
+      <label class="check"><input type="checkbox" name="reviewed" value="yes" required>
+        I reviewed the picture, banners and every word above</label>
+      <button class="btn primary">Approve this kit</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>How profiles get updated</h2>
+    <ul class="bk-steps small">
+      <li><strong>TikTok, Instagram and X</strong> don't let apps edit profiles. Apply writes
+        <code>APPLY_CHECKLIST.md</code> with the exact text and image files; follow it by hand, or from the laptop
+        session described in <code>docs/LAPTOP_SETUP.md</code>.</li>
+      <li><strong>YouTube</strong> description and keywords are applied automatically when YouTube is linked.
+        Channel name, picture and banner still go in YouTube Studio.</li>
+    </ul>
+    <p class="small">YouTube: {% if youtube_linked %}{{ ui.badge("linked", "ok") }}{% else %}{{ ui.badge("not linked", "muted") }}
+      <a href="/connections">Link it</a>{% endif %}
+      {% if youtube_warning %}<span class="muted">· {{ youtube_warning }}</span>{% endif %}</p>
+  </div>
+  <div class="card">
+    <div class="row between"><h2>Apply checklist</h2>
+      {% if checklist %}<button type="button" class="btn small ghost" data-copy-target="#bk-checklist">Copy</button>{% endif %}</div>
+    {% if checklist %}
+      <p class="muted small">APPLY_CHECKLIST.md · written {{ fmt_ago(checklist_at) }}{% if applied and not applied.current %} for an earlier version of the kit: apply again to refresh it{% endif %}</p>
+      <pre class="log" id="bk-checklist">{{ checklist }}</pre>
+    {% else %}
+      {{ ui.empty("No checklist yet. Approve the kit, then press Apply to profiles to write it.") }}
+    {% endif %}
+  </div>
+</div>
+
+</div>
+{% endif %}
+{% endblock %}

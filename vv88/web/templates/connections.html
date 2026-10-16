@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block content %}
+<style>
+  .ways { margin-top: 4px; }
+  .way { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .way p { margin: 0 0 8px; }
+  .way.best { border-color: rgba(255,230,0,.45); }
+  .warn-text { color: var(--warn); }
+  .copyrow { flex-wrap: nowrap; margin-bottom: 14px; }
+  .copyrow input { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .link-row { display: flex; gap: 12px; align-items: center; justify-content: space-between;
+              padding: 12px 0; border-top: 1px solid var(--line); }
+  .link-row .who { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .link-row .who .row { gap: 8px; }
+  .link-row .detail { overflow-wrap: anywhere; }
+  .cred-group { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .creds { margin-bottom: 4px; }
+  .status-table .detail { overflow-wrap: anywhere; margin-top: 3px; }
+  .cred-group h3 { margin-bottom: 2px; }
+  .cred-group .where { margin: 0 0 10px; }
+  .cred-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cred-head code { font-size: 11px; }
+  .keyform { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .keyform .where { margin: 2px 0 8px; overflow-wrap: anywhere; }
+  .keyrow { flex-wrap: nowrap; }
+  .keyrow input { flex: 1; min-width: 0; }
+  @media (max-width: 520px) { .link-row { flex-wrap: wrap; } }
+</style>
+
+<div class="card">
+  <div class="row between">
+    <h2>Two ways to link TikTok, Instagram, YouTube and X</h2>
+    {{ ui.badge(linked_social ~ " of 4 linked directly", "ok" if linked_social == 4 else "muted") }}
+  </div>
+  <div class="grid cols-2 ways">
+    <div class="way best">
+      <div class="row between"><strong>Easiest: Postiz</strong>{{ ui.badge("key set", "ok") if postiz_set else ui.badge("not set") }}</div>
+      <p class="small">One key, all four platforms. Connect the accounts once inside Postiz (<em>Add channel</em>),
+        copy the key from Postiz <em>Settings → Public API</em> and paste it under <a href="#api-keys">API keys</a>.
+        Then set the publishing backend to <code>postiz</code> on the <a href="/settings">Settings</a> page.</p>
+    </div>
+    <div class="way">
+      <strong>Official APIs</strong>
+      <p class="small">One free developer app per platform: paste its credentials under
+        <a href="#app-credentials">Developer app credentials</a>, register the redirect address below, then press
+        <em>Connect</em>. Needed for pulling view counts back into the optimizer.</p>
+    </div>
+  </div>
+  <p class="muted small" style="margin:12px 0 0">Step-by-step guide for every platform: <code>docs/CONNECT.md</code>
+    in the VV88 folder.{% if backend == "dry_run" %} Publishing is in <strong>dry-run</strong> mode right now, so nothing
+    is posted until you switch the backend.{% endif %}</p>
+</div>
+
+<div class="card section">
+  <h2>Status</h2>
+  <table class="table status-table">
+    <thead><tr><th>Account / tool</th><th class="right">Status</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      {% set is_social = r.name in ("youtube", "tiktok", "instagram", "x") %}
+      <tr>
+        <td>{% if is_social %}{{ ui.platform(r.name) }}{% else %}{{ labels.get(r.name, r.name) }}{% endif %}
+          {% if r.detail %}<div class="muted small detail">{{ r.detail }}</div>{% endif %}
+          {% if r.warning %}<div class="small warn-text">{{ r.warning }}</div>{% endif %}</td>
+        <td class="right nowrap">
+          {% if r.warning %}{{ ui.badge("linked, check" if r.linked else "not linked", "warn") }}
+          {% elif r.linked %}{{ ui.badge("linked" if is_social else "set", "ok") }}
+          {% else %}{{ ui.badge("not linked" if is_social else "missing") }}{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card section" id="api-keys">
+    <h2>API keys</h2>
+    <p class="muted small" style="margin-top:0">Each key is checked live with the service, then saved to <code>.env</code>.
+      Postiz also fills in your channel IDs automatically.</p>
+    <div class="grid cols-2 keys">
+    {% for t in tools %}
+    <form method="post" action="/connections/key/{{ t.tool }}" class="keyform" autocomplete="off">
+      {{ csrf_field() }}
+      <div class="row between"><strong>{{ t.label }}</strong>{{ ui.badge("set", "ok") if t.set else ui.badge("missing") }}</div>
+      <div class="small muted where">{{ t.where }} · <code>{{ t.env }}</code>{% if t.detail %} · {{ t.detail }}{% endif %}</div>
+      <div class="row keyrow">
+        <input type="password" name="key" autocomplete="new-password" maxlength="512" spellcheck="false"
+          aria-label="{{ t.label }} key" placeholder="{{ 'set — paste a new key to replace' if t.set else 'paste key' }}">
+        <button class="btn small primary">{{ "Replace" if t.set else "Save" }}</button>
+      </div>
+    </form>
+    {% endfor %}
+    </div>
+</div>
+
+<div class="card section" id="social">
+  <h2>Social accounts (official APIs)</h2>
+  <p class="muted small" style="margin-top:0">Register this exact redirect address in each developer app
+    (Google OAuth client, TikTok Login Kit, X callback URL, Meta valid OAuth redirect URI):</p>
+  <div class="row copyrow">
+    <input type="text" id="redirect-uri" value="{{ redirect_uri }}" readonly aria-label="Redirect URI">
+    <button type="button" class="btn small" data-copy-target="#redirect-uri">Copy</button>
+  </div>
+  {% for s in social %}
+  <div class="link-row">
+    <div class="who">
+      <div class="row">
+        {{ ui.platform(s.platform) }}
+        {% if s.row.warning %}{{ ui.badge("linked, check" if s.row.linked else "not linked", "warn") }}
+        {% elif s.row.linked %}{{ ui.status("linked") }}{% else %}{{ ui.badge("not linked") }}{% endif %}
+        {% if s.row.detail %}<span class="muted small detail">{{ s.row.detail }}</span>{% endif %}
+      </div>
+      {% if s.row.warning %}<div class="small warn-text">{{ s.row.warning }}</div>{% endif %}
+      {% if s.missing %}
+        <div class="small muted">Needs {% for n in s.missing %}<code>{{ n }}</code>{{ ", " if not loop.last }}{% endfor %}
+          — <a href="#app-credentials">add below</a></div>
+      {% endif %}
+    </div>
+    <form method="post" action="/oauth/start/{{ s.platform }}" class="inline">
+      {{ csrf_field() }}
+      <button class="btn small {{ 'ghost' if s.row.linked else 'primary' }}" {{ "disabled" if s.missing }}
+        {% if s.missing %}title="Add the developer app credentials first"{% endif %}>
+        {{ "Reconnect" if s.row.linked else "Connect" }}</button>
+    </form>
+  </div>
+  {% endfor %}
+  <p class="muted small" style="margin-bottom:0">Connect opens the platform's own sign-in page; you approve there and come
+    back here. VV88 never sees your passwords, only revocable tokens. Instagram: Meta accepts an <code>http://</code>
+    redirect only while the app is in Development mode; a Live app needs this site on <code>https://</code>.</p>
+</div>
+
+<div class="card section" id="app-credentials">
+    <h2>Developer app credentials</h2>
+    <p class="muted small" style="margin-top:0">Saved to <code>.env</code> on this server. Leave a field blank to keep its
+      current value — saved values are never shown again.</p>
+    <form method="post" action="/connections/app-credentials" autocomplete="off">
+      {{ csrf_field() }}
+      <div class="grid cols-2 creds">
+      {% for g in groups %}
+      <fieldset class="cred-group">
+        <h3>{{ g.title }}</h3>
+        <p class="muted small where">{{ g.where }}</p>
+        {% for f in g.fields %}
+        <label class="field">
+          <div class="cred-head">
+            <span class="small"><strong>{{ f.label }}</strong> <code>{{ f.name }}</code></span>
+            {{ ui.badge("set", "ok") if f.set else ui.badge("missing", "warn" if f.required else "muted") }}
+          </div>
+          <input type="password" name="{{ f.name }}" autocomplete="new-password" maxlength="1024" spellcheck="false"
+            placeholder="{{ 'set — leave blank to keep' if f.set else 'not set' }}">
+        </label>
+        {% endfor %}
+      </fieldset>
+      {% endfor %}
+      </div>
+      <button class="btn primary">Save credentials</button>
+    </form>
+</div>
+{% endblock %}
