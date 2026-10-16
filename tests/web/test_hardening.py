@@ -672,3 +672,18 @@ def test_signed_out_form_posts_return_to_the_dashboard(app):
         assert r.status_code == 303 and r.headers["location"] == "/login?next=%2F"
         assert c.get("/queue?status=failed", follow_redirects=False).headers["location"] == \
             "/login?next=%2Fqueue%3Fstatus%3Dfailed"
+
+
+# ---- tenth review round -------------------------------------------------------------------
+@pytest.mark.parametrize("path", ["/clips/" + "%00" * 1000, "/jobs/x%0Ay", "/jobs/x%0D%0Ay"])
+def test_control_characters_in_return_urls_fall_back_to_the_dashboard(app, path):
+    from urllib.parse import parse_qs, urlparse
+
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as c:
+        nxt = parse_qs(urlparse(c.get(path, follow_redirects=False).headers["location"]).query)["next"][0]
+        assert not any(ord(ch) < 32 or ord(ch) == 127 for ch in nxt)  # dropped by the client, or refused -> "/"
+        assert c.get("/login", params={"next": "/studio?q=a\nb"}).text.count('name="next" value="/"') == 1
+        r = c.post("/login", data={"password": "test-password", "next": "/clips/\x00x"}, follow_redirects=False)
+        assert r.headers["location"] == "/"

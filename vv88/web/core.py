@@ -320,7 +320,8 @@ def _fits_login_form(url: str) -> bool:
 def safe_next(url: str) -> str:
     """Only allow same-site relative paths (no open redirects); anything odd, even unparseable, becomes '/'."""
     url = url or "/"
-    if not url.startswith("/") or url.startswith(("//", "/\\")):
+    # Control characters (NUL, CR/LF...) never appear in real links, and browsers re-encode them unpredictably.
+    if not url.startswith("/") or url.startswith(("//", "/\\")) or any(ord(c) < 32 or ord(c) == 127 for c in url):
         return "/"
     try:
         parsed = urlparse(url)
