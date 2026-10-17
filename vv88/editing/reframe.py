@@ -8,6 +8,8 @@ the frame is shown whole over a blurred fill, which is always safe.
 from __future__ import annotations
 
 import logging
+import os
+import sys
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -46,6 +48,18 @@ def crop_size(src_w: int, src_h: int, aspect: float) -> tuple[int, int]:
     return _even(src_w), _even(src_w / aspect)
 
 
+def haar_cascade_path(cv2) -> str:
+    """The frontal-face Haar cascade: pip builds ship it in cv2.data; system builds (Termux, distro packages)
+    install it under <prefix>/share/opencv4/haarcascades."""
+    name = "haarcascade_frontalface_default.xml"
+    bundled = getattr(getattr(cv2, "data", None), "haarcascades", "")
+    candidates = [os.path.join(bundled, name)] if bundled else []
+    for prefix in (os.environ.get("PREFIX"), sys.prefix, "/usr", "/usr/local"):
+        if prefix:
+            candidates += [os.path.join(prefix, "share", d, "haarcascades", name) for d in ("opencv4", "opencv")]
+    return next((c for c in candidates if os.path.isfile(c)), "")
+
+
 def detect_face_track(path: str, start: float, end: float, step: float = 0.4,
                       face_model: str | None = None) -> list[tuple[float, float | None]]:
     """[(t_rel, face_center_x_normalised or None)] over the clip window."""
@@ -63,9 +77,9 @@ def detect_face_track(path: str, start: float, end: float, step: float = 0.4,
         except Exception as e:  # noqa: BLE001 - bad model path shouldn't kill the render
             log.warning("could not load YuNet model %s: %s", face_model, e)
     if yunet is None:
-        cascade = getattr(getattr(cv2, "data", None), "haarcascades", "") + "haarcascade_frontalface_default.xml"
-        detector = cv2.CascadeClassifier(cascade)
-        if detector.empty():
+        cascade = haar_cascade_path(cv2)
+        detector = cv2.CascadeClassifier(cascade) if cascade else None
+        if detector is None or detector.empty():
             log.info("no Haar cascade bundled with this OpenCV build; face tracking disabled")
             return []
 

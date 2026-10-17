@@ -382,7 +382,9 @@ def system_checks(settings: Settings) -> list[dict]:
     for module, label, extra in (("cv2", "OpenCV (face-tracked reframing)", "vision"),
                                  ("yt_dlp", "yt-dlp (source downloads)", "download")):
         ok, err = _cached(f"import:{module}", lambda m=module: _importable(m))
-        add(label, ok, "" if ok else err, f"pip install 'vv88[{extra}]'")
+        termux = module == "cv2" and "com.termux" in os.environ.get("PREFIX", "")
+        add(label, ok, "" if ok else err, "pkg install x11-repo && pkg install opencv-python" if termux
+            else f"pip install 'vv88[{extra}]'", optional=termux)
 
     font = settings.editing.font
     if settings.editing.fonts_dir:

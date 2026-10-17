@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -45,6 +46,7 @@ def cmd_doctor(settings: Settings, _args) -> int:
         engine = whisper_cpp_engine(settings.analysis)
         line(bool(engine), "transcription", f"whisper.cpp ({engine[1].name})" if engine else
              "pip install 'vv88[transcribe]', or build whisper.cpp (scripts/termux_setup.sh on Android)")
+    on_termux = "com.termux" in os.environ.get("PREFIX", "")
     for mod, label, extra in [
         ("cv2", "OpenCV (face-tracked reframing)", "vision"),
         ("yt_dlp", "yt-dlp (source downloads)", "download"),
@@ -53,7 +55,9 @@ def cmd_doctor(settings: Settings, _args) -> int:
             __import__(mod)
             line(True, label)
         except ImportError:
-            line(False, label, f"pip install 'vv88[{extra}]'")
+            hint = ("pkg install x11-repo && pkg install opencv-python (optional)" if mod == "cv2" and on_termux
+                    else f"pip install 'vv88[{extra}]'")
+            line(False, label, hint)
     fonts = subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True).stdout if shutil.which(
         "fc-list") else ""
     font_ok = settings.editing.font.split()[0].lower() in fonts.lower() or bool(settings.editing.fonts_dir)
