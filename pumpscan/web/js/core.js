@@ -58,7 +58,7 @@ export class Token {
       pool: "pump", dev_buy_sol: 0, dev_tokens: 0, uri: "",
       description: "", twitter: "", telegram: "", website: "", image: "", metadata_loaded: false, meta_attempts: 0,
       metadata_unreachable: false, // browser-only: the metadata host blocks cross-origin reads
-      dex_id: "", pair_address: "", pair_created_at: null, boosts: 0, has_profile: false, cto: false, migrated: false,
+      dex_id: "", pair_address: "", pool_address: "", pair_created_at: null, boosts: 0, has_profile: false, cto: false, migrated: false,
       snapshots: [], trades: [], rug: null, holder_history: [], ath_mcap: 0, ath_t: 0,
       last_votes: [], buy_votes: 0, avoid_votes: 0, vetoed: false, conviction: 0, signaled_at: null,
       last_dex: 0, dex_misses: 0, rug_attempt: 0,

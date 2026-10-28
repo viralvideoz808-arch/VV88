@@ -92,6 +92,10 @@ tbody tr:hover, tbody tr.sel { background: var(--panel2); }
 .settings label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
 input[type=range] { accent-color: var(--buy); }
 select { font: inherit; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; }
+input[type=url] { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; font-size: 12px; }
+#paper.up { border-color: var(--buy-dim); } #paper.down { border-color: #5a2020; }
+td .mini { padding: 3px 8px; font-size: 12px; border-radius: 6px; }
+.tag.fail { color: var(--warn); border: 1px solid #6a4b16; } .tag.skip { color: var(--muted); border: 1px solid var(--line); }
 input[type=number] { width: 70px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
 footer { color: var(--muted); font-size: 12px; text-align: center; padding: 10px 16px 30px; max-width: 900px; margin: 0 auto; }
 .pulse { animation: pulse 1.6s infinite; }
@@ -103,10 +107,6 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 10px
   <div class="row">
     <h1>PUMPSCAN <small>25-agent council · pump.fun</small></h1>
     <span id="mode" class="badge">…</span>
-    <select id="modeSel" aria-label="Data source" title="Switch while stopped">
-      <option value="live">Live data</option>
-      <option value="demo">Demo (simulated)</option>
-    </select>
   </div>
   <div class="sources" id="sources"></div>
   <button id="toggle" class="start">START</button>
@@ -114,6 +114,47 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 10px
 
 <main>
   <section id="verdict"></section>
+
+  <section id="paper">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Demo account · real market, simulated money</h2>
+      <span class="muted" id="paperNote"></span>
+    </div>
+    <div class="stats" id="paperCards" style="margin-top:10px"></div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Coin</th><th>Tokens</th><th>Cost</th><th>Value now</th><th>P&amp;L</th><th>Price move</th><th>Plan</th><th>Held</th><th>Venue</th><th></th></tr></thead>
+        <tbody id="paperPositions"></tbody>
+      </table>
+    </div>
+    <details id="paperSettings" style="margin-top:12px">
+      <summary class="muted">Account settings: trade size, slippage, priority fee, latency, exits</summary>
+      <div class="settings" style="margin-top:10px">
+        <label><input type="checkbox" id="ps_autoTrade"> Auto-trade every BUY signal</label>
+        <label>Size <input type="number" id="ps_sizePct" min="1" max="100" step="1"> % of free SOL</label>
+        <label>Slippage <input type="number" id="ps_slippagePct" min="0.5" max="50" step="0.5"> %</label>
+        <label>Priority fee <input type="number" id="ps_priorityFeeSol" min="0" max="0.05" step="0.0001"> SOL / tx</label>
+        <label>Latency <input type="number" id="ps_latencyMs" min="0" max="10000" step="100"> ms</label>
+        <label>Max positions <input type="number" id="ps_maxPositions" min="1" max="10" step="1"></label>
+        <label>Time stop <input type="number" id="ps_maxHoldMin" min="1" max="1440" step="1"> min</label>
+        <label><input type="checkbox" id="ps_exitOnVeto"> Sell on safety veto</label>
+        <label><input type="checkbox" id="ps_closeAccounts"> Close token account on exit (refund rent)</label>
+        <label style="flex-basis:100%">Solana RPC <input type="url" id="ps_rpcUrl" style="flex:1;min-width:0"></label>
+        <button id="ps_save">Save settings</button>
+        <button id="ps_reset">Reset to $10</button>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Demo trades · every fill computed from on-chain reserves when the transaction would land</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Side</th><th>Coin</th><th>Result</th><th>SOL</th><th>Tokens</th><th>Avg price vs spot</th><th>Slippage</th><th>Fees (pump · LP · network · rent)</th><th>Why</th></tr></thead>
+        <tbody id="paperTrades"></tbody>
+      </table>
+    </div>
+  </section>
 
   <section>
     <div class="stats" id="stats"></div>

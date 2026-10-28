@@ -14,6 +14,7 @@ import {
   AGENTS, AGENTS_BY_ID, AVOID, MarketContext, Token, buildSignal, compareRank,
   curveProgressFromMcapSol, defaultRules, runCouncil, scoreOutcome,
 } from "./core.js";
+import { PaperAccount } from "./paper.js";
 import {
   Http, applyRugReport, parseCreateEvent, parseDexPair, parseMetadata, parseRugReport,
   parseTradeEvent, pickPair, pumpportalStream, sleep,
@@ -48,6 +49,8 @@ export class Engine {
     this.metaQueue = [];
     this.abort = null;
     this.sim = null;
+    // The $10 demo account trades signals against real on-chain state (live data only).
+    this.paper = demo ? null : new PaperAccount({ clock: () => this.clock(), solUsd: () => this.ctx.sol_usd });
   }
 
   storageKey() { return this.demo ? "pumpscan.signals.demo" : "pumpscan.signals"; }
@@ -80,6 +83,11 @@ export class Engine {
       pumpportalStream((msg) => this.onStream(msg), this.status, signal);
       loops.push(this.seedLoop(signal), this.dexLoop(signal), this.deepLoop(signal));
       for (let i = 0; i < 6; i++) loops.push(this.metaWorker(signal));
+      // keep watching the coins the demo account holds, even after a reload
+      for (const p of this.paperPositions()) {
+        this.addToken(new Token({ mint: p.mint, name: p.name, symbol: p.symbol, pair_address: p.curve, pool_address: p.pool, migrated: p.migrated }));
+      }
+      loops.push(this.paperLoop(signal));
     }
     this.started_at = this.clock();
     for (const p of loops) {
@@ -244,6 +252,34 @@ export class Engine {
     }
   }
 
+  paperPositions() { return this.paper && this.paper.acct ? Object.values(this.paper.acct.positions) : []; }
+
+  // Fund the demo account once the SOL price is known, then value and manage its positions every 2 s.
+  async paperLoop(signal) {
+    while (!signal.aborted) {
+      this.paper.ensureFunded();
+      try {
+        await this.paper.monitor((mint) => this.tokens.get(mint));
+      } catch (e) {
+        console.error("demo account monitor", e);
+      }
+      await sleep(2000, signal);
+    }
+  }
+
+  paperBuy(mint) {
+    const tok = this.tokens.get(mint);
+    if (!this.paper || !tok || !this.paper.ensureFunded()) return;
+    const size = this.paper.freeLamports() * BigInt(Math.round(this.paper.settings.sizePct * 100)) / 10_000n;
+    this.paper.buy(tok, size).catch((e) => console.error("demo buy", e));
+  }
+
+  paperSell(mint, fraction) {
+    if (!this.paper) return;
+    this.paper.sell(mint, fraction, fraction >= 1 ? "manual: sell all" : "manual: sell half", this.tokens.get(mint))
+      .catch((e) => console.error("demo sell", e));
+  }
+
   // ------------------------------------------------------------ council
 
   async councilLoop(signal) {
@@ -275,6 +311,7 @@ export class Engine {
         tok.signaled_at = now;
         this.signals.push(sig);
         fresh.push(sig);
+        if (this.paper && this.running) this.paper.onSignal(sig, tok).catch((e) => console.error("demo trade", e));
       }
     }
     this.updateSignals(now);
@@ -331,9 +368,16 @@ export class Engine {
     }
   }
 
+  // Coins that must stay watched: open signals and demo-account positions.
+  protectedMints() {
+    const keep = new Set(this.signals.filter((s) => !s.outcome).map((s) => s.mint));
+    for (const p of this.paperPositions()) keep.add(p.mint);
+    return keep;
+  }
+
   prune() {
     const now = this.clock();
-    const live = new Set(this.signals.filter((s) => !s.outcome).map((s) => s.mint));
+    const live = this.protectedMints();
     for (const [m, t] of [...this.tokens]) {
       if (live.has(m)) continue;
       const age = t.ageMin(now), s = t.snap;
@@ -346,7 +390,7 @@ export class Engine {
   }
 
   evict(n) {
-    const live = new Set(this.signals.filter((s) => !s.outcome).map((s) => s.mint));
+    const live = this.protectedMints();
     const victims = [...this.tokens.values()].filter((t) => !live.has(t.mint)).sort(compareRank).reverse().slice(0, n);
     for (const t of victims) this.tokens.delete(t.mint);
   }
@@ -431,6 +475,7 @@ export class Engine {
       active_signal: active,
       signals: this.signals.slice(-40).reverse(),
       track_record: this.trackRecord(),
+      paper: this.paper ? this.paper.snapshot() : null,
     };
   }
 }

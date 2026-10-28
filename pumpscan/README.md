@@ -20,12 +20,54 @@ browser access. So it needs no server and can be hosted as a static site on Verc
   screen on (the page asks the phone to keep the screen awake while it runs). Background tabs get throttled
   by the browser.
 - **Saved in your browser:** signals, outcomes and your consensus rules are stored in that browser only.
-- **Demo mode:** add `?demo=1` to the address to try a simulated market.
+- **Offline test mode:** add `?sim=1` to the address to run against a simulated market (used by the tests).
 - **No password needed:** each visitor runs their own scan in their own browser. Nobody else can stop yours
   or see your history.
 - **Unreadable metadata:** some launchpads host coin metadata on servers that refuse browser access. For
   those coins the social and metadata agents abstain ("metadata host blocks browser access"). They don't
   guess.
+
+### The $10 demo account (real market, simulated money)
+
+The browser version includes a paper-trading account that starts with **$10 worth of SOL** at the live SOL price.
+It trades the council's signals against the **real, live on-chain state** of each coin, so fills match what a real
+wallet would get:
+
+- **No order book; the curve is the book.** pump.fun coins trade against an automated market maker: the bonding
+  curve before graduation, then a PumpSwap pool. The account reads those reserves directly from Solana. The bonding
+  curve account has the virtual and real reserves. The PumpSwap pool uses its vault balances plus
+  `virtual_quote_reserves`. It then applies pump.fun's own integer math (floor on outputs, ceil on fees, as in their
+  SDK).
+- **Quote, then land.** Like a real transaction, it quotes at the moment of the decision and sets a min-out from
+  your slippage setting. It waits your latency setting, re-reads the chain, and fills against the state at that
+  moment. If the price moved past your slippage, the transaction **fails**. A failed transaction still pays the
+  network fee, as on Solana.
+- **Every real cost:**
+  - pump.fun fees: 1.25% on the bonding curve (0.95% protocol + 0.30% creator). On PumpSwap, the published
+    market-cap tiers, from 1.25% down to 0.30%, including the 0.20% LP fee.
+  - Solana's 5,000-lamport signature fee, plus your priority fee on every transaction, including failed ones.
+  - Rent for the token account a first buy creates: 0.00207408 SOL for Token-2022 coins. It is refunded when the
+    account is closed after a full exit.
+- **Exits:** follow the signal's plan, checked on-chain every 2 seconds while scanning:
+  - half at take-profit 1,
+  - the rest at take-profit 2,
+  - everything at the stop loss,
+  - after the time stop, or
+  - when a safety agent vetoes.
+  Triggers fire on the live spot price, and the sell then fills with the same quote, latency and slippage rules.
+- **Settings** (in the panel): auto-trade on or off, size (% of free SOL), slippage, priority fee, latency, max
+  positions, time stop, exit on veto, closing token accounts, and the RPC endpoint.
+
+What it does not model:
+- Your own trade's effect on later market data. At $10 the impact is computed in the fill but not fed back.
+- Jito/MEV sandwiching.
+- Transactions dropped by congestion; the model only fails on slippage.
+
+Fee figures come from pump.fun's public docs: github.com/pump-fun/pump-public-docs and its fee table. If pump.fun
+changes its fees, update `CURVE_FEES` / `SWAP_FEE_TIERS` in `web/js/paper.js`.
+
+Solana's own `api.mainnet-beta.solana.com` refuses requests from web pages. The account uses PublicNode's free RPC
+and fails over to Tatum's. For heavier use, paste your own RPC URL (for example a free Helius key) in the settings.
 
 Deploy: import the repo in Vercel with **Root Directory** `pumpscan/web` and Framework **Other**. There is no
 build step. `web/vercel.json` adds a strict Content-Security-Policy.

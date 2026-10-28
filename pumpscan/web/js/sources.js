@@ -77,7 +77,8 @@ export function parseDexPair(tok, pair, now) {
   }));
   tok.dex_id = pair.dexId || tok.dex_id;
   tok.migrated = tok.migrated || (tok.dex_id !== "pumpfun" && tok.dex_id !== "");
-  if (tok.dex_id === "pumpfun" && pair.pairAddress) tok.pair_address = pair.pairAddress;
+  if (tok.dex_id === "pumpfun" && pair.pairAddress) tok.pair_address = pair.pairAddress; // = bonding curve account
+  if (tok.dex_id === "pumpswap" && pair.pairAddress) tok.pool_address = pair.pairAddress; // = PumpSwap pool account
   const base = pair.baseToken || {};
   tok.name = tok.name || str(base.name, 64);
   tok.symbol = tok.symbol || str(base.symbol, 24);

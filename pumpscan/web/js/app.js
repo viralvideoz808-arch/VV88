@@ -15,7 +15,8 @@ let S = null, selected = null, seenSignals = null, rulesInit = false;
 // The scan runs in this tab: one engine for live data, one for the simulated market.
 const params = new URLSearchParams(location.search);
 const engines = {};
-let mode = params.get("demo") === "1" ? "demo" : "live";
+// ?sim=1 runs the offline simulated market (used for testing); the demo account always uses live data.
+let mode = params.get("sim") === "1" ? "demo" : "live";
 function engine() {
   if (!engines[mode]) {
     engines[mode] = mode === "demo"
@@ -39,13 +40,6 @@ $("toggle").onclick = () => {
   if (!S) return;
   if (!S.running && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
   if (S.running) { engine().stop(); holdScreen(false); } else { engine().start(); holdScreen(true); }
-  refresh();
-};
-
-$("modeSel").onchange = () => {
-  if (engine().running) { $("modeSel").value = mode; return; }
-  mode = $("modeSel").value;
-  seenSignals = null; rulesInit = false;
   refresh();
 };
 
@@ -92,10 +86,8 @@ function renderHeader() {
   t.textContent = S.running ? "STOP" : "START";
   t.className = S.running ? "stop" : "start";
   const m = $("mode");
-  m.textContent = S.mode === "demo" ? "DEMO · simulated coins" : "LIVE · pump.fun";
+  m.textContent = S.mode === "demo" ? "OFFLINE TEST · simulated coins" : "LIVE · pump.fun";
   m.className = "badge " + (S.mode === "demo" ? "demo" : "live");
-  $("modeSel").value = S.mode;
-  $("modeSel").disabled = S.running;
   $("sources").innerHTML = Object.entries(S.sources).map(([k, v]) => {
     const cls = /error|crash/.test(v) ? "err" : /connecting|reconnecting|rate/.test(v) ? "wait" : /stopped/.test(v) ? "" : "ok";
     return `<span title="${esc(v)}"><i class="dot ${cls}"></i>${esc(k)}</span>`;
@@ -153,8 +145,11 @@ function renderVerdict() {
       <button id="copyCa">Copy CA</button>
     </p>
     <div class="ca">${esc(sig.mint)}</div>
-    ${S.mode === "demo" ? `<p class="muted">Demo mode: this coin is simulated and does not exist.</p>` : ""}`;
+    ${paperLine(sig)}
+    ${S.mode === "demo" ? `<p class="muted">Offline test mode: this coin is simulated and does not exist.</p>` : ""}`;
   $("copyCa").onclick = () => navigator.clipboard && navigator.clipboard.writeText(sig.mint);
+  const pb = $("paperBuy");
+  if (pb) pb.onclick = () => { engine().paperBuy(sig.mint); pb.disabled = true; pb.textContent = "Sending…"; };
 }
 
 function renderStats() {
@@ -223,9 +218,126 @@ function renderHistory() {
   }).join("") || `<p class="muted">No signals yet.</p>`;
 }
 
+// ------------------------------------------------------------------ demo account
+
+const sol = (x, d = 4) => x == null ? "–" : `${Number(x).toFixed(d)} SOL`;
+const usd2 = (x) => x == null ? "–" : `${x < 0 ? "-" : ""}$${Math.abs(x).toFixed(2)}`;
+const qty = (x) => x == null ? "–" : x >= 1e6 ? (x / 1e6).toFixed(2) + "M" : x >= 1e3 ? (x / 1e3).toFixed(1) + "k" : x.toFixed(0);
+function signedPct(x, d = 1) {
+  if (x == null || !Number.isFinite(x)) return "–";
+  if (Math.abs(x) < 0.5 / 10 ** d) x = 0; // no red "-0.00%"
+  return `<span class="${x >= 0 ? "pos" : "neg"}">${x > 0 ? "+" : ""}${x.toFixed(d)}%</span>`;
+}
+const price = (x) => x == null ? "–" : x.toExponential(3);
+
+// What the demo account did with this signal, shown on the signal card.
+function paperLine(sig) {
+  const P = S.paper;
+  if (!P) return "";
+  const tr = (P.trades || []).find((t) => t.mint === sig.mint && t.side === "BUY" && t.t >= sig.created - 1);
+  if (tr && tr.status === "filled") {
+    return `<p class="pos"><b>Demo account bought</b> ${qty(tr.tokens)} $${esc(sig.symbol)} for ${sol(tr.lamports_in)}
+      · price impact ${signedPct(tr.price_impact_pct, 2)} · slippage vs quote ${signedPct(tr.slippage_pct, 2)}</p>`;
+  }
+  if (tr) return `<p style="color:var(--warn)"><b>Demo buy ${esc(tr.status)}:</b> ${esc(tr.reason)}</p>`;
+  if (sig.state !== "active") return "";
+  if (P.settings && P.settings.autoTrade) return `<p class="muted">Demo account is sending the buy…</p>`;
+  return `<p><button id="paperBuy">Demo buy (${P.settings.sizePct}% of free SOL)</button></p>`;
+}
+
+let paperFormInit = false;
+const PS_FIELDS = ["autoTrade", "sizePct", "slippagePct", "priorityFeeSol", "latencyMs", "maxPositions", "maxHoldMin", "exitOnVeto", "closeAccounts", "rpcUrl"];
+
+function fillPaperForm(st) {
+  for (const k of PS_FIELDS) {
+    const el = $("ps_" + k);
+    if (el.type === "checkbox") el.checked = Boolean(st[k]); else el.value = st[k];
+  }
+}
+
+$("ps_save").onclick = () => {
+  const patch = {};
+  for (const k of PS_FIELDS) {
+    const el = $("ps_" + k);
+    if (el.type === "checkbox") patch[k] = el.checked;
+    else if (el.type === "number") { const v = Number(el.value); if (Number.isFinite(v) && v >= Number(el.min) && v <= Number(el.max)) patch[k] = v; }
+    else if (/^https:\/\//.test(el.value.trim())) patch[k] = el.value.trim();
+  }
+  engine().paper.setSettings(patch);
+  paperFormInit = false;
+  refresh();
+};
+$("ps_reset").onclick = () => {
+  if (confirm("Reset the demo account to $10? Positions and trade history will be deleted.")) { engine().paper.reset(); refresh(); }
+};
+$("paperPositions").onclick = (ev) => {
+  const b = ev.target.closest("button[data-sell]");
+  if (!b) return;
+  engine().paperSell(b.dataset.mint, Number(b.dataset.sell));
+  b.disabled = true;
+};
+
+function renderPaper() {
+  const P = S.paper, sec = $("paper");
+  if (!P) {
+    sec.style.display = "none";
+    return;
+  }
+  sec.style.display = "";
+  if (!paperFormInit) { fillPaperForm(P.settings); paperFormInit = true; }
+  if (!P.funded) {
+    sec.className = "";
+    $("paperNote").textContent = "";
+    $("paperCards").innerHTML = `<div style="grid-column:1/-1"><span>Starting balance</span><b>$10.00</b>
+      <span style="text-transform:none">Opens with $10 worth of SOL at the live SOL price once you press START.</span></div>`;
+    $("paperPositions").innerHTML = "";
+    $("paperTrades").innerHTML = `<tr><td colspan="10" class="muted">No demo trades yet.</td></tr>`;
+    return;
+  }
+  sec.className = P.pnl_usd > 0.005 ? "up" : P.pnl_usd < -0.005 ? "down" : "";
+  const t = P.totals;
+  $("paperNote").innerHTML = `${P.settings.autoTrade ? "auto-trading signals" : "manual: use Demo buy on a signal"}
+    ${!S.running && P.positions.length ? ` · <span style="color:var(--warn)">stopped: exits are not watched until you press START</span>` : ""}
+    ${P.rpc_error ? ` · <span style="color:var(--warn)" title="${esc(P.rpc_error)}">RPC trouble</span>` : ""}`;
+  const cards = [
+    ["Equity", `${usd2(P.equity_usd)}`, `${signedPct(P.pnl_usd != null ? P.pnl_usd / P.start_usd * 100 : null)} vs $${P.start_usd} start`],
+    ["SOL", sol(P.equity_sol), `${signedPct(P.pnl_sol_pct)} in SOL terms`],
+    ["Cash", sol(P.cash_sol), "free to trade"],
+    ["In positions", sol(P.positions_sol), "net of exit fees"],
+    ["Realized P&L", sol(t.realized_sol), "closed trades, before network fees"],
+    ["pump.fun fees", sol(t.pump_fees_sol), `+ ${sol(t.lp_fees_sol)} LP`],
+    ["Network fees", sol(t.network_fees_sol), "base + priority, incl. failed tx"],
+    ["Rent", sol(t.rent_paid_sol - t.rent_refunded_sol, 5), `locked in ${P.positions.length} token account(s)`],
+  ];
+  $("paperCards").innerHTML = cards.map(([k, v, sub]) => `<div><span>${k}</span><b>${v}</b><span style="text-transform:none">${sub}</span></div>`).join("");
+  $("paperPositions").innerHTML = P.positions.length ? P.positions.map((p) => `<tr>
+      <td><b>$${esc(p.symbol)}</b><div class="sym muted">${esc((p.name || "").slice(0, 20))}</div></td>
+      <td>${qty(p.tokens)}</td><td>${sol(p.cost_sol)}</td><td>${sol(p.value_sol)}</td>
+      <td>${signedPct(p.pnl_pct)}</td><td>${signedPct(p.change_pct)}</td>
+      <td class="muted">SL ${p.plan.sl}% · TP ${p.tp1_done ? "<s>" : ""}+${p.plan.tp1}%${p.tp1_done ? "</s>" : ""} / +${p.plan.tp2}%</td>
+      <td>${p.held_min.toFixed(0)}m</td>
+      <td title="${esc(p.venue_note)}">${p.venue === "curve" ? "bonding curve" : p.venue === "pool" ? "PumpSwap" : esc(p.venue)}</td>
+      <td style="white-space:nowrap">${p.pending ? `<span class="muted">sending…</span>` :
+        `<button class="mini" data-sell="0.5" data-mint="${esc(p.mint)}">Sell ½</button> <button class="mini" data-sell="1" data-mint="${esc(p.mint)}">Sell all</button>`}</td></tr>`).join("")
+    : `<tr><td colspan="10" class="muted">No open positions.</td></tr>`;
+  $("paperTrades").innerHTML = P.trades.length ? P.trades.slice(0, 40).map((tr) => {
+    const res = tr.status === "filled" ? `<span class="tag ok">filled</span>` : tr.status === "failed" ? `<span class="tag fail">failed</span>` : `<span class="tag skip">${esc(tr.status)}</span>`;
+    const solAmt = tr.side === "BUY" ? (tr.lamports_in != null ? `-${Number(tr.lamports_in).toFixed(4)}` : "–") : (tr.lamports_out != null ? `+${Number(tr.lamports_out).toFixed(4)}` : "–");
+    const fees = tr.status === "filled" || tr.status === "failed"
+      ? [tr.pump_fees, tr.lp_fee, tr.network_fee, tr.rent ?? (tr.rent_refund ? -tr.rent_refund : 0)].map((x) => x == null ? "0" : Number(x).toFixed(5)).join(" · ")
+      : "–";
+    const lat = tr.landed_at && tr.quoted_at ? ` · landed ${(tr.landed_at - tr.quoted_at).toFixed(1)}s after quote on ${tr.venue === "pool" ? "PumpSwap" : "curve"}` : "";
+    return `<tr><td>${new Date(tr.t * 1000).toLocaleTimeString()}</td><td>${tr.side}</td><td>$${esc(tr.symbol)}</td><td>${res}</td>
+      <td>${solAmt}</td><td>${qty(tr.tokens ?? tr.got_tokens)}</td>
+      <td>${tr.avg_price ? `${price(tr.avg_price)} vs ${price(tr.spot_at_fill)} (${signedPct(tr.price_impact_pct, 2)})` : "–"}</td>
+      <td>${tr.slippage_pct != null ? signedPct(-tr.slippage_pct, 2) : "–"}</td><td class="muted">${fees}</td>
+      <td class="muted" style="white-space:normal;min-width:220px">${esc(tr.reason || "")}${esc(lat)}${tr.pnl_lamports != null ? ` · P&L ${Number(tr.pnl_lamports).toFixed(4)} SOL` : ""}</td></tr>`;
+  }).join("") : `<tr><td colspan="10" class="muted">No demo trades yet.</td></tr>`;
+}
+
 function render() {
   if (!S) return;
-  renderHeader(); renderVerdict(); renderStats(); renderCandidates(); renderAgents(); renderHistory();
+  renderHeader(); renderVerdict(); renderPaper(); renderStats(); renderCandidates(); renderAgents(); renderHistory();
   if (!rulesInit) {
     $("minAgree").value = S.rules.min_buy_votes; $("minAgreeV").textContent = S.rules.min_buy_votes;
     $("window").value = S.rules.window_minutes; rulesInit = true;
@@ -242,5 +354,6 @@ function refresh() {
     $("sources").innerHTML = `<span><i class="dot err"></i>dashboard error: ${esc(e.message)}</span>`;
   }
 }
+window.pumpscan = { engine }; // for debugging from the browser console
 refresh();
 setInterval(refresh, 1500);
