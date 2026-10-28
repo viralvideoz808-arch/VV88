@@ -1,0 +1,32 @@
+{
+ "note": "Real mainnet account data captured 2026-10-28 via getMultipleAccounts (base64).",
+ "bonding_curve": {
+  "address": "AXmr4sjYxMkJc99mUHkrLBCTntYSNYaKCrGNp6PMDKb4",
+  "owner": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+  "data": "F7f4N2DYrGBcLHXAbrECAOTIGeMJAAAAXJRidN2yAQDkHPbmAgAAAACAxqR+jQMAAL/iUw28MbSfe3Wp+nCqotHpfw3WYYJAU5uz/M2wzJ4nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAjMVcDAAAAAJ2wwDsAAAAAAACsI/wGAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "expect": {
+   "virtual_token_reserves": "758039186844764",
+   "virtual_sol_reserves": "42464823524",
+   "real_token_reserves": "478139186844764",
+   "real_sol_reserves": "12464823524",
+   "token_total_supply": "1000000000000000",
+   "complete": false
+  }
+ },
+ "pumpswap_pool": {
+  "address": "316AZMKHQBLmBehSST7NAqAoidhB2UZn2gKrkHoNjXvg",
+  "owner": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+  "data": "8ZptBBGxbbz+AADc6/7mTzoQM53c8CywMgDUoM0cMBV0DEKMI/pfF3cGAtdtN5h6y01NiakddDy0Cup5giiTmNPHBgC1wC189UqfBpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAHRjGLVpT0+FiAt66Zkama2cLTpeHNsC2/BNPo8xkqko4gywdTC17qLWfweu1gkbEETG6jz9sm5v+m2KfReOj7+GG4tizOQByzKTAw5g71UfAqIW6oF4cmZSoQKweTkqijsQmtZ0AMAAKVTaTacRPgbKLBQKqoRgs9fnmQakTn1QkN3mml/j0tGAAAEWAoYBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxOkTAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "expect": {
+   "base_mint": "FVwFLi51Djh2AeQBEJdtYfkFKAqposTCAgjS1FJCpump",
+   "quote_mint": "So11111111111111111111111111111111111111112",
+   "pool_base_token_account": "AAfLXvZujZwG4i2GYbDfUuMPK2QP4c5es8PVqzJJxAvq",
+   "pool_quote_token_account": "2eNE9S1iA27y4M46t3knhambj7VFezUMYQc89RB8W1z7",
+   "virtual_quote_reserves": "17583200260",
+   "vault_base_amount": "973201846174399",
+   "vault_quote_amount": "1114104239",
+   "mint_supply": "983619787209782",
+   "dexscreener_price_native": "0.00000001899"
+  }
+ }
+}
