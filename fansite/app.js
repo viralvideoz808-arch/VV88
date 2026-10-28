@@ -83,12 +83,15 @@ function buildLeague(key) {
 
 // ---- persisted visitor state (predictions, nickname, demo-played rounds) ----
 
+function freshState() {
+  return { name: "", picks: {}, simulated: {}, club: "", pens: { played: 0, won: 0, goals: 0, kicks: 0 } };
+}
 function loadState() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return Object.assign({ name: "", picks: {}, simulated: {} }, JSON.parse(raw));
+    if (raw) return Object.assign(freshState(), JSON.parse(raw));
   } catch (e) { /* storage unavailable: fall back to memory */ }
-  return { name: "", picks: {}, simulated: {} };
+  return freshState();
 }
 function saveState() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
@@ -246,7 +249,200 @@ function viewLeaders() {
     </table></div>`;
 }
 
-const VIEWS = { fixtures: viewFixtures, results: viewResults, table: viewTable, predict: viewPredict, leaders: viewLeaders };
+// ---- penalty shootout: aim at one of six spots, time the power meter, beat the keeper ----
+
+const ZONES = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]; // [row, col]; row 0 is the top half
+const ZONE_NAMES = ["top left", "top centre", "top right", "bottom left", "bottom centre", "bottom right"];
+const SWEET = [0.7, 0.92]; // power band that beats a keeper who guessed right on a top corner
+const SOFT = 0.25;
+const RIVAL_SCORES = 0.75;
+
+let pen = null;
+let meterRaf = 0;
+let meterPower = 0;
+
+function newShootout() {
+  const teams = LEAGUES[league].teams;
+  const mine = teams.includes(state.club) ? state.club : teams[0];
+  const others = teams.filter((t) => t !== mine);
+  return {
+    league, mine, rival: others[Math.floor(Math.random() * others.length)],
+    you: [], them: [], aims: [], aim: null, busy: false, over: false,
+    msg: "Tap a spot in the goal to aim.",
+  };
+}
+
+const count = (kicks) => kicks.filter(Boolean).length;
+
+// Best of five, stopping early once one side can't be caught; level after five goes to sudden death.
+function shootoutDecided(p) {
+  const y = count(p.you), t = count(p.them), ky = p.you.length, kt = p.them.length;
+  if (ky <= 5 && kt <= 5) {
+    if (y > t + (5 - kt) || t > y + (5 - ky)) return true;
+    return ky === 5 && kt === 5 && y !== t;
+  }
+  return ky === kt && y !== t;
+}
+
+// The keeper favours the corners, and reads you if your last two kicks went the same way.
+function keeperDive(p) {
+  const [a, b] = p.aims.slice(-2);
+  if (a !== undefined && a === b && Math.random() < 0.6) return a;
+  const r = Math.random();
+  return r < 0.4 ? 0 : r < 0.6 ? 1 : 2;
+}
+
+function resolveKick(row, col, power) {
+  const keeper = keeperDive(pen);
+  if (power > SWEET[1]) {
+    const over = row === 0 || col === 1;
+    return { goal: false, miss: over ? "over" : "wide", keeper, why: over ? "Over the bar!" : "Wide of the post!" };
+  }
+  if (power < SOFT) return { goal: false, keeper: col, why: "Too soft. Easy save." };
+  if (keeper === col) {
+    if (row === 0 && col !== 1 && power >= SWEET[0]) return { goal: true, keeper, why: "Top corner! The keeper had no chance." };
+    return { goal: false, keeper, why: "Saved! The keeper guessed right." };
+  }
+  return { goal: true, keeper, why: "GOAL!" };
+}
+
+function tallyHtml() {
+  const n = Math.max(5, pen.you.length, pen.them.length);
+  const dots = (kicks) => Array.from({ length: n }, (_, i) =>
+    `<i class="dot ${kicks[i] === undefined ? "" : kicks[i] ? "in" : "out"}"></i>`).join("");
+  return `<span class="who">${esc(pen.mine)}</span><span class="dots">${dots(pen.you)}</span><span class="goals">${count(pen.you)}</span>
+    <span class="who">${esc(pen.rival)}</span><span class="dots">${dots(pen.them)}</span><span class="goals">${count(pen.them)}</span>`;
+}
+
+function viewPenalties() {
+  if (!pen || pen.league !== league) pen = newShootout();
+  const s = state.pens;
+  const rate = s.kicks ? Math.round((100 * s.goals) / s.kicks) : 0;
+  return `<h2>Penalty shootout</h2>
+    <p class="sub">Aim, then stop the needle in the green. Best of five, then sudden death.</p>
+    <div class="row">
+      <label class="field">
+        <select id="pen-club" aria-label="Your club">
+          ${LEAGUES[league].teams.map((t) => `<option ${t === pen.mine ? "selected" : ""}>${esc(t)}</option>`).join("")}
+        </select>
+      </label>
+      <span class="note">vs <strong>${esc(pen.rival)}</strong></span>
+    </div>
+    <div class="card">
+      <div class="tally" id="tally">${tallyHtml()}</div>
+      <div class="pitch">
+        <div class="goal" id="goal">
+          ${ZONES.map((_, i) => `<button class="zone ${pen.aim === i ? "aim" : ""}" data-zone="${i}"
+            aria-label="Aim ${ZONE_NAMES[i]}" ${pen.busy || pen.over ? "disabled" : ""}></button>`).join("")}
+          <div class="keeper" id="keeper"></div>
+        </div>
+        <div class="ball" id="ball" aria-hidden="true">⚽</div>
+      </div>
+      <div class="meter-wrap">
+        <div class="meter" aria-hidden="true"><span class="soft"></span><span class="sweet"></span><span class="over"></span><span class="needle" id="needle"></span></div>
+        <div class="meter-legend"><span>Too soft</span><span>Placed</span><span>Power</span><span>Over</span></div>
+      </div>
+      <p class="pen-msg" id="pen-msg" role="status">${esc(pen.msg)}</p>
+      <div class="row pen-actions">
+        <button class="btn" id="shoot" ${pen.aim === null || pen.busy || pen.over ? "disabled" : ""}>Shoot</button>
+        <button class="btn ghost" id="pen-new">New shootout</button>
+      </div>
+    </div>
+    <h2>Your record</h2>
+    <div class="card stats">
+      <div><strong>${s.played}</strong><span>Played</span></div>
+      <div><strong>${s.won}</strong><span>Won</span></div>
+      <div><strong>${s.goals}</strong><span>Goals</span></div>
+      <div><strong>${rate}%</strong><span>Scored</span></div>
+    </div>`;
+}
+
+function runMeter() {
+  const needle = document.getElementById("needle");
+  if (!needle || pen.aim === null || pen.busy || pen.over) return;
+  const start = performance.now();
+  const step = (now) => {
+    const phase = ((now - start) / 1300) % 2;
+    meterPower = phase < 1 ? phase : 2 - phase;
+    needle.style.left = `calc(${(meterPower * 100).toFixed(1)}% - 2px)`;
+    meterRaf = requestAnimationFrame(step);
+  };
+  meterRaf = requestAnimationFrame(step);
+}
+
+function setPenMsg(text) {
+  pen.msg = text;
+  const el = document.getElementById("pen-msg");
+  if (el) el.textContent = text;
+}
+
+function finishIfDecided() {
+  if (!shootoutDecided(pen)) return false;
+  const y = count(pen.you), t = count(pen.them);
+  pen.over = true;
+  pen.busy = false;
+  state.pens.played++;
+  if (y > t) state.pens.won++;
+  saveState();
+  pen.msg = y > t ? `${pen.mine} win the shootout ${y}–${t}!` : `${pen.rival} win the shootout ${t}–${y}. Try again.`;
+  if (currentTab() === "penalties") render();
+  return true;
+}
+
+function animateKick(row, col, kick) {
+  const ball = document.getElementById("ball");
+  const goal = document.getElementById("goal");
+  const keeper = document.getElementById("keeper");
+  if (!ball || !goal) return;
+  const b = ball.getBoundingClientRect();
+  const z = goal.querySelector(`[data-zone="${ZONES.findIndex(([r, c]) => r === row && c === col)}"]`).getBoundingClientRect();
+  const g = goal.getBoundingClientRect();
+  let tx = z.left + z.width / 2 - (b.left + b.width / 2);
+  let ty = z.top + z.height / 2 - (b.top + b.height / 2);
+  if (kick.miss === "over") ty = g.top - b.height - (b.top + b.height / 2);
+  if (kick.miss === "wide") tx += (col === 0 ? -1 : 1) * z.width * 0.75;
+  ball.style.transform = `translate(${tx}px, ${ty}px) scale(.6)`;
+  keeper.classList.add(`dive-${kick.keeper}`);
+}
+
+function shoot() {
+  if (pen.aim === null || pen.busy || pen.over) return;
+  cancelAnimationFrame(meterRaf);
+  pen.busy = true;
+  document.getElementById("shoot").disabled = true;
+  document.querySelectorAll(".zone").forEach((z) => { z.disabled = true; });
+
+  const [row, col] = ZONES[pen.aim];
+  const kick = resolveKick(row, col, meterPower);
+  pen.aims.push(col);
+  animateKick(row, col, kick);
+
+  setTimeout(() => {
+    pen.you.push(kick.goal);
+    state.pens.kicks++;
+    if (kick.goal) state.pens.goals++;
+    saveState();
+    setPenMsg(kick.why);
+    const tally = document.getElementById("tally");
+    if (tally) tally.innerHTML = tallyHtml();
+    if (finishIfDecided()) return;
+
+    setTimeout(() => {
+      const scored = Math.random() < RIVAL_SCORES;
+      pen.them.push(scored);
+      if (finishIfDecided()) return;
+      pen.busy = false;
+      pen.aim = null;
+      pen.msg = `${pen.rival} ${scored ? "score" : "miss"}. Your kick: tap a spot to aim.`;
+      if (currentTab() === "penalties") render();
+    }, 1100);
+  }, 650);
+}
+
+const VIEWS = {
+  fixtures: viewFixtures, results: viewResults, table: viewTable,
+  predict: viewPredict, penalties: viewPenalties, leaders: viewLeaders,
+};
 
 function currentTab() {
   const t = location.hash.slice(1);
@@ -254,10 +450,16 @@ function currentTab() {
 }
 
 function render() {
+  cancelAnimationFrame(meterRaf);
   const tab = currentTab();
   document.getElementById("view").innerHTML = VIEWS[tab]();
   document.querySelectorAll(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab));
+  const nav = document.querySelector(".tabs");
+  const active = nav.querySelector(".active");
+  const left = active.offsetLeft - nav.offsetLeft;
+  if (left < nav.scrollLeft || left + active.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left - 16;
   document.querySelectorAll(".league-switch button").forEach((b) => b.classList.toggle("active", b.dataset.league === league));
+  if (tab === "penalties") runMeter();
 }
 
 // ---- events ----
@@ -302,7 +504,26 @@ document.getElementById("view").addEventListener("click", (e) => {
     state.simulated = {};
     saveState();
     render();
+  } else if (e.target.dataset.zone !== undefined) {
+    if (pen.busy || pen.over) return;
+    pen.aim = Number(e.target.dataset.zone);
+    pen.msg = `Aiming ${ZONE_NAMES[pen.aim]}. Tap Shoot when the needle is in the green.`;
+    render();
+  } else if (e.target.id === "shoot") {
+    shoot();
+  } else if (e.target.id === "pen-new") {
+    if (pen.busy) return;
+    pen = newShootout();
+    render();
   }
+});
+
+document.getElementById("view").addEventListener("change", (e) => {
+  if (e.target.id !== "pen-club" || pen.busy) return;
+  state.club = e.target.value;
+  saveState();
+  pen = newShootout();
+  render();
 });
 
 window.addEventListener("hashchange", render);

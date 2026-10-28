@@ -8,6 +8,11 @@ site with no build step and no server.
 - **Table**: standings computed from results (P, W, D, L, GD, points, last-five form).
 - **Predict**: a free score predictor league. An exact score earns 3 points and a correct
   result earns 1. Picks and your fan name are saved in the browser.
+- **Penalties**: a penalty shootout against a rival club from the same league. Tap a spot in
+  the goal to aim, then tap Shoot to stop the power needle. Too soft gets saved, too hard
+  goes over or wide, and a top-corner shot in the green band beats even a keeper who guessed
+  right. Keep shooting the same way and the keeper starts reading you. It's best of five,
+  then sudden death, and your record (played, won, goals, conversion) is saved in the browser.
 - **Leaderboard**: your points ranked against sample fans.
 
 Fixtures are sample data generated from a fixed seed. The season is anchored to the current
