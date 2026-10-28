@@ -578,7 +578,7 @@ export class PaperAccount {
     const positions = Object.values(this.acct.positions).map((p) => {
       const m = this.marks.get(p.mint) || {};
       const value = m.value != null ? m.value : null;
-      if (value != null) posValue += value;
+      posValue += value != null ? value : p.cost; // not valued on-chain yet (just bought / no venue): count at cost
       lockedRent += p.rent;
       return {
         mint: p.mint, symbol: p.symbol, name: p.name, tokens: Number(p.tokens) / 1e6, cost_sol: toSol(p.cost),

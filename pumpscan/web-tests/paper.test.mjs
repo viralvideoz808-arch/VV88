@@ -206,3 +206,12 @@ test("RPC fails over to the next endpoint and never uses the browser-blocked one
   await r.accounts(["x"], "base64");
   assert.equal(hits.at(-1), "solana-mainnet.gateway.tatum.io"); // sticks with the endpoint that works
 });
+
+test("a position not yet valued on-chain counts at cost in equity", async () => {
+  const a = account([curveVenue(fresh())]);
+  const pos = await a.onSignal(signal, tok);
+  const snap = a.snapshot();
+  const expected = Number(a.acct.cash + pos.cost + pos.rent) / 1e9;
+  assert.ok(Math.abs(snap.equity_sol - expected) < 1e-12);
+  assert.equal(snap.positions[0].value_sol, null);
+});
