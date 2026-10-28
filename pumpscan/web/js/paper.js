@@ -271,7 +271,7 @@ export const DEFAULT_SETTINGS = {
   autoTrade: true,       // buy every BUY signal automatically
   sizePct: 30,           // % of free SOL per trade
   slippagePct: 15,       // min-out tolerance on every transaction
-  priorityFeeSol: 0.0005,// per transaction, paid even when it fails
+  priorityFeeSol: 0.0001,// per transaction, paid even when it fails. At $10 size, 0.0005 alone costs 3.4% per round trip
   latencyMs: 1500,       // decision -> transaction lands
   maxPositions: 3,
   maxHoldMin: 30,        // time stop

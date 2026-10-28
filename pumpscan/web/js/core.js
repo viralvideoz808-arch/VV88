@@ -477,7 +477,7 @@ agent("whales", "Whale Flow Tracker", "momentum", "Organic retail flow versus on
 
 // ---- market structure
 
-agent("curve", "Bonding Curve Analyst", "structure", "Where the coin sits on pump.fun's bonding curve.", false, (tok, ctx) => {
+agent("curve", "Bonding Curve Analyst", "structure", "Stage on pump.fun's bonding curve (SOL already in it), weighted by measured odds.", false, (tok, ctx) => {
   const s = tok.snap;
   if (tok.migrated) {
     if (s && s.liquidity_usd && s.liquidity_usd >= 20000 && tok.ageMin(ctx.now) < 360) {
@@ -486,22 +486,19 @@ agent("curve", "Bonding Curve Analyst", "structure", "Where the coin sits on pum
     return [HOLD, 0.3, "graduated; past the curve catalyst"];
   }
   if (!s || ctx.sol_usd <= 0) return [ABSTAIN, 0, "need market cap and SOL price"];
-  const p = curveProgressFromMcapSol(s.mcap_usd / ctx.sol_usd);
-  const pc = (p * 100).toFixed(0);
-  if (p < 0.1) return [HOLD, 0.2, `curve ${pc}%: very early`];
-  if (p < 0.25) return [HOLD, 0.3, `curve ${pc}%`];
-  if (p <= 0.88) return [BUY, 0.5 + 0.5 * ramp(p, 0.25, 0.75), `curve ${pc}% filled: graduation in sight`];
-  return [HOLD, 0.3, `curve ${pc}%: graduation sell-off risk`];
+  return curveStageVote(curveProgressFromMcapSol(s.mcap_usd / ctx.sol_usd) * 85);
 });
 
-agent("mcap", "Market Cap Positioner", "structure", "Is the market cap in a range that can still multiply?", false, (tok) => {
+agent("mcap", "Market Cap Positioner", "structure", "Is the market cap in a range that can still multiply? Judged in SOL, so it does not drift with the SOL price.", false, (tok, ctx) => {
   const s = tok.snap;
   if (!s) return [ABSTAIN, 0, "no market data yet"];
   const m = s.mcap_usd;
   if (!tok.migrated) {
-    if (m < 6000) return [AVOID, 0.4, `${usd(m)} mcap: no traction`];
-    if (m < 10000) return [HOLD, 0.2, `${usd(m)} mcap: unproven`];
-    return [BUY, 0.5 + 0.4 * (1 - ramp(m, 40000, 90000)), `${usd(m)} mcap on the curve`];
+    if (!(ctx.sol_usd > 0)) return [ABSTAIN, 0, "need the SOL price"];
+    const mcapSol = m / ctx.sol_usd;
+    const sol = curveProgressFromMcapSol(mcapSol) * 85;
+    if (sol < TUNING.stageMinSol) return [AVOID, 0.4, `${mcapSol.toFixed(0)} SOL mcap (${usd(m)}): no traction yet`];
+    return [BUY, 0.5 + 0.3 * (1 - ramp(mcapSol, 150, 400)), `${mcapSol.toFixed(0)} SOL mcap (${usd(m)}) on the curve`];
   }
   if (m < 60000) return [AVOID, 0.4, `${usd(m)} after graduating: weak`];
   if (m <= 3_000_000) return [BUY, 0.5, `${usd(m)} mcap after graduating`];
@@ -638,6 +635,8 @@ export function vote(a, tok, ctx) {
 // they were checked against recorded live launches (see README "How the entry rules were tuned").
 
 export const TUNING = {
+  stageMinSol: 2,        // < 2 SOL in the curve: only 14% of recorded coins rose 20% before falling 15%
+  stageBestLo: 5, stageBestHi: 20, // 5-20 SOL: the only stage near break-even after costs in the recorded data
   dumpFrac: 0.15,        // one 2 s window removing this share of the curve's SOL = a dump
   crash30: -0.25,        // -25% in 30 s
   drainDD: 0.45,         // 45% below the 5-minute on-chain high
@@ -678,6 +677,16 @@ export function chainVolatility(tok, now) {
 const fmtPct = (x) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(0)}%`;
 const fmtSol = (x) => `${x >= 0 ? "" : "-"}${Math.abs(x).toFixed(2)} SOL`;
 
+// Curve stage from the SOL in the bonding curve, as measured on recorded launches (README: "How the entry rules were
+// tuned"): odds of +20% before -15% within 10 min were 14% at 0.5-2 SOL, 34% at 2-5, 50% at 5-10, 32-38% above.
+export function curveStageVote(sol) {
+  if (sol < TUNING.stageMinSol) return [AVOID, 0.5, `${sol.toFixed(1)} SOL in the curve: too early (worst stage in recorded launches)`];
+  if (sol < TUNING.stageBestLo) return [HOLD, 0.3, `${sol.toFixed(1)} SOL in the curve: still early`];
+  if (sol <= TUNING.stageBestHi) return [BUY, 0.8, `${sol.toFixed(1)} SOL in the curve: the best stage in recorded launches`];
+  if (sol < 85) return [HOLD, 0.3, `${sol.toFixed(1)} SOL in the curve: later stage, weaker odds`];
+  return [HOLD, 0.2, "curve full: graduation"];
+}
+
 export const CHAIN_RULES = {
   rug_pattern: (tok, ctx, v) => {
     const f = v.flows(60);
@@ -694,32 +703,30 @@ export const CHAIN_RULES = {
     if (f.gout > 1 && f.gout > 2 * f.gin) return [AVOID, 0.8, `sellers draining the curve: ${fmtSol(f.gout)} out vs ${fmtSol(f.gin)} in (2 min)`];
     return [BUY, 0.5, `exits clear: ${v.realSol.toFixed(1)} SOL in the curve`];
   },
+  // Recorded data: requiring strong up-moves selects chase entries (+3..40%/min alone: -7.3% per trade vs -6.5%
+  // for any moment). These agents now only demand that the coin is not deteriorating.
   momentum: (tok, ctx, v) => {
     const c1 = v.change(60), c5 = v.change(300);
     if (c1 == null) return null;
     if (c5 != null && c5 > 2.5) return [AVOID, 0.5, `parabolic ${fmtPct(c5)} in 5 min: late`];
     if (c1 < -0.10) return [AVOID, 0.6, `falling ${fmtPct(c1)} in the last minute`];
     if (c1 > 0.40) return [HOLD, 0.3, `${fmtPct(c1)} in one minute: chase risk`];
-    if (c1 >= 0.03) return [BUY, 0.5 + 0.5 * (1 - Math.abs(c1 - 0.15) / 0.25), `climbing ${fmtPct(c1)} in the last minute (on-chain)`];
-    return [HOLD, 0.2, `flat ${fmtPct(c1)} in the last minute`];
+    if (c1 >= -0.05) return [BUY, 0.5, `holding up: ${fmtPct(c1)} in the last minute (on-chain)`];
+    return [HOLD, 0.2, `slipping ${fmtPct(c1)} in the last minute`];
   },
   volume: (tok, ctx, v) => {
-    const in60 = v.inflow(60), in300 = v.inflow(300);
+    const in60 = v.inflow(60);
     if (in60 == null) return null;
-    const prior = in300 != null && v.span >= 120 ? (in300 - in60) / 4 : null; // average per minute before this one
     if (in60 <= -0.3) return [AVOID, 0.6, `${fmtSol(in60)} net left the curve in the last minute`];
-    if (in60 >= TUNING.strongInflow60 && (prior == null || in60 >= 1.5 * Math.max(prior, 0.1))) {
-      return [BUY, 0.9, `${fmtSol(in60)} net inflow in the last minute${prior != null ? ` (${(in60 / Math.max(prior, 0.1)).toFixed(1)}x the pace before)` : ""}`];
-    }
-    if (in60 >= TUNING.minInflow60) return [BUY, 0.6, `${fmtSol(in60)} net inflow in the last minute`];
-    return [HOLD, 0.3, `little new money: ${fmtSol(in60)} net in the last minute`];
+    if (in60 >= 0) return [BUY, 0.5 + 0.3 * ramp(in60, 0, TUNING.strongInflow60), `${fmtSol(in60)} net inflow in the last minute`];
+    return [HOLD, 0.3, `slight outflow: ${fmtSol(in60)} in the last minute`];
   },
   buy_pressure: (tok, ctx, v) => {
     const f = v.flows(60);
     if (f.pairs < 5) return null;
     const r = f.gin / (f.gout + 0.05);
-    if (f.gin >= 0.5 && r >= 1.8) return [BUY, 0.5 + 0.5 * ramp(r, 1.8, 5), `${fmtSol(f.gin)} bought vs ${fmtSol(f.gout)} sold in 60 s (on-chain)`];
     if (r < 0.8 && f.gout >= 0.3) return [AVOID, 0.6, `sellers dominate: ${fmtSol(f.gout)} out vs ${fmtSol(f.gin)} in (60 s)`];
+    if (r >= 1.0) return [BUY, 0.5 + 0.3 * ramp(r, 1, 4), `${fmtSol(f.gin)} bought vs ${fmtSol(f.gout)} sold in 60 s (on-chain)`];
     return [HOLD, 0.3, `balanced flow: ${fmtSol(f.gin)} in / ${fmtSol(f.gout)} out (60 s)`];
   },
   velocity: (tok, ctx, v) => {
@@ -727,16 +734,15 @@ export const CHAIN_RULES = {
     if (f.pairs < 8) return null;
     const a = f.active / f.pairs;
     if (a >= 0.6) return [BUY, 0.5 + 0.5 * ramp(a, 0.6, 0.95), `trading in ${(a * 100).toFixed(0)}% of 2-second windows`];
-    if (a >= TUNING.minActive) return [HOLD, 0.3, `trading in ${(a * 100).toFixed(0)}% of 2-second windows`];
-    return [AVOID, 0.5, `quiet: trades in only ${(a * 100).toFixed(0)}% of 2-second windows`];
+    // Recorded data: requiring activity filtered out good quiet entries in the best curve stage, so quiet is HOLD, not AVOID.
+    return [HOLD, 0.3, `trading in ${(a * 100).toFixed(0)}% of 2-second windows`];
   },
   accel: (tok, ctx, v) => {
     const c30 = v.change(30), c90 = v.change(90);
     if (c30 == null || c90 == null || v.span < 60) return null;
     const recent = c30 / 0.5, before = ((1 + c90) / (1 + c30) - 1) / 1.0; // per-minute rates: last 30 s vs the minute before
-    if (recent > 0 && recent >= before) return [BUY, 0.5 + 0.5 * ramp(recent, 0, 0.3), `accelerating: ${fmtPct(recent)}/min now vs ${fmtPct(before)}/min before`];
-    if (recent > 0) return [HOLD, 0.3, `rising but slowing: ${fmtPct(recent)}/min vs ${fmtPct(before)}/min`];
-    return [AVOID, 0.5, `rolling over: ${fmtPct(recent)}/min`];
+    if (recent < -0.05) return [AVOID, 0.5, `rolling over: ${fmtPct(recent)}/min`];
+    return [BUY, 0.4 + 0.3 * ramp(recent - before, 0, 0.2), `trend intact: ${fmtPct(recent)}/min now vs ${fmtPct(before)}/min before`];
   },
   whales: (tok, ctx, v) => {
     const f = v.flows(120);
@@ -745,19 +751,12 @@ export const CHAIN_RULES = {
     if (share > 0.5) return [HOLD, 0.3, `one buy-sized burst is ${(share * 100).toFixed(0)}% of 2-minute inflow: whale-driven`];
     return [BUY, 0.4 + 0.4 * (1 - share), `spread-out buying: largest burst ${(share * 100).toFixed(0)}% of inflow`];
   },
-  curve: (tok, ctx, v) => {
-    const p = v.progress;
-    if (p < 0.08) return [HOLD, 0.2, `curve ${(p * 100).toFixed(0)}%: very early`];
-    if (p < 0.2) return [HOLD, 0.3, `curve ${(p * 100).toFixed(0)}%`];
-    if (p <= 0.88) return [BUY, 0.5 + 0.5 * ramp(p, 0.2, 0.75), `curve ${(p * 100).toFixed(0)}% filled (${v.realSol.toFixed(1)} SOL): graduation in sight`];
-    return [HOLD, 0.3, `curve ${(p * 100).toFixed(0)}%: graduation sell-off risk`];
-  },
+  curve: (tok, ctx, v) => curveStageVote(v.realSol),
   mcap: (tok, ctx, v) => {
-    if (!(ctx.sol_usd > 0)) return null;
-    const m = v.price * 1e9 * ctx.sol_usd;
-    if (m < 6000) return [AVOID, 0.4, `${usd(m)} mcap: no traction`];
-    if (m < 9000) return [HOLD, 0.2, `${usd(m)} mcap: unproven`];
-    return [BUY, 0.5 + 0.4 * (1 - ramp(m, 40000, 90000)), `${usd(m)} mcap on the curve (on-chain)`];
+    const mcapSol = v.price * 1e9;
+    const usdTxt = ctx.sol_usd > 0 ? ` (${usd(mcapSol * ctx.sol_usd)})` : "";
+    if (v.realSol < TUNING.stageMinSol) return [AVOID, 0.4, `${mcapSol.toFixed(0)} SOL mcap${usdTxt}: no traction yet`];
+    return [BUY, 0.5 + 0.3 * (1 - ramp(mcapSol, 150, 400)), `${mcapSol.toFixed(0)} SOL mcap${usdTxt} on the curve`];
   },
   volatility: (tok, ctx, v) => {
     const sig = chainVolatility(tok, ctx.now);
@@ -767,21 +766,17 @@ export const CHAIN_RULES = {
     if (vol < 0.5) return [HOLD, 0.2, "barely moving"];
     return [BUY, 0.6, `${vol.toFixed(1)}%/min volatility: tradeable`];
   },
-  // Sniper timing: never chase a vertical candle; buy a pullback once buyers return, or a breakout backed by inflow.
+  // Entry timing as a chase filter. Recorded data: the earlier "buy the pullback bounce / breakout on inflow" rule
+  // did worse than buying at any moment (-8.8% vs -6.5% per trade), so it no longer adds buy pressure; it only
+  // keeps the council from buying a vertical candle or a coin far below its recent high.
   entry: (tok, ctx, v) => {
-    const c10 = v.change(10), c30 = v.change(30), in30 = v.inflow(30);
-    if (c10 == null || c30 == null || in30 == null) return null;
+    const c10 = v.change(10), c30 = v.change(30);
+    if (c10 == null || c30 == null) return null;
     if (c10 >= TUNING.verticalChg10 || c30 >= TUNING.verticalChg30) {
-      return [HOLD, 0.3, `vertical candle (${fmtPct(c10)} in 10 s, ${fmtPct(c30)} in 30 s): wait for the pullback`];
+      return [HOLD, 0.3, `vertical candle (${fmtPct(c10)} in 10 s, ${fmtPct(c30)} in 30 s): wait for it to settle`];
     }
-    const dd = v.drawdown, in10 = v.inflow(10);
-    // a pullback that has started to bounce: buyers back in the last 10 s and price ticking up again
-    if (dd >= TUNING.pullbackMin && dd <= TUNING.pullbackMax && v.highAgo >= 20 && in10 > 0 && c10 > 0) {
-      return [BUY, 0.8, `pullback ${(dd * 100).toFixed(0)}% from the high, bouncing with buyers back (${fmtSol(in10)} in 10 s)`];
-    }
-    if (dd < 0.02 && c30 >= 0.02 && in30 > 0) return [BUY, 0.7, `breaking out on fresh inflow (${fmtSol(in30)} in 30 s)`];
-    if (dd > TUNING.pullbackMax) return [HOLD, 0.2, `${(dd * 100).toFixed(0)}% below the high: no base yet`];
-    return [HOLD, 0.3, in30 <= 0 ? "no fresh buyers in the last 30 s" : "no clean entry yet"];
+    if (v.drawdown > TUNING.pullbackMax) return [HOLD, 0.2, `${(v.drawdown * 100).toFixed(0)}% below the 5-minute high: no base yet`];
+    return [BUY, 0.5, `no chase: ${fmtPct(c30)} in 30 s, ${(v.drawdown * 100).toFixed(0)}% off the high`];
   },
 };
 

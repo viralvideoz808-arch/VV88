@@ -238,3 +238,25 @@ test("curve poller drops to 10-account batches when the RPC demands it", async (
   assert.equal(toks[24].chain.length, 2); // read in both polls
   assert.equal(toks[24].chain[0].realSol, 12464823524);
 });
+
+test("curve poller backs off on rate limits and regrows", async () => {
+  const { CurveWatch } = await import("../web/js/flow.js");
+  const { Token } = await import("../web/js/core.js");
+  const curve = FX.bonding_curve;
+  let fail = true;
+  const reader = { accounts: async (addrs) => {
+    if (fail) throw new Error("HTTP 429 from solana-rpc.publicnode.com");
+    return addrs.map(() => ({ owner: curve.owner, data: [curve.data, "base64"] }));
+  } };
+  const w = new CurveWatch(reader);
+  const toks = Array.from({ length: 60 }, (_, i) => new Token({ mint: `M${i}pump`, pair_address: curve.address }));
+  assert.equal(w.capacity, 40);
+  await w.poll(toks, () => 1);
+  assert.equal(w.capacity, 30);
+  await w.poll(toks, () => 2);
+  assert.equal(w.capacity, 22);
+  fail = false;
+  await w.poll(toks, () => 3);
+  assert.equal(w.capacity, 23);
+  assert.equal(w.watched, 22);
+});

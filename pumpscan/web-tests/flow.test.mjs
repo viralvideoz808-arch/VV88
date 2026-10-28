@@ -58,21 +58,29 @@ test("a single 2-second dump of the curve vetoes", () => {
   assert.match(v.reason, /one 2-second window/);
 });
 
-test("sniper timing: vertical candle waits, pullback with returning buyers buys, breakout on inflow buys", () => {
+test("entry timing is a chase filter: waits on vertical candles and deep drawdowns, otherwise no objection", () => {
   // vertical: +4 SOL in the last 10 s on a 6 SOL curve
   const vertical = coin([...Array(30).fill(6), 7, 8, 9, 10, 10.2]);
-  assert.equal(vote(AGENTS_BY_ID.entry, vertical, ctxFor(vertical)).stance, HOLD);
-  assert.match(vote(AGENTS_BY_ID.entry, vertical, ctxFor(vertical)).reason, /vertical/);
-  // pullback: ran to 14 SOL, dipped to 11 (about 13% off the high) over 40 s, buyers coming back in the last 30 s
-  const pull = coin([...Array.from({ length: 20 }, (_, i) => 4 + i * 0.5), 13, 12.5, 12, 11.6, 11.3, 11.1, 11, 11, 11.1, 11.3, 11.5, 11.6, 11.7, 11.8, 11.9]);
-  const pv = vote(AGENTS_BY_ID.entry, pull, ctxFor(pull));
-  assert.equal(pv.stance, BUY, pv.reason);
-  assert.match(pv.reason, /pullback/);
-  // breakout: steady climb, new high now, modest 30 s gain with inflow
-  const brk = coin(Array.from({ length: 40 }, (_, i) => 3 + i * 0.12));
-  const bv = vote(AGENTS_BY_ID.entry, brk, ctxFor(brk));
-  assert.equal(bv.stance, BUY, bv.reason);
-  assert.match(bv.reason, /breaking out/);
+  const vv = vote(AGENTS_BY_ID.entry, vertical, ctxFor(vertical));
+  assert.equal(vv.stance, HOLD);
+  assert.match(vv.reason, /vertical/);
+  // 45% below the 5-minute high: no base yet
+  const deep = coin([...Array.from({ length: 20 }, (_, i) => 4 + i), 20, 15, 12, 10, 9, 9, 9, 9]);
+  assert.equal(vote(AGENTS_BY_ID.entry, deep, ctxFor(deep)).stance, HOLD);
+  // steady climb: no objection
+  const steady = coin(Array.from({ length: 40 }, (_, i) => 3 + i * 0.12));
+  const sv = vote(AGENTS_BY_ID.entry, steady, ctxFor(steady));
+  assert.equal(sv.stance, BUY, sv.reason);
+  assert.match(sv.reason, /no chase/);
+});
+
+test("curve stage votes follow the measured odds", async () => {
+  const { curveStageVote } = await import("../web/js/core.js");
+  assert.equal(curveStageVote(1)[0], AVOID);   // < 2 SOL: worst stage
+  assert.equal(curveStageVote(3)[0], HOLD);    // 2-5 SOL
+  assert.equal(curveStageVote(7)[0], BUY);     // 5-20 SOL: best stage
+  assert.equal(curveStageVote(19.9)[0], BUY);
+  assert.equal(curveStageVote(30)[0], HOLD);   // later stage
 });
 
 test("cost hurdle: a dust-sized trade is blocked, a normal one is priced", () => {

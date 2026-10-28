@@ -14,14 +14,18 @@ export class CurveWatch {
     this.errors = 0;
     this.lastError = "";
     this.watched = 0;
+    this.limit = null; // adaptive cap after rate limiting
   }
 
-  // How many coins can be polled every 2 s without overrunning a free RPC (~2 calls/s on the free default).
-  get capacity() { return this.batch >= 100 ? 300 : 40; }
+  // How many coins can be polled every 2 s without overrunning a free RPC. PublicNode's free tier sustains ~2
+  // calls/s (measured: ~21% of calls refused at 3/s), so the cap shrinks on 429s and regrows on clean cycles.
+  get maxCapacity() { return this.batch >= 100 ? 300 : 40; }
+  get capacity() { return Math.min(this.maxCapacity, this.limit ?? this.maxCapacity); }
 
   async poll(tokens, now) {
     tokens = tokens.slice(0, this.capacity);
     this.watched = tokens.length;
+    let limited = false;
     for (let i = 0; i < tokens.length; i += this.batch) {
       const batch = tokens.slice(i, i + this.batch);
       let values;
@@ -32,6 +36,7 @@ export class CurveWatch {
         this.errors++;
         this.lastError = String(e.message || e);
         if (/maximum of 10 accounts/i.test(this.lastError) && this.batch > 10) this.batch = 10;
+        if (/429|rate limit|-32005|too many/i.test(this.lastError)) limited = true;
         continue;
       }
       const t = now();
@@ -44,5 +49,7 @@ export class CurveWatch {
         if (c.complete) tok.migrated = true; // the curve sold out: the coin is moving to PumpSwap
       });
     }
+    if (limited) this.limit = Math.max(10, Math.floor(this.capacity * 0.75));
+    else if (this.limit != null) this.limit = Math.min(this.maxCapacity, this.limit + 1);
   }
 }
