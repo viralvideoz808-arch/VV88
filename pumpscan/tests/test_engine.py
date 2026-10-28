@@ -110,3 +110,33 @@ def test_autostart(tmp_path):
     s.autostart = True
     with TestClient(create_app(s)) as c:
         assert c.get("/api/state").json()["running"] is True
+
+
+def test_keepalive_url_from_render(monkeypatch):
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://pumpscan-abc.onrender.com")
+    monkeypatch.delenv("PUMPSCAN_KEEPALIVE_URL", raising=False)
+    assert Settings.from_env().keepalive_url == "https://pumpscan-abc.onrender.com/healthz"
+    monkeypatch.delenv("RENDER_EXTERNAL_URL")
+    assert Settings.from_env().keepalive_url == ""
+
+
+def test_keep_awake_pings(monkeypatch):
+    import httpx
+
+    from pumpscan import server
+
+    hits = []
+    real = httpx.AsyncClient
+
+    def fake_client(**kw):
+        return real(transport=httpx.MockTransport(lambda req: hits.append(str(req.url)) or httpx.Response(200)))
+
+    monkeypatch.setattr(server.httpx, "AsyncClient", fake_client)
+
+    async def go():
+        t = asyncio.create_task(server.keep_awake("https://x.test/healthz", every=0.01))
+        await asyncio.sleep(0.1)
+        t.cancel()
+
+    asyncio.run(go())
+    assert hits and hits[0] == "https://x.test/healthz"

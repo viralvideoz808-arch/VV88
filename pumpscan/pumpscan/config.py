@@ -27,6 +27,9 @@ class Settings:
     password: str = ""
     # Press Start automatically when the server boots (for hosted installs, so the track record keeps growing).
     autostart: bool = False
+    # Free hosts (Render's free plan) put a service to sleep after ~15 idle minutes, which would stop the scan.
+    # When set, the server requests this URL every 10 minutes so it never counts as idle.
+    keepalive_url: str = ""
     rules: Rules = field(default_factory=Rules)
 
     @classmethod
@@ -40,6 +43,8 @@ class Settings:
         s.data_dir = _env("DATA_DIR", s.data_dir)
         s.password = _env("PASSWORD")
         s.autostart = _env("AUTOSTART", "0") in ("1", "true", "yes")
+        render_url = os.environ.get("RENDER_EXTERNAL_URL", "")  # set by Render on every web service
+        s.keepalive_url = _env("KEEPALIVE_URL", render_url.rstrip("/") + "/healthz" if render_url else "")
         s.rules.min_buy_votes = int(_env("MIN_BUY_VOTES", str(s.rules.min_buy_votes)))
         s.rules.window_minutes = float(_env("WINDOW_MINUTES", str(s.rules.window_minutes)))
         return s

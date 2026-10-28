@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
+import logging
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -16,6 +19,18 @@ from .config import Settings
 from .engine import Engine
 
 STATIC = Path(__file__).parent / "static"
+log = logging.getLogger("pumpscan.server")
+
+
+async def keep_awake(url: str, every: float = 600) -> None:
+    """Request our own public URL so free hosts never see the service as idle."""
+    async with httpx.AsyncClient(timeout=20) as client:
+        while True:
+            await asyncio.sleep(every)
+            try:
+                await client.get(url)
+            except httpx.HTTPError as exc:
+                log.warning("keep-alive ping to %s failed: %s", url, exc)
 
 
 class RulesIn(BaseModel):
@@ -31,7 +46,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         if settings.autostart:
             await engine.start()
+        pinger = asyncio.create_task(keep_awake(settings.keepalive_url)) if settings.keepalive_url else None
         yield
+        if pinger:
+            pinger.cancel()
         await engine.stop()
 
     app = FastAPI(title="pumpscan", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
