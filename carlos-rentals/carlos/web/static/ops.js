@@ -14,6 +14,16 @@
     var upd = function () { if (out) out.textContent = ta.value.length + " characters"; };
     ta.addEventListener("input", upd); upd();
   });
+  // Serverless hosting has no background loop: while the console is open it runs the agents that are due.
+  var tickToken = document.body.getAttribute("data-tick");
+  if (tickToken) {
+    var tick = function () {
+      var body = new URLSearchParams({ csrf: tickToken });
+      fetch("/agents/tick", { method: "POST", body: body, credentials: "same-origin" }).catch(function () {});
+    };
+    setTimeout(tick, 3000);
+    setInterval(tick, 60000);
+  }
   var thread = document.getElementById("thread");
   if (thread) thread.scrollTop = thread.scrollHeight;
 })();

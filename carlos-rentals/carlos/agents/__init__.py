@@ -55,6 +55,18 @@ def due_agents(db: Database, now: datetime | None = None) -> list[str]:
     return due
 
 
+def run_due(db: Database, settings: Settings, trigger: str = "tick", budget_s: float = 240, **kw) -> list[dict]:
+    """Run whichever agents are due, in pipeline order, within a time budget (for hosts with no background loop)."""
+    import time
+    started = time.monotonic()
+    done = []
+    for name in due_agents(db):
+        if time.monotonic() - started > budget_s:
+            break
+        done.append(run_agent(db, settings, name, trigger, **kw))
+    return done
+
+
 class Scheduler:
     """Background loop inside the console process. Agents run one at a time in a worker thread."""
 

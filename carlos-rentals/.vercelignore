@@ -1,0 +1,7 @@
+tests/
+docs/
+data/
+.venv/
+Dockerfile
+docker-compose.yml
+.env

@@ -55,7 +55,7 @@ def is_opt_out(text: str) -> bool:
 
 def record_opt_out(db: Database, platform: str, handle: str) -> None:
     if handle:
-        db.run("INSERT OR IGNORE INTO optouts (platform, handle, created_at) VALUES (?, ?, ?)",
+        db.run("INSERT INTO optouts (platform, handle, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
                (platform, handle.lower(), now_iso()))
         db.log("compliance", "opt_out", f"{platform}:{handle}")
 

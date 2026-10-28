@@ -7,7 +7,7 @@
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/ops.css">
 </head>
-<body>
+<body{% if s.serverless %} data-tick="{{ csrf }}"{% endif %}>
 <div class="layout">
   <aside class="side">
     <div class="brand"><span class="mark">🚗</span><div>CAR-LOS<small>OPERATIONS</small></div></div>
@@ -33,6 +33,7 @@
   </aside>
   <main class="main">
     {% if s.demo_mode %}<div class="banner info"><strong>Demo mode.</strong> No social accounts are connected yet, so the Scout reads a sample feed and every "send" lands in a sandbox — nothing reaches real people. Connect accounts in <a href="/settings#connections">Settings</a>.</div>{% endif %}
+    {% if not s.persistent %}<div class="banner bad"><strong>Temporary storage.</strong> No database is connected, so bookings, leads and settings can disappear at any time. In Vercel: Storage → Create Database → Neon → connect it to this project, then redeploy.</div>{% endif %}
     {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
     {% block content %}{% endblock %}
   </main>

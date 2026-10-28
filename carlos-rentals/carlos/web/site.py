@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import re
@@ -12,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from carlos.agents import make_context
+from carlos.agents import make_context, run_agent, run_due
 from carlos.agents.concierge import webchat_message
 from carlos.config import Settings
 from carlos.db import Database, now_iso
@@ -340,7 +341,10 @@ def create_site_app(db: Database, settings: Settings) -> FastAPI:
         except json.JSONDecodeError:
             return PlainTextResponse("bad json", 400)
         import asyncio
-        await asyncio.to_thread(handle_meta_event, db, settings, payload)
+        counts = await asyncio.to_thread(handle_meta_event, db, settings, payload)
+        if counts.get("messages") and db.get_setting("concierge.auto_reply") and not db.get_setting("agents_paused"):
+            # Answer right away instead of waiting for the next scheduled run (the only way on serverless hosts).
+            await asyncio.to_thread(run_agent, db, settings, "concierge", "webhook")
         return PlainTextResponse("ok")
 
     @app.get("/robots.txt")
@@ -356,6 +360,18 @@ def create_site_app(db: Database, settings: Settings) -> FastAPI:
         return Response(f'<?xml version="1.0" encoding="UTF-8"?><urlset '
                         f'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>',
                         media_type="application/xml")
+
+    @app.get("/api/cron")
+    def cron(request: Request):
+        """Runs the agents that are due. Called by Vercel Cron (Bearer CRON_SECRET) or any scheduler with ?key=."""
+        secret = settings.cron_secret
+        given = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or \
+            request.query_params.get("key", "")
+        if not secret or not hmac.compare_digest(given.encode(), secret.encode()):
+            return JSONResponse({"error": "unauthorized"}, 401)
+        done = run_due(db, settings, trigger="cron")
+        return JSONResponse({"ran": [{"agent": r["agent"], "status": r["status"], "summary": r["summary"]}
+                                     for r in done]})
 
     @app.get("/healthz")
     def healthz():

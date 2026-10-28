@@ -1,3 +1,4 @@
+import os
 import re
 
 import pytest
@@ -17,7 +18,13 @@ def settings(tmp_path):
 
 @pytest.fixture
 def db(tmp_path):
-    d = Database(tmp_path / "t.db")
+    url = os.environ.get("CARLOS_TEST_DATABASE_URL", "")  # e.g. postgresql://carlos@127.0.0.1:55432/carlos_test
+    if url:
+        import psycopg
+        with psycopg.connect(url, autocommit=True) as c:
+            c.execute("DROP SCHEMA public CASCADE")
+            c.execute("CREATE SCHEMA public")
+    d = Database(tmp_path / "t.db", url=url)
     seed_sample_inventory(d)
     d.set_setting("outreach.quiet_hours", [0, 0])  # never quiet during tests
     return d

@@ -15,7 +15,7 @@ from carlos.seed import seed_sample_inventory
 def boot(args) -> tuple:
     settings = load_settings(args.env)
     created = ensure_secrets(settings, args.env)
-    db = Database(settings.db_path)
+    db = Database(settings.db_path, url=settings.database_url)
     if not getattr(args, "no_sample", False):
         n = seed_sample_inventory(db)
         if n:
@@ -76,7 +76,7 @@ def cmd_agents(args) -> None:
 
 def cmd_seed(args) -> None:
     settings = load_settings(args.env)
-    db = Database(settings.db_path)
+    db = Database(settings.db_path, url=settings.database_url)
     print(f"{seed_sample_inventory(db, force=args.force)} sample cars added")
 
 

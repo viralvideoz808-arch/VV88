@@ -141,3 +141,28 @@ def test_console_vehicle_crud_and_upload(ops, db):
     assert v["sale_price"] == 21500 and len(json.loads(v["photos"])) == 1
     ops.post(f"/inventory/{vid}", data={"csrf": ops.csrf, "action": "delete"})
     assert db.one("SELECT 1 FROM vehicles WHERE id = ?", (vid,)) is None
+
+
+def test_host_router_and_cron(db, settings):
+    from fastapi.testclient import TestClient
+
+    from carlos.hosted import HostRouter
+    from carlos.web.ops import create_ops_app
+    from carlos.web.site import create_site_app
+    settings.cron_secret = "s3cret"
+    router = HostRouter(create_site_app(db, settings), create_ops_app(db, settings, run_scheduler=False),
+                        "carlos-rentals-console.vercel.app")
+    c = TestClient(router)
+    assert "Popular rentals" in c.get("/", headers={"host": "carlos-rentals.vercel.app"}).text
+    for host in ("carlos-rentals-console.vercel.app", "console.carlos.example", "x-console.vercel.app"):
+        assert c.get("/", headers={"host": host}, follow_redirects=False).headers["location"].startswith("/login")
+    assert c.get("/api/cron", headers={"host": "carlos-rentals.vercel.app"}).status_code == 401
+    assert c.get("/api/cron?key=nope").status_code == 401
+    ran = c.get("/api/cron", headers={"authorization": "Bearer s3cret"}).json()["ran"]
+    assert [r["agent"] for r in ran] == ["scout", "qualifier", "outreach", "concierge", "followup", "fleet"]
+    assert c.get("/api/cron?key=s3cret").json()["ran"] == []  # nothing due again yet
+
+
+def test_console_tick(ops, db):
+    assert ops.post("/agents/tick", data={"csrf": "forged"}).status_code == 403
+    assert len(ops.post("/agents/tick", data={"csrf": ops.csrf}).json()["ran"]) == 6

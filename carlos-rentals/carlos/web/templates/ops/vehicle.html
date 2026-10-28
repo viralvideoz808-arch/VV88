@@ -53,7 +53,7 @@
     {% if v.photos %}<div class="thumbs" style="margin-bottom:12px">{% for p in v.photos %}<div class="thumb"><img src="{{ p }}" alt=""><div class="btns">{% if not loop.first %}<button class="btn ghost sm" form="ph-first-{{ loop.index }}">Cover</button>{% else %}<span class="tag ok">cover</span>{% endif %}<button class="btn bad sm" form="ph-del-{{ loop.index }}">✕</button></div></div>{% endfor %}</div>{% else %}<div style="max-width:240px;margin-bottom:10px">{{ car_svg(v.body, v.color_hex, 'e' ~ v.id) }}</div><p class="small muted">No photos yet — the website shows this drawing. Real photos get far more bookings.</p>{% endif %}
     <input type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple>
     <button class="btn ghost" type="submit" style="margin-top:8px">Upload</button>
-    <p class="help">JPG, PNG or WebP, up to 12 MB in total per upload. Landscape 3:2 photos look best.</p>
+    <p class="help">JPG, PNG or WebP, up to {{ "4 MB" if s.serverless else "12 MB" }} in total per upload. Landscape 3:2 photos look best.</p>
   </form>
   {% for p in v.photos %}
   <form id="ph-first-{{ loop.index }}" method="post" action="/inventory/{{ v.id }}">{{ csrf_field() }}<input type="hidden" name="action" value="photo_first"><input type="hidden" name="photo" value="{{ p }}"></form>

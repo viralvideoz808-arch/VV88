@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from carlos import compliance
 from carlos.agents.base import Agent, Context
@@ -419,8 +419,9 @@ class Concierge(Agent):
         db = ctx.db
         threads = ctx.threads or _threads(ctx.settings)
         n = 0
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).replace(microsecond=0).isoformat()
         rows = db.all("SELECT * FROM outbox WHERE channel = 'threads_reply' AND status = 'sent' AND external_id != '' "
-                      "AND conversation_id IS NOT NULL AND sent_at >= datetime('now', '-7 days')")
+                      "AND conversation_id IS NOT NULL AND sent_at >= ?", (week_ago,))
         for item in rows:
             try:
                 replies = threads.replies_to(item["external_id"])

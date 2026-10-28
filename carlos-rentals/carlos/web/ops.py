@@ -11,13 +11,13 @@ from pathlib import Path
 from urllib.parse import quote as urlquote
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from markupsafe import Markup
 from starlette.middleware.sessions import SessionMiddleware
 
 from carlos import compliance
-from carlos.agents import AGENTS, PIPELINE, Scheduler, make_context
+from carlos.agents import AGENTS, PIPELINE, Scheduler, make_context, run_due
 from carlos.agents.concierge import compose_reply, reply_target
 from carlos.config import Settings
 from carlos.db import DEFAULTS, Database, loads, now_iso, parse_iso
@@ -215,6 +215,14 @@ def create_ops_app(db: Database, settings: Settings, run_scheduler: bool = True)
         db.set_setting("agents_paused", new)
         db.log("console", "agents.paused" if new else "agents.resumed")
         return back(str(data.get("back", "/agents")), "All agents paused" if new else "Agents running")
+
+    @app.post("/agents/tick")
+    async def tick(request: Request):
+        """Hosts without a background loop: the open console calls this every minute to run due agents."""
+        await form(request)
+        import asyncio
+        done = await asyncio.to_thread(run_due, db, settings, "console", 50)
+        return JSONResponse({"ran": [d["agent"] for d in done]})
 
     @app.post("/agents/{name}/run")
     async def run_one(request: Request, name: str):
@@ -557,9 +565,11 @@ def create_ops_app(db: Database, settings: Settings, run_scheduler: bool = True)
                 ext = next((e for magic, e in IMAGE_MAGIC.items() if raw.startswith(magic)), None)
                 if not ext or len(raw) > MAX_UPLOAD or (ext == ".webp" and raw[8:12] != b"WEBP"):
                     continue
-                name = f"{uuid.uuid4().hex}{ext}"
-                (Path(settings.upload_dir) / name).write_bytes(raw)
-                photos.append(f"/uploads/{name}")
+                try:
+                    photos.append(store_photo(settings, raw, ext))
+                except Exception as e:  # storage outage: keep the other photos
+                    db.log("console", "upload.failed", str(e)[:300])
+                    continue
                 added += 1
             save_vehicle(db, {"photos": photos[:20], "sample": 0}, vid)
             return back(f"/inventory/{vid}", f"{added} photo(s) added" if added else "No valid JPG/PNG/WebP images")
@@ -629,6 +639,17 @@ def create_ops_app(db: Database, settings: Settings, run_scheduler: bool = True)
     return app
 
 
+def store_photo(settings: Settings, raw: bytes, ext: str) -> str:
+    """Save an uploaded car photo; returns the URL the website uses for it."""
+    name = f"{uuid.uuid4().hex}{ext}"
+    if settings.blob_token:
+        from vercel.blob.sync import put_blob
+        mime = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[ext]
+        return put_blob(f"cars/{name}", raw, access="public", content_type=mime).url
+    (Path(settings.upload_dir) / name).write_bytes(raw)
+    return f"/uploads/{name}"
+
+
 def connections(s: Settings) -> list[dict]:
     return [
         {"name": "Claude (AI writing & conversations)", "on": s.llm_enabled, "env": "ANTHROPIC_API_KEY",
@@ -641,6 +662,11 @@ def connections(s: Settings) -> list[dict]:
          "off_note": "Threads search and replies run in the sandbox."},
         {"name": "Email (SMTP)", "on": s.email_enabled, "env": "SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM",
          "off_note": "Booking confirmations and reminders aren't emailed."},
+        {"name": "Database (Postgres)", "on": bool(s.database_url), "env": "DATABASE_URL (Neon via Vercel Storage)",
+         "off_note": "Using SQLite on this server's disk." if s.persistent else
+         "Nothing is saved for long — connect a database."},
+        {"name": "Photo storage (Vercel Blob)", "on": bool(s.blob_token), "env": "BLOB_READ_WRITE_TOKEN",
+         "off_note": "Photos are saved on this server's disk." if not s.serverless else "Uploaded photos won't last."},
         {"name": "Owner alerts", "on": bool(s.owner_email and s.email_enabled), "env": "OWNER_EMAIL",
          "off_note": "Alerts show here in the console only."},
     ]

@@ -73,7 +73,12 @@ class Settings:
 
     # Storage and web
     db_path: str = "data/carlos.db"
+    database_url: str = ""          # postgres://… — used instead of SQLite when set (hosted deployments)
     upload_dir: str = "data/uploads"
+    blob_token: str = ""            # Vercel Blob: car photos go there instead of the local disk
+    serverless: bool = False        # running as Vercel Functions: no background loop, read-only disk
+    console_host: str = ""          # hostname that serves the console when both sites share one deployment
+    cron_secret: str = ""
     ops_password: str = ""
     secret_key: str = ""
     https_cookies: bool = False
@@ -125,6 +130,11 @@ class Settings:
         return bool(self.smtp_host and (self.smtp_from or self.smtp_user))
 
     @property
+    def persistent(self) -> bool:
+        """False when data would vanish (serverless without a database)."""
+        return bool(self.database_url) or not self.serverless
+
+    @property
     def demo_mode(self) -> bool:
         """No social account connected: the scout reads a built-in sample feed and sends go to a sandbox."""
         return not (self.meta_enabled or self.threads_enabled)
@@ -132,6 +142,7 @@ class Settings:
 
 def load_settings(env_path: str | Path = ".env") -> Settings:
     load_env_file(env_path)
+    serverless = os.environ.get("VERCEL") == "1"
     return Settings(
         business_name=_env("CARLOS_BUSINESS_NAME", "CAR-LOS Rentals"),
         phone=_env("CARLOS_PHONE"),
@@ -140,8 +151,13 @@ def load_settings(env_path: str | Path = ".env") -> Settings:
         city=_env("CARLOS_CITY"),
         timezone=_env("CARLOS_TIMEZONE", "America/New_York"),
         site_url=_env("CARLOS_SITE_URL", "http://localhost:8080").rstrip("/"),
-        db_path=_env("CARLOS_DB", "data/carlos.db"),
-        upload_dir=_env("CARLOS_UPLOAD_DIR", "data/uploads"),
+        db_path=_env("CARLOS_DB", "/tmp/carlos.db" if serverless else "data/carlos.db"),
+        database_url=_env("CARLOS_DATABASE_URL") or _env("DATABASE_URL") or _env("POSTGRES_URL"),
+        upload_dir=_env("CARLOS_UPLOAD_DIR", "/tmp/carlos-uploads" if serverless else "data/uploads"),
+        blob_token=_env("BLOB_READ_WRITE_TOKEN"),
+        serverless=serverless,
+        console_host=_env("CARLOS_CONSOLE_HOST").lower(),
+        cron_secret=_env("CRON_SECRET"),
         ops_password=_env("CARLOS_OPS_PASSWORD"),
         secret_key=_env("CARLOS_SECRET_KEY"),
         https_cookies=_env("CARLOS_HTTPS_COOKIES").lower() in ("1", "true", "yes"),
@@ -165,7 +181,16 @@ def load_settings(env_path: str | Path = ".env") -> Settings:
 
 
 def ensure_secrets(settings: Settings, env_path: str | Path = ".env") -> bool:
-    """Create the console password and session key on first run. Returns True when a password was generated."""
+    """Create the console password and session key on first run. Returns True when a password was generated.
+
+    On a read-only serverless host nothing is written: set CARLOS_OPS_PASSWORD and CARLOS_SECRET_KEY as
+    environment variables there (the generated fallbacks only last for one instance)."""
+    if settings.serverless:
+        if not settings.ops_password:
+            settings.ops_password = secrets.token_urlsafe(24)  # unknown to anyone: login stays closed
+        if len(settings.secret_key) < 32:
+            settings.secret_key = secrets.token_urlsafe(48)
+        return False
     values = {}
     created = False
     if not settings.ops_password:

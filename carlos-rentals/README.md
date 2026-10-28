@@ -54,7 +54,7 @@ carlos run site            # website only
 carlos run ops             # console + agents only
 carlos agents              # run every agent once, from the terminal
 carlos agents scout        # run one agent
-pytest                     # 46 tests (pip install -e ".[dev]")
+pytest                     # 48 tests (pip install -e ".[dev]")
 ```
 
 Docker: `cp .env.example .env && docker compose up -d`. Data lives in `./data`. The console port is
@@ -111,6 +111,26 @@ every agent falls back to its built-in rules.
 3. **Legal pages.** Have the rental terms and privacy policy reviewed for the state you operate in. Both pages say so.
 4. **Set the switches.** In **Settings**, set the search phrases, the areas you serve, prices, tax and rental rules. Keep approval on for the first couple of weeks.
 
+## Hosting on Vercel (free plan)
+
+The repo deploys to Vercel as one project that serves both sites. `app.py` routes requests by hostname:
+`CARLOS_CONSOLE_HOST` gets the console, and every other hostname gets the website.
+
+- **Database.** In Vercel, open **Storage → Create Database → Neon (free)** and connect it to the project.
+  That sets `DATABASE_URL`, and the app uses Postgres instead of SQLite. Without it, nothing is saved for long.
+- **Photos.** These go to Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set (connect a Blob store to the project).
+  Each upload is limited to 4 MB on Vercel.
+- **Agents.** Vercel has no always-on process, so the agents run:
+  - every minute while the console is open in a browser;
+  - instantly when a Messenger or Instagram DM arrives (webhook);
+  - once a day from Vercel Cron (`/api/cron`, the most often the free plan allows).
+
+  To run them every few minutes around the clock, point a free external scheduler (for example
+  cron-job.org) at `https://YOUR-SITE/api/cron?key=CRON_SECRET`.
+- **Environment variables.** Set `CARLOS_OPS_PASSWORD`, `CARLOS_SECRET_KEY` (48+ characters),
+  `CRON_SECRET`, `CARLOS_SITE_URL`, `CARLOS_CONSOLE_HOST` and `CARLOS_HTTPS_COOKIES=true`, plus any
+  connection settings from `.env.example`.
+
 ## Project layout
 
 ```
@@ -120,8 +140,9 @@ carlos/
   compliance.py  every outgoing message passes these checks
   messaging.py   conversations, outbox, dispatcher
   inventory.py   cars, quotes, availability, bookings, inquiries
-  web/site.py    public website + chat API + Meta webhooks
+  web/site.py    public website + chat API + Meta webhooks + /api/cron
+  hosted.py      one entry point for both sites (Vercel); app.py loads it
   web/ops.py     operations console
   web/templates, web/static
-tests/           46 tests: pricing, compliance, agents (incl. Claude tool use), web, webhooks
+tests/           48 tests: pricing, compliance, agents (incl. Claude tool use), web, webhooks
 ```
