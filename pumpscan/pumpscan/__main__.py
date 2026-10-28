@@ -31,14 +31,21 @@ def main(argv: list[str] | None = None) -> None:
     if a.window:
         s.rules.window_minutes = a.window
 
+    if not s.is_local_only() and not s.password:
+        raise SystemExit(
+            "Refusing to serve on " + s.host + " without a password: anyone who finds the URL could stop the scan.\n"
+            "Set PUMPSCAN_PASSWORD (or use the default --host 127.0.0.1)."
+        )
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per request would flood hosted logs
     import uvicorn
 
     from .server import create_app
 
     url = f"http://{'127.0.0.1' if s.host in ('0.0.0.0', '::') else s.host}:{s.port}/"
     print(f"pumpscan dashboard: {url}" + ("  [DEMO: simulated market]" if s.demo else ""))
-    if not a.no_browser:
+    if not a.no_browser and s.is_local_only():
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     uvicorn.run(create_app(s), host=s.host, port=s.port, log_level="warning")
 

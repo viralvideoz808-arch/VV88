@@ -82,3 +82,30 @@ def test_listing_filters_to_pump_on_solana():
              {"chainId": "solana", "tokenAddress": "NotAPumpCoin"}, {"chainId": "bsc", "tokenAddress": "0xpump"}]
     out = parse_listing(items)
     assert [o["mint"] for o in out] == ["Abcpump"] and out[0]["boosts"] == 30
+
+
+def test_metadata_falls_back_across_ipfs_gateways():
+    import asyncio
+
+    import httpx
+
+    from pumpscan.sources import Http
+
+    seen = []
+
+    def handler(req):
+        seen.append(str(req.url))
+        if req.url.host == "pump.mypinata.cloud":
+            return httpx.Response(429)
+        return httpx.Response(200, json={"description": "hi", "twitter": "https://x.com/a"})
+
+    async def go():
+        h = Http()
+        h.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            return await h.metadata("https://ipfs.io/ipfs/bafkCID")
+        finally:
+            await h.close()
+
+    assert asyncio.run(go())["description"] == "hi"
+    assert seen == ["https://pump.mypinata.cloud/ipfs/bafkCID", "https://ipfs.io/ipfs/bafkCID"]

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from .config import Settings
@@ -26,11 +29,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if settings.autostart:
+            await engine.start()
         yield
         await engine.stop()
 
-    app = FastAPI(title="pumpscan", lifespan=lifespan)
+    app = FastAPI(title="pumpscan", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
+
+    if settings.password:
+        expected = settings.password.encode()
+
+        @app.middleware("http")
+        async def require_password(request: Request, call_next):
+            """HTTP Basic auth: the browser asks once; any username, the configured password."""
+            if request.url.path == "/healthz":
+                return await call_next(request)
+            header = request.headers.get("authorization", "")
+            ok = False
+            if header.lower().startswith("basic "):
+                try:
+                    _, _, given = base64.b64decode(header[6:]).partition(b":")
+                    ok = secrets.compare_digest(given, expected)
+                except (binascii.Error, ValueError):
+                    ok = False
+            if not ok:
+                return PlainTextResponse("password required", status_code=401,
+                                         headers={"WWW-Authenticate": 'Basic realm="pumpscan"'})
+            return await call_next(request)
+
+    @app.get("/healthz")
+    async def healthz():
+        return {"ok": True}
 
     @app.get("/")
     async def index():

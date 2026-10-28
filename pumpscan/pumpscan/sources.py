@@ -26,6 +26,13 @@ DEX_BOOSTS_LATEST = "https://api.dexscreener.com/token-boosts/latest/v1"
 DEX_BOOSTS_TOP = "https://api.dexscreener.com/token-boosts/top/v1"
 RUGCHECK_REPORT = "https://api.rugcheck.xyz/v1/tokens/{}/report"
 PUMPFUN_COINS = "https://frontend-api-v3.pump.fun/coins"
+# Public gateways rate-limit hard (ipfs.io answers 429 under load); pump.fun's own pin gateway goes first.
+IPFS_GATEWAYS = (
+    "https://pump.mypinata.cloud/ipfs/",
+    "https://ipfs.io/ipfs/",
+    "https://gateway.pinata.cloud/ipfs/",
+    "https://dweb.link/ipfs/",
+)
 USER_AGENT = "pumpscan/0.1 (+https://github.com/viralvideoz808-arch/VV88)"
 
 
@@ -312,15 +319,23 @@ class Http:
         return data if isinstance(data, dict) else None
 
     async def metadata(self, uri: str) -> dict | None:
+        """Fetch the coin's metadata JSON; IPFS URIs are tried across several gateways."""
         if not uri.startswith("http"):
             return None
-        try:
-            r = await self.client.get(uri, timeout=8)
-            r.raise_for_status()
-            d = r.json()
-            return d if isinstance(d, dict) else None
-        except (httpx.HTTPError, json.JSONDecodeError, ValueError):
-            return None
+        urls = [uri]
+        if "/ipfs/" in uri:
+            path = uri.split("/ipfs/", 1)[1]
+            urls = [g + path for g in IPFS_GATEWAYS]
+        for url in urls:
+            try:
+                r = await self.client.get(url, timeout=8)
+                r.raise_for_status()
+                d = r.json()
+                if isinstance(d, dict):
+                    return d
+            except (httpx.HTTPError, json.JSONDecodeError, ValueError):
+                continue
+        return None
 
     async def pumpfun_active(self, limit: int = 50) -> list[dict]:
         """Recently traded coins from pump.fun's own API. Often behind Cloudflare; failure is fine."""

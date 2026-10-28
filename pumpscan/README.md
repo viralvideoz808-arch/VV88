@@ -24,6 +24,32 @@ Options: `--min-agree 25` (unanimous), `--window 10` (minutes a signal stays val
 The same settings can be given as `PUMPSCAN_*` environment variables (see `pumpscan/config.py`).
 The consensus threshold and window can also be changed from the dashboard while it runs.
 
+## Put it online (open it from anywhere)
+
+The scanner has to keep running between visits, so it needs an always-on server, not a serverless host.
+The repo includes a Dockerfile and a Render Blueprint (`render.yaml` at the repo root):
+
+1. Sign in at [render.com](https://render.com) with your GitHub account.
+2. Choose **New → Blueprint**, pick this repository and the branch that holds `pumpscan`.
+3. When asked, enter a **PUMPSCAN_PASSWORD**. The PumpPortal key is optional; leave it empty.
+4. Deploy. You get an `https://pumpscan-….onrender.com` address.
+   The browser asks for the password; type anything as the username.
+
+The Blueprint uses Render's paid Starter plan plus a 1 GB disk for the signal history.
+The free plan sleeps after 15 idle minutes, which stops the scan.
+Hosted, the scan starts by itself at boot. The START/STOP button still works.
+
+On any other server with Docker:
+
+```bash
+docker build -t pumpscan pumpscan
+docker run -d --restart unless-stopped -p 8088:8088 \
+  -e PUMPSCAN_PASSWORD='choose-a-long-one' -v pumpscan-data:/data pumpscan
+```
+
+Put HTTPS in front of it (Caddy, nginx, Cloudflare), or the password travels in clear text.
+The server refuses to listen on a public address without `PUMPSCAN_PASSWORD`.
+
 ## Data sources (all free; no wallet or keys needed)
 
 | source | what it gives the agents |

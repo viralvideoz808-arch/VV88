@@ -81,3 +81,32 @@ def test_http_api(tmp_path):
         assert c.post("/api/rules", json={"min_buy_votes": 25}).json()["rules"]["min_buy_votes"] == 25
         assert c.post("/api/rules", json={"min_buy_votes": 30}).status_code == 422
         assert c.post("/api/stop").json() == {"running": False}
+
+
+def test_password_protects_everything_but_healthz(tmp_path):
+    s = demo_settings(tmp_path)
+    s.password = "hunter2"
+    with TestClient(create_app(s)) as c:
+        assert c.get("/healthz").status_code == 200
+        r = c.get("/")
+        assert r.status_code == 401 and "Basic" in r.headers["www-authenticate"]
+        assert c.post("/api/start").status_code == 401
+        assert c.get("/api/state", auth=("x", "wrong")).status_code == 401
+        assert c.get("/api/state", auth=("anyone", "hunter2")).json()["running"] is False
+
+
+def test_public_host_requires_password(monkeypatch):
+    import pytest
+
+    from pumpscan.__main__ import main
+
+    monkeypatch.delenv("PUMPSCAN_PASSWORD", raising=False)
+    with pytest.raises(SystemExit, match="without a password"):
+        main(["--host", "0.0.0.0", "--no-browser"])
+
+
+def test_autostart(tmp_path):
+    s = demo_settings(tmp_path)
+    s.autostart = True
+    with TestClient(create_app(s)) as c:
+        assert c.get("/api/state").json()["running"] is True

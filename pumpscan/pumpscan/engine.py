@@ -229,12 +229,17 @@ class Engine:
         while True:
             mint = await self._meta_q.get()
             tok = self.tokens.get(mint)
-            if tok and not tok.metadata_loaded:
-                meta = await self._http.metadata(tok.uri)
-                if meta:
-                    parse_metadata(tok, meta)
-                else:
-                    tok.metadata_loaded = True  # unreachable metadata counts as empty
+            if not tok or tok.metadata_loaded:
+                continue
+            meta = await self._http.metadata(tok.uri)
+            if meta:
+                parse_metadata(tok, meta)
+            elif tok.meta_attempts < 2:
+                # gateways throttle in bursts: retry later instead of judging the coin on missing data
+                tok.meta_attempts += 1
+                asyncio.get_running_loop().call_later(20 * tok.meta_attempts, self._meta_q.put_nowait, mint)
+            else:
+                tok.metadata_loaded = True  # unreachable after 3 tries: treat as empty
 
     async def _deep_loop(self) -> None:
         """Rugcheck is rate limited, so it goes to the coins closest to a signal first."""

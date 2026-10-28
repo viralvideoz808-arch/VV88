@@ -104,6 +104,7 @@ class Token:
     website: str = ""
     image: str = ""
     metadata_loaded: bool = False
+    meta_attempts: int = 0
     # DexScreener
     dex_id: str = ""
     pair_address: str = ""
