@@ -1,6 +1,5 @@
 """Robust questions: graduation odds by stage, hit-before-stop odds, fee drag, bootstrap CIs for the rules."""
 # Usage: python3 analyze2.py DATA_DIR   (section 8 also needs ./snap/curves.jsonl next to this script: the design snapshot)
-
 import collections, json, random, statistics, sys
 sys.argv = [sys.argv[0], sys.argv[1]]
 import os
@@ -221,3 +220,33 @@ for label, pred in (("baseline", lambda f, s, i: True), ("v3 (deployed)", v3_ok)
             print(f"   {label:14s} priority {nf - 0.000005:.4f}: n={len(xs):3d} mean {statistics.mean(xs):+6.1f}% win {sum(x>0 for x in xs)/len(xs)*100:3.0f}% 90% CI {lo:+.1f}..{hi:+.1f}")
         else:
             print(f"   {label:14s} priority {nf - 0.000005:.4f}: no trades")
+
+# 9) Final deployed rule (v4): v3 with the stage requirement widened to >= 5 SOL (only "< 2 SOL is worst" held up).
+def v4_ok(f, s, i):
+    c30, c60 = f["chg30"], f["chg60"]
+    if f["outfrac60"] >= 0.15 or (c30 is not None and c30 <= -0.25) or f["dd"] >= 0.45: return False
+    if c60 is not None and c60 < -0.10: return False
+    if f["in60"] is not None and f["in60"] <= -0.3: return False
+    if f["gout60"] >= 0.3 and f["gin60"] / (f["gout60"] + 0.05) < 0.8: return False
+    if (c30 or 0) / 0.5 < -0.05: return False
+    if not (5 <= f["sol"] < 85): return False
+    if (f["chg10"] or 0) >= 0.12 or (c30 or 0) >= 0.30 or f["dd"] > 0.30: return False
+    return True
+print("\n9) Final deployed rule (v4), demo exit plan, 90% CI:")
+for name, cs in (("design snapshot", set(coins) - fresh), ("fresh (out-of-sample)", fresh), ("all", set(coins))):
+    for nf in (0.000505, 0.000105):
+        xs = []; seen = set(); saved = NET_FEE; NET_FEE = nf
+        for m, i, f in rows:
+            if m not in cs or m in seen: continue
+            if v4_ok(f, series[m], i):
+                seen.add(m); r = exit_sim(series[m], i, -0.15, 0.20, 0.40, 600)
+                if r is not None: xs.append(r / SIZE * 100)
+        NET_FEE = saved
+        lo, hi = boot_ci(xs) if xs else (float("nan"), float("nan"))
+        print(f"   {name:22s} priority {nf - 0.000005:.4f}: n={len(xs):3d} mean {statistics.mean(xs) if xs else float('nan'):+6.1f}% win {(sum(x>0 for x in xs)/len(xs)*100 if xs else 0):3.0f}% 90% CI {lo:+.1f}..{hi:+.1f}")
+    bx = []; seen = set()
+    for m, i, f in rows:
+        if m in cs and m not in seen:
+            seen.add(m); r = exit_sim(series[m], i, -0.15, 0.20, 0.40, 600)
+            if r is not None: bx.append(r / SIZE * 100)
+    print(f"   {name:22s} baseline (demo exit, 0.0005): n={len(bx)} mean {statistics.mean(bx):+.1f}%")

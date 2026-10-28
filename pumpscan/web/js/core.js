@@ -635,8 +635,8 @@ export function vote(a, tok, ctx) {
 // they were checked against recorded live launches (see README "How the entry rules were tuned").
 
 export const TUNING = {
-  stageMinSol: 2,        // < 2 SOL in the curve: only 14% of recorded coins rose 20% before falling 15%
-  stageBestLo: 5, stageBestHi: 20, // 5-20 SOL: the only stage near break-even after costs in the recorded data
+  stageMinSol: 2,        // < 2 SOL in the curve: only 15% of recorded coins rose 20% before falling 15%
+  stageBestLo: 5,        // 2-5 SOL: 24%; from 5 SOL on: 31-43%
   dumpFrac: 0.15,        // one 2 s window removing this share of the curve's SOL = a dump
   crash30: -0.25,        // -25% in 30 s
   drainDD: 0.45,         // 45% below the 5-minute on-chain high
@@ -677,13 +677,13 @@ export function chainVolatility(tok, now) {
 const fmtPct = (x) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(0)}%`;
 const fmtSol = (x) => `${x >= 0 ? "" : "-"}${Math.abs(x).toFixed(2)} SOL`;
 
-// Curve stage from the SOL in the bonding curve, as measured on recorded launches (README: "How the entry rules were
-// tuned"): odds of +20% before -15% within 10 min were 14% at 0.5-2 SOL, 34% at 2-5, 50% at 5-10, 32-38% above.
+// Curve stage from the SOL in the bonding curve, as measured on 555 recorded coins (README: "How the entry rules were
+// tuned"). Odds of +20% before -15% within 10 minutes: 15% at 0.5-2 SOL, 24% at 2-5, 31-33% from 5 to 40, 43% at
+// 40-85 (n=30). Only "the very first stage is worst" held up in both halves of the data, so that is all this encodes.
 export function curveStageVote(sol) {
   if (sol < TUNING.stageMinSol) return [AVOID, 0.5, `${sol.toFixed(1)} SOL in the curve: too early (worst stage in recorded launches)`];
   if (sol < TUNING.stageBestLo) return [HOLD, 0.3, `${sol.toFixed(1)} SOL in the curve: still early`];
-  if (sol <= TUNING.stageBestHi) return [BUY, 0.8, `${sol.toFixed(1)} SOL in the curve: the best stage in recorded launches`];
-  if (sol < 85) return [HOLD, 0.3, `${sol.toFixed(1)} SOL in the curve: later stage, weaker odds`];
+  if (sol < 85) return [BUY, 0.6, `${sol.toFixed(1)} SOL in the curve: past the early stage`];
   return [HOLD, 0.2, "curve full: graduation"];
 }
 

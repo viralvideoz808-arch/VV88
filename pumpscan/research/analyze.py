@@ -1,6 +1,5 @@
 """Which on-chain entry rules make money after real costs? Fit on early launches, judge on later ones."""
 # Usage: python3 analyze.py DATA_DIR   (DATA_DIR holds launches.jsonl and curves.jsonl from collect.py)
-
 import json, math, os, sys, itertools, collections, statistics
 QUICK = bool(os.environ.get("QUICK"))
 
@@ -17,7 +16,9 @@ series = collections.defaultdict(list)
 for line in open(f"{D}/curves.jsonl"):
     if not line.strip():
         continue
-    x = json.loads(line); series[x["m"]].append(x)
+    x = json.loads(line)
+    if x["vt"] > 0 and x["vs"] > 0:  # closed / migrated accounts read as zeros
+        series[x["m"]].append(x)
 
 def price(p): return (p["vs"] / 1e9) / (p["vt"] / 1e6)
 

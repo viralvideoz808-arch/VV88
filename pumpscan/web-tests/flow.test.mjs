@@ -78,9 +78,9 @@ test("curve stage votes follow the measured odds", async () => {
   const { curveStageVote } = await import("../web/js/core.js");
   assert.equal(curveStageVote(1)[0], AVOID);   // < 2 SOL: worst stage
   assert.equal(curveStageVote(3)[0], HOLD);    // 2-5 SOL
-  assert.equal(curveStageVote(7)[0], BUY);     // 5-20 SOL: best stage
-  assert.equal(curveStageVote(19.9)[0], BUY);
-  assert.equal(curveStageVote(30)[0], HOLD);   // later stage
+  assert.equal(curveStageVote(7)[0], BUY);     // past the early stage
+  assert.equal(curveStageVote(30)[0], BUY);
+  assert.equal(curveStageVote(85)[0], HOLD);   // curve full
 });
 
 test("cost hurdle: a dust-sized trade is blocked, a normal one is priced", () => {

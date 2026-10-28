@@ -167,35 +167,49 @@ Free RPC limits (measured): PublicNode allows 10 accounts per call and about 2 c
 watches up to 40 coins. The poller shrinks that number when it is rate limited and grows it back afterwards. Paste
 your own RPC URL (for example a free Helius key) in the demo-account settings to watch up to 300 coins.
 
-### How the entry rules were tuned
+### How the entry rules were tuned (and what the data really says)
 
-I recorded the exact bonding-curve state of live pump.fun launches every 2 seconds, plus active curve coins found on
-DexScreener (266 coins in the design set). I then simulated $10-account trades on them, using:
+I recorded the exact bonding-curve state of **555 pump.fun coins** every 2 seconds over about 50 minutes, on
+2026-10-28. That is about 37,000 readings: new launches plus active curve coins found on DexScreener. I then
+simulated $10-account trades, using:
 - a $3 position (0.03 SOL), entering about 2 seconds after the decision;
 - exact curve math, 1.25% pump.fun fees each way, and network fees;
-- the demo exit plan: stop −15%, sell half at +20%, the rest at +40%, a 10-minute limit, and the break-even and
-  trailing rules.
+- the demo exit plan: stop −15%, sell half at +20%, the rest at +40%, a 10-minute limit, break-even after take-profit 1,
+  and a trailing stop.
 
-| Rule | Trades | Avg per trade (0.0005 SOL priority) | Avg per trade (0.0001 SOL priority) | Win rate |
+I designed rules on the first half of the data and then checked them on **279 coins collected afterwards** (true
+out-of-sample).
+
+| Rule | Trades | Avg per trade, 0.0005 SOL priority | Avg per trade, 0.0001 SOL priority | Win rate |
 |---|---|---|---|---|
-| Buy every coin at first look | 266 | −6.5% | −3.7% | 11% |
-| First-draft sniper rules (pullback/breakout + momentum + inflow) | 8 | −23.5% | – | 0% |
-| Pullback/breakout timing alone | 82 | −8.8% | −5.8% | 26% |
-| **Current rules** (stage 5–20 SOL, safe, no chase, not deteriorating) | 14 | +0.4% | +3.6% (90% CI −7%…+15%) | 57% |
+| Buy every coin at first look | 555 | −7.9% | −5.2% | 10% |
+| First-draft sniper rules (pullback/breakout + momentum + inflow), design half | 8 | −23.5% | – | 0% |
+| Rules designed on the first half ("5–20 SOL sweet spot"), **design half** | 14 | +0.4% | +3.6% | 57% |
+| Same rules on the **fresh coins** | 14 | −13.9% | −11.1% | 29% |
+| **Current rules** (past 5 SOL, safe, no chase, not deteriorating), all coins | 67 | −12.8% | −9.8% | 33% |
+| Current rules, fresh coins only | 27 | −14.0% | −11.0% | 33% |
 
-What the data showed, and what changed because of it:
-- **Sniping the first moments is the worst entry.** Odds of +20% before −15% within 10 minutes were 14% at 0.5–2 SOL
-  in the curve, 34% at 2–5 SOL and 50% at 5–10 SOL. The Bonding Curve and Market Cap agents now vote by stage:
-  AVOID below 2 SOL, prefer 5–20 SOL.
-- **Demanding rising momentum selects chase entries.** The flow agents (momentum, volume, buy pressure,
-  acceleration, velocity) now only object when a coin is clearly deteriorating. Entry Timing only refuses vertical
-  candles and drawdowns over 30%.
-- **Network fees dominate at $10.** A 0.0005 SOL priority fee is 3.4% of a 0.03 SOL round trip. The default is now
-  0.0001 SOL; raise it in the settings if your transactions need to land faster.
+Note on the first row: those buys mostly happen at a coin's launch price, and a bonding curve cannot fall below its
+launch price. So that baseline loses mostly fees. Any entry later in a coin's life has room to fall.
 
-**Honest bottom line:** none of these rules has a statistically proven edge. The best version is roughly break-even
-in this sample, and the confidence interval spans losses. Pump.fun conditions change hour to hour. Treat the demo
-account's measured track record as the only real evidence, and re-run the research when it disagrees.
+What held up in both halves of the data, and is encoded in the agents:
+- **The very first stage is the worst entry.** Odds of +20% before −15% within 10 minutes: 15% under 2 SOL in the
+  curve (n=175), 24% at 2–5 SOL, 31–33% from 5 to 40 SOL, 43% at 40–85 SOL (n=30). The Bonding Curve and Market
+  Cap agents AVOID under 2 SOL and HOLD at 2–5 SOL.
+- **Chasing is worse than random.** Strong buy pressure (gross buys ≥1.8× sells) averaged −10.9% per trade, and
+  +3–40% in the last minute averaged −8.8%. The flow agents now only object to a deteriorating coin; Entry Timing
+  refuses vertical candles.
+- **Network fees are the cost you control.** 0.0005 SOL priority is 3.4% of a 0.03 SOL round trip. The default is
+  now 0.0001 SOL.
+
+What did **not** hold up: the "5–20 SOL sweet spot" looked break-even on the design half and lost on fresh coins.
+It was overfitting, and it is gone.
+
+**Bottom line:** in this data, no entry rule tested, including the ones the council uses now, made money after
+costs. Break-even needs roughly 60% of trades to hit +20% before −15%. The best stage reached 43%. The agents are
+built to avoid the worst entries and to be honest about the rest, not to promise profit. The demo account measures
+what actually happens. Treat it as the only evidence, and re-run the research before trusting any change in market
+conditions.
 
 The research scripts are in `research/`. `collect.py` records curves, `analyze.py` runs the rule search and the
 train/test split, and `analyze2.py` produces the robust statistics and the out-of-sample check.
