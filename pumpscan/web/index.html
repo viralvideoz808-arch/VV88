@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pumpscan Council</title>
+<meta name="description" content="25 agents vote on every live pump.fun coin; a BUY signal appears only when they reach consensus.">
+<style>
+:root {
+  --bg: #0b0f14; --panel: #121821; --panel2: #18202b; --line: #243040; --text: #e6edf3; --muted: #8b98a8;
+  --buy: #2fd67b; --buy-dim: #1c5a3a; --hold: #6b7889; --avoid: #ff5d5d; --abstain: #2a3443; --warn: #ffb547; --accent: #7aa2ff;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+h1 small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 10px; }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.badge.live { color: var(--buy); border-color: var(--buy-dim); }
+.badge.demo { color: var(--warn); border-color: #6a4b16; }
+button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 8px 14px; }
+#toggle { font-size: 16px; font-weight: 700; padding: 12px 34px; border: none; min-width: 150px; }
+#toggle.start { background: var(--buy); color: #04130a; }
+#toggle.stop { background: var(--avoid); color: #1d0505; }
+#toggle:disabled { opacity: .5; cursor: wait; }
+.sources { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; background: var(--hold); }
+.dot.ok { background: var(--buy); } .dot.err { background: var(--avoid); } .dot.wait { background: var(--warn); }
+
+#verdict { padding: 20px; border-width: 2px; }
+#verdict.signal { border-color: var(--buy); box-shadow: 0 0 0 4px rgba(47,214,123,.12); }
+#verdict.void, #verdict.cancelled { border-color: var(--warn); }
+.v-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.v-head img { width: 56px; height: 56px; border-radius: 10px; background: var(--panel2); object-fit: cover; }
+.v-title { font-size: 26px; font-weight: 800; line-height: 1.15; }
+.v-title.buy { color: var(--buy); }
+.v-title.muted { color: var(--muted); font-size: 20px; }
+.v-sub { color: var(--muted); }
+.countdown { margin-left: auto; text-align: right; }
+.countdown b { font-size: 30px; font-variant-numeric: tabular-nums; }
+.plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 16px 0; }
+.plan div { background: var(--panel2); border-radius: 10px; padding: 10px; }
+.plan span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.plan b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.pos { color: var(--buy); } .neg { color: var(--avoid); }
+.reasons { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px 18px; margin: 0; padding: 0; list-style: none; }
+.reasons li { padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.reasons li b { color: var(--buy); font-weight: 600; }
+.cautions li b { color: var(--warn); }
+.links a { color: var(--accent); margin-right: 14px; }
+.ca { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.stats div { background: var(--panel2); border-radius: 10px; padding: 10px; }
+.stats span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+.stats b { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 960px) { .grid2 { grid-template-columns: 1fr; } }
+
+.agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.agent { background: var(--panel2); border-radius: 10px; padding: 8px 10px; border-left: 4px solid var(--abstain); min-width: 0; }
+.agent.BUY { border-left-color: var(--buy); } .agent.HOLD { border-left-color: var(--hold); } .agent.AVOID { border-left-color: var(--avoid); }
+.agent .n { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; gap: 6px; }
+.agent .s { font-size: 11px; font-weight: 700; }
+.agent.BUY .s { color: var(--buy); } .agent.AVOID .s { color: var(--avoid); } .agent.HOLD .s { color: var(--hold); } .agent.ABSTAIN .s { color: var(--muted); }
+.agent .r { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.agent .g { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.veto { color: var(--warn); font-size: 10px; border: 1px solid #6a4b16; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 5px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+tbody tr { cursor: pointer; }
+tbody tr:hover, tbody tr.sel { background: var(--panel2); }
+.coin { display: flex; align-items: center; gap: 8px; }
+.coin img { width: 22px; height: 22px; border-radius: 50%; background: var(--panel2); object-fit: cover; }
+.coin .sym { color: var(--muted); font-size: 11px; }
+.votebar { display: flex; width: 84px; height: 9px; border-radius: 5px; overflow: hidden; background: var(--abstain); }
+.votebar i { display: block; height: 100%; }
+.vb-buy { background: var(--buy); } .vb-hold { background: var(--hold); } .vb-avoid { background: var(--avoid); }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; }
+.tag.v { color: var(--avoid); border: 1px solid #5a2020; } .tag.ok { color: var(--buy); border: 1px solid var(--buy-dim); }
+.hist .item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.muted { color: var(--muted); }
+.settings { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+.settings label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+input[type=range] { accent-color: var(--buy); }
+select { font: inherit; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; }
+input[type=number] { width: 70px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding: 10px 16px 30px; max-width: 900px; margin: 0 auto; }
+.pulse { animation: pulse 1.6s infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>PUMPSCAN <small>25-agent council · pump.fun</small></h1>
+    <span id="mode" class="badge">…</span>
+    <select id="modeSel" aria-label="Data source" title="Switch while stopped">
+      <option value="live">Live data</option>
+      <option value="demo">Demo (simulated)</option>
+    </select>
+  </div>
+  <div class="sources" id="sources"></div>
+  <button id="toggle" class="start">START</button>
+</header>
+
+<main>
+  <section id="verdict"></section>
+
+  <section>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <h2>Live leaderboard <span class="muted" style="text-transform:none;letter-spacing:0">· click a coin to see every agent's vote</span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Coin</th><th>MCap</th><th>5m</th><th>Buys/Sells</th><th>Age</th><th>Curve</th><th>Council</th><th>Status</th></tr></thead>
+          <tbody id="cands"></tbody>
+        </table>
+      </div>
+    </section>
+    <section>
+      <h2 id="council-title">The council</h2>
+      <div class="agents" id="agents"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="hist">
+      <h2>Signal history &amp; measured outcome</h2>
+      <div id="record" class="muted"></div>
+      <div id="history"></div>
+    </section>
+    <section>
+      <h2>Consensus rules</h2>
+      <div class="settings">
+        <label>BUY votes needed <input type="range" id="minAgree" min="10" max="25"> <b id="minAgreeV"></b>/25</label>
+        <label>Signal window <input type="number" id="window" min="1" max="120" step="1"> min</label>
+        <button id="saveRules">Apply</button>
+        <button id="clearHist">Clear history</button>
+      </div>
+      <p class="muted" style="margin-bottom:0">
+        A signal fires only when the BUY votes reach the threshold, <b>no</b> agent votes AVOID, and none of the
+        8 safety agents (veto) objects. 25/25 means unanimous: every agent must have data and agree.
+        After the window closes the dashboard records what the price actually did, so the track record above
+        is measured, not claimed. Signals and rules are saved in this browser only.
+      </p>
+    </section>
+  </div>
+</main>
+
+<footer>
+  Signals are probabilistic calls from heuristics, not guarantees or financial advice. Most pump.fun coins go to zero,
+  and safety checks cannot catch every rug. Only trade money you can afford to lose entirely, size small, and use the stop.
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

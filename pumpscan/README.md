@@ -10,6 +10,29 @@ The dashboard only speaks up when the council reaches consensus:
 
 Press **STOP** and every loop shuts down.
 
+## Browser version (hosted on Vercel)
+
+`web/` is the same scanner rebuilt to run entirely in the browser. It has the same 25 agents, consensus rules
+and dashboard. The page talks to PumpPortal, DexScreener, Rugcheck and IPFS directly, because all of them allow
+browser access. So it needs no server and can be hosted as a static site on Vercel's free plan.
+
+- **Open the link, press START.** The scan runs in that tab. Keep the tab open, and on a phone keep the
+  screen on (the page asks the phone to keep the screen awake while it runs). Background tabs get throttled
+  by the browser.
+- **Saved in your browser:** signals, outcomes and your consensus rules are stored in that browser only.
+- **Demo mode:** add `?demo=1` to the address to try a simulated market.
+- **No password needed:** each visitor runs their own scan in their own browser. Nobody else can stop yours
+  or see your history.
+- **Unreadable metadata:** some launchpads host coin metadata on servers that refuse browser access. For
+  those coins the social and metadata agents abstain ("metadata host blocks browser access"). They don't
+  guess.
+
+Deploy: import the repo in Vercel with **Root Directory** `pumpscan/web` and Framework **Other**. There is no
+build step. `web/vercel.json` adds a strict Content-Security-Policy.
+
+Run it locally: `cd pumpscan/web && python3 -m http.server 8077`, then open http://127.0.0.1:8077.
+Tests for the browser code: `node --test pumpscan/web-tests/*.test.mjs` (Node 20+).
+
 ## Run it
 
 ```bash
