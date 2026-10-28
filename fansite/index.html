@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Uwanja Fans</title>
+  <meta name="description" content="Fixtures, results, league tables and a free score predictor league for Kenyan Premier League and EPL fans.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="#fixtures">⚽ Uwanja<span>Fans</span></a>
+      <div class="league-switch" role="tablist" aria-label="League">
+        <button data-league="kpl" class="active">KPL</button>
+        <button data-league="epl">EPL</button>
+      </div>
+    </div>
+    <nav class="wrap tabs" aria-label="Sections">
+      <a href="#fixtures" data-tab="fixtures">Fixtures</a>
+      <a href="#results" data-tab="results">Results</a>
+      <a href="#table" data-tab="table">Table</a>
+      <a href="#predict" data-tab="predict">Predict</a>
+      <a href="#leaders" data-tab="leaders">Leaderboard</a>
+    </nav>
+  </header>
+
+  <main class="wrap" id="view" aria-live="polite"></main>
+
+  <footer class="wrap foot">
+    <p>Fan site with sample fixtures for demonstration. The predictor league is free and for points only: no money, no prizes.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
