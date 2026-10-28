@@ -1,0 +1,42 @@
+{% macro car_media(v, big=False) -%}
+  {% if v.photos %}<img src="{{ v.photos[0] }}" alt="{{ v.full_title }}" loading="lazy">
+  {% else %}<div class="car">{{ car_svg(v.body, v.color_hex, 'v' ~ v.id ~ ('b' if big else '')) }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro car_card(v, q=None, start='', end='') -%}
+<a class="card" href="/cars/{{ v.slug }}{% if start and end %}?start={{ start }}&end={{ end }}{% endif %}">
+  <div class="media">
+    <div class="badges">
+      {% if v.listing == 'sale' %}<span class="badge brand">For sale</span>{% endif %}
+      {% if v.featured %}<span class="badge">Popular</span>{% endif %}
+      {% if v.fuel in ('Electric', 'Hybrid') %}<span class="badge ok">{{ v.fuel }}</span>{% endif %}
+      {% if v.status == 'pending_sale' %}<span class="badge bad">Sale pending</span>{% elif v.status == 'maintenance' %}<span class="badge muted">Back soon</span>{% endif %}
+      {% if v.sample %}<span class="badge muted">Sample listing</span>{% endif %}
+    </div>
+    {{ car_media(v) }}
+  </div>
+  <div class="body">
+    <h3>{{ v.title }}</h3>
+    <div class="specs">
+      <span>{{ v.trim }}</span>
+      <span>{{ v.seats }} seats</span>
+      <span>{{ v.transmission }}</span>
+      {% if v.listing == 'sale' %}<span>{{ v.mileage|miles }}</span>{% else %}<span>{{ v.mpg }}</span>{% endif %}
+    </div>
+    {% if q %}
+      {% if q.available %}<div class="quote-line ok">Available · {{ q.total|money }} total for {{ q.days }} day{{ 's' if q.days != 1 }}</div>
+      {% else %}<div class="quote-line bad">Booked for those dates</div>{% endif %}
+    {% endif %}
+    <div class="price">
+      {% if v.listing == 'rent' %}
+        <span><strong>{{ v.daily_rate|money }}</strong> <small>/ day</small></span>
+        {% if v.weekly_rate %}<small>{{ v.weekly_rate|money }} / week</small>{% endif %}
+      {% else %}
+        <span><strong>{{ v.sale_price|money }}</strong></span><small>{{ v.color }}</small>
+      {% endif %}
+    </div>
+  </div>
+</a>
+{%- endmacro %}
+
+{% macro hp() -%}<div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>{%- endmacro %}

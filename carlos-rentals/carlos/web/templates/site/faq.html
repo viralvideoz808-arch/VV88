@@ -1,0 +1,22 @@
+{% extends "site/base.html" %}
+{% block title %}FAQ — {{ s.business_name }}{% endblock %}
+{% set ex = settings['rental.extras'] %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Frequently asked questions</h1><p>Still stuck? Use the chat button or <a href="/contact" style="color:#fff">contact us</a>.</p></div></div>
+<div class="wrap prose">
+  <h2>Renting</h2>
+  <details class="faq"><summary>What do I need to rent a car?</summary><p>A valid driver's license, a credit or debit card in the driver's name for the refundable security deposit, and proof of insurance (or add our collision damage waiver). International visitors: bring your home license and passport.</p></details>
+  <details class="faq"><summary>How old do I have to be?</summary><p>Drivers must be {{ settings['rental.min_age'] }} or older. Drivers under {{ settings['rental.young_driver_age'] }} pay a young driver fee of {{ settings['rental.young_driver_fee']|money }} per day.</p></details>
+  <details class="faq"><summary>Can I pay with a debit card?</summary><p>Yes. The deposit is held on the card and released after the car is returned in the same condition.</p></details>
+  <details class="faq"><summary>How is the price calculated?</summary><p>Daily rate × days, or the weekly rate for each full week when that's cheaper. Extras, any young driver fee, and {{ (settings['rental.tax_rate'] * 100)|round(2) }}% tax are added — the booking form shows the full total before you request.</p></details>
+  <details class="faq"><summary>Can you deliver the car?</summary><p>Yes — choose "{{ ex.delivery.label if ex.delivery else 'Delivery' }}" when booking{% if ex.delivery and ex.delivery.flat %} ({{ ex.delivery.flat|money }}){% endif %} and enter your address.</p></details>
+  <details class="faq"><summary>What's your cancellation policy?</summary><p>Free cancellation more than 24 hours before pickup — use <a href="/manage">Manage booking</a>. Inside 24 hours, please call us.</p></details>
+  <details class="faq"><summary>Fuel, tolls and mileage?</summary><p>Return the car with the same fuel or charge level. Tolls and tickets during your rental are your responsibility. Normal mileage is included; ask us about long road trips.</p></details>
+  <h2>Buying & selling</h2>
+  <details class="faq"><summary>Can I test drive a car?</summary><p>Of course — request a time on the car's page, and bring your license.</p></details>
+  <details class="faq"><summary>Do you take trade-ins?</summary><p>Yes. Get an offer on the <a href="/sell">sell / trade-in page</a> and put it toward any car on our lot.</p></details>
+  <details class="faq"><summary>Do you offer financing?</summary><p>Send a <a href="/financing">financing request</a> — no credit check and no SSN on our site — and we'll follow up with options.</p></details>
+  <h2>Messages</h2>
+  <details class="faq"><summary>Who answers the chat and DMs?</summary><p>An automated assistant answers right away; a team member reviews conversations and takes over whenever needed. Reply STOP any time and we won't message you again.</p></details>
+</div>
+{% endblock %}

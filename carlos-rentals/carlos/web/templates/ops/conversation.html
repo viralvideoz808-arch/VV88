@@ -1,0 +1,31 @@
+{% extends "ops/base.html" %}
+{% block title %}{{ c.contact_name or c.contact_handle or 'Conversation' }}{% endblock %}
+{% block content %}
+<div class="topbar"><div><p class="small"><a href="/inbox">← Inbox</a></p><h1>{{ c.contact_name or c.contact_handle or 'Website visitor' }}</h1><p class="muted">{{ compliance.CHANNELS.get(c.channel, c.channel) }}{% if c.email %} · {{ c.email }}{% endif %}{% if c.phone %} · {{ c.phone }}{% endif %}</p></div>
+  <div class="btns">
+    <form method="post" action="/inbox/{{ c.id }}">{{ csrf_field() }}<button class="btn {{ 'ok' if c.mode == 'human' else 'dark' }}" name="action" value="mode">{{ 'Hand back to assistant' if c.mode == 'human' else '✋ Take over' }}</button></form>
+    {% if c.status == 'open' %}<form method="post" action="/inbox/{{ c.id }}">{{ csrf_field() }}<button class="btn ghost" name="action" value="close">Close</button></form>{% else %}<form method="post" action="/inbox/{{ c.id }}">{{ csrf_field() }}<button class="btn ghost" name="action" value="reopen">Reopen</button></form>{% endif %}
+  </div></div>
+{% if c.status == 'opted_out' %}<div class="banner bad">This person opted out. No more messages will be sent.</div>{% endif %}
+<div class="grid g21">
+  <div class="card">
+    <div class="thread" id="thread">
+      {% for m in msgs %}<div class="msg {{ m.direction }} {{ m.author }}">{{ m.body }}<div class="meta">{{ 'Customer' if m.direction == 'in' else ('You' if m.author == 'staff' else m.author|capitalize) }} · {{ m.created_at|ago }}</div></div>{% else %}<p class="muted">No messages yet.</p>{% endfor %}
+    </div>
+    {% for o in pending %}<div class="banner" style="margin-top:12px">Queued ({{ o.status }}): “{{ o.body[:160] }}” {% if o.error %}— {{ o.error }}{% endif %} {% if o.status == 'pending_approval' %}<a href="/approvals">review</a>{% endif %}</div>{% endfor %}
+    {% if not window_ok %}<div class="banner bad" style="margin-top:12px">Meta's 24-hour window has closed for this {{ reply_channel|replace('_', ' ') }} conversation. Reply from Meta Business Suite instead, or wait for them to write again.</div>{% endif %}
+    <form method="post" action="/inbox/{{ c.id }}" style="margin-top:14px">{{ csrf_field() }}
+      <label for="reply">Reply as {{ s.business_name }} (via {{ reply_channel|replace('_', ' ') }})</label>
+      <textarea id="reply" name="body" data-count="rc" maxlength="2000">{{ draft }}</textarea><div class="chars" id="rc"></div>
+      <div class="btns" style="margin-top:8px"><button class="btn" name="action" value="reply" type="submit">Send</button><button class="btn ghost" name="action" value="draft" type="submit" formnovalidate>✨ Draft with assistant</button></div>
+    </form>
+  </div>
+  <div>
+    {% if lead %}<div class="card"><h2>Lead</h2><p><a href="/leads/{{ lead.id }}">{{ lead.handle }}</a> <span class="tag brand">{{ lead.intent }}</span> <span class="score">{{ lead.score }}</span></p><div class="quote small">{{ lead.text[:300] }}</div></div>{% endif %}
+    <form class="card" method="post" action="/inbox/{{ c.id }}">{{ csrf_field() }}<h2>Notes</h2><textarea name="summary" placeholder="Private notes about this customer">{{ c.summary }}</textarea><button class="btn ghost" name="action" value="note" style="margin-top:8px">Save notes</button></form>
+    <div class="card small muted"><h2>Rules for this channel</h2>
+      {% if c.channel in ('instagram_dm','messenger') %}Replies are allowed within 24 hours of the customer's last message.{% elif c.channel == 'threads_reply' %}Threads has no DMs — replies are public. Invite them to chat on the website or DM us on Instagram for anything private.{% elif c.channel == 'webchat' %}Website chat: they see your reply in the chat window while it's open.{% else %}One private reply per comment; the conversation continues in DMs if they answer.{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

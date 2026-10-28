@@ -1,0 +1,24 @@
+{% extends "site/base.html" %}
+{% block title %}Contact — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Contact us</h1><p>Questions about a rental, a car, or a booking? We're quick to reply.</p></div></div>
+<div class="wrap two-col">
+  <div>
+    <ul class="contact-list">
+      {% if s.phone %}<li><span class="ic">☎</span><div><strong>Call or text</strong><br><a href="tel:{{ s.phone }}">{{ s.phone }}</a></div></li>{% endif %}
+      {% if s.email %}<li><span class="ic">@</span><div><strong>Email</strong><br><a href="mailto:{{ s.email }}">{{ s.email }}</a></div></li>{% endif %}
+      {% if s.address %}<li><span class="ic">⌖</span><div><strong>Visit</strong><br>{{ s.address }}</div></li>{% endif %}
+      <li><span class="ic">◷</span><div><strong>Hours</strong><br>{{ settings['site.hours'] }}</div></li>
+      <li><span class="ic">💬</span><div><strong>Chat</strong><br>Use the chat button — instant answers any time.</div></li>
+    </ul>
+  </div>
+  <form class="form-card" method="post" action="/inquiry" id="form">
+    {% if sent %}<div class="alert ok">Thanks — we'll get back to you shortly.</div>{% endif %}
+    {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+    <input type="hidden" name="kind" value="contact"><input type="hidden" name="back" value="/contact">
+    {% include "site/_contact_fields.html" %}
+    <div class="field"><label for="msg">Message</label><textarea id="msg" name="message" required></textarea></div>
+    <button class="btn block" type="submit">Send message</button>
+  </form>
+</div>
+{% endblock %}

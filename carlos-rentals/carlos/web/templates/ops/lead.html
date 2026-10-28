@@ -1,0 +1,26 @@
+{% extends "ops/base.html" %}
+{% block title %}Lead {{ l.handle }}{% endblock %}
+{% block content %}
+<div class="topbar"><div><p class="small"><a href="/leads">← Leads</a></p><h1>{{ l.handle or 'Unknown author' }} <span class="score {{ 'hi' if l.score >= 75 else 'mid' if l.score >= 55 }}">{{ l.score }}</span></h1><p class="muted">{{ l.platform }} · {{ l.found_by }} · posted {{ l.posted_at|ago }}</p></div>
+  <div class="btns">{% if l.post_url %}<a class="btn ghost" href="{{ l.post_url }}" target="_blank" rel="noopener">Open post ↗</a>{% endif %}{% if l.profile_url %}<a class="btn ghost" href="{{ l.profile_url }}" target="_blank" rel="noopener">Profile ↗</a>{% endif %}{% if conv %}<a class="btn" href="/inbox/{{ conv.id }}">Open conversation</a>{% endif %}</div></div>
+<div class="grid g21">
+  <div>
+    <div class="card"><h2>What they said</h2><div class="quote">{{ l.text }}</div>{% if needs.context %}<p class="small muted" style="margin-top:8px">On our post: “{{ needs.context }}”</p>{% endif %}</div>
+    <div class="card"><h2>Assessment</h2><p><span class="tag brand">{{ l.intent }}</span> <span class="tag {{ l.status }}">{{ l.status }}</span></p><p>{{ l.reason }}</p>
+      {% set shown = needs.items()|rejectattr(0, 'in', ['comment_id', 'media_id', 'user_id', 'context'])|list %}
+      {% if shown %}<p class="small">{% for k, v in shown %}<span class="tag">{{ k }}: {{ v }}</span> {% endfor %}</p>{% endif %}
+      {% if l.ref_code %}<p class="small muted">Tracking link: <span class="mono">{{ s.site_url }}/r/{{ l.ref_code }}</span></p>{% endif %}</div>
+    <div class="card tight"><h2>Messages to this lead</h2><table><tr><th>Channel</th><th>Message</th><th>Status</th></tr>{% for o in outbox %}<tr><td class="small">{{ o.channel }}</td><td class="small">{{ o.body }}</td><td><span class="tag {{ o.status }}">{{ o.status }}</span>{% if o.status == 'pending_approval' %} <a class="small" href="/approvals">review</a>{% endif %}</td></tr>{% else %}<tr><td colspan="3" class="muted">{% if l.status == 'manual' %}This lead needs a personal touch: open the post and reply yourself.{% else %}None yet.{% endif %}</td></tr>{% endfor %}</table></div>
+    {% if bookings or inquiries %}<div class="card"><h2>Converted</h2>{% for b in bookings %}<p><a href="/bookings/{{ b.ref }}">Booking {{ b.ref }}</a> · {{ b.total|money }} <span class="tag {{ b.status }}">{{ b.status }}</span></p>{% endfor %}{% for i in inquiries %}<p>Inquiry #{{ i.id }} · {{ i.kind }}</p>{% endfor %}</div>{% endif %}
+  </div>
+  <div>
+    <form class="card" method="post" action="/leads/{{ l.id }}">{{ csrf_field() }}<input type="hidden" name="action" value="status">
+      <h2>Status</h2><div class="field"><select name="status">{% for st in statuses %}<option value="{{ st }}" {{ 'selected' if st == l.status }}>{{ st|replace('_', ' ') }}</option>{% endfor %}</select></div>
+      <button class="btn ghost" type="submit">Update</button>
+      <p class="help">"do not contact" also cancels anything queued and blocks future messages to this handle.</p>
+    </form>
+    <form class="card" method="post" action="/leads/{{ l.id }}">{{ csrf_field() }}<input type="hidden" name="action" value="requalify">
+      <h2>Re-run</h2><p class="small muted">Score this lead again and draft a reply if it qualifies.</p><button class="btn ghost" type="submit">Re-qualify & draft</button></form>
+  </div>
+</div>
+{% endblock %}

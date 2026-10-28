@@ -1,0 +1,34 @@
+{% extends "ops/base.html" %}
+{% block title %}Agents{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Agents</h1><p class="muted">Six agents work as a pipeline on a schedule. Run any of them now, change how often they run, or switch one off.</p></div>
+  <div class="btns">
+    <form method="post" action="/agents/run-all">{{ csrf_field() }}<button class="btn" type="submit">▶ Run the whole pipeline</button></form>
+    <form method="post" action="/agents/pause">{{ csrf_field() }}<input type="hidden" name="back" value="/agents"><button class="btn ghost" type="submit">{{ '▶ Resume schedule' if paused else '⏸ Pause all' }}</button></form>
+  </div>
+</div>
+{% if paused %}<div class="banner bad">Schedule paused — agents only run when you click Run.</div>{% endif %}
+{% if not llm %}<div class="banner">Claude isn't connected (no ANTHROPIC_API_KEY), so agents use built-in rules and templates. They work, but Claude writes noticeably better replies and can complete bookings inside a chat.</div>{% endif %}
+<div class="pipeline">{% for i in info %}<span class="node">{{ i.agent.title }}</span>{% if not loop.last %}<span class="arrow">→</span>{% endif %}{% endfor %}</div>
+{% for i in info %}
+<div class="card agent">
+  <div>
+    <h2>{% set last = i.runs[0] if i.runs else None %}<span class="status-dot {{ last.status if last }}"></span>{{ i.agent.title }} {% if not i.enabled %}<span class="tag bad">off</span>{% endif %}</h2>
+    <p class="muted">{{ i.agent.description }}</p>
+    <table>
+      <tr><th>When</th><th>Trigger</th><th>Result</th></tr>
+      {% for r in i.runs %}<tr><td class="small" style="white-space:nowrap">{{ r.started_at|ago }}</td><td><span class="tag {{ 'error' if r.status == 'error' else '' }}">{{ r.trigger }}</span></td><td class="small">{{ r.summary }}</td></tr>{% else %}<tr><td colspan="3" class="muted">Hasn't run yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div>
+    <form method="post" action="/agents/{{ i.agent.name }}/run" style="margin-bottom:14px">{{ csrf_field() }}<button class="btn" type="submit" style="width:100%;justify-content:center">▶ Run {{ i.agent.title }} now</button></form>
+    <form method="post" action="/agents/{{ i.agent.name }}/settings">{{ csrf_field() }}
+      <div class="field"><label class="check"><input type="checkbox" name="enabled" {{ 'checked' if i.enabled }}> Run on schedule</label></div>
+      <div class="field"><label for="iv-{{ i.agent.name }}">Every (minutes)</label><input id="iv-{{ i.agent.name }}" name="interval" type="number" min="1" max="1440" value="{{ i.interval }}"></div>
+      <button class="btn ghost" type="submit">Save</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "ops/base.html" %}
+{% block title %}{{ v.full_title if v else 'Add car' }}{% endblock %}
+{% block content %}
+<div class="topbar"><div><p class="small"><a href="/inventory">← Inventory</a></p><h1>{{ v.full_title if v else ('Add a rental car' if listing == 'rent' else 'Add a car for sale') }}</h1>{% if v %}<p class="muted">{{ v.views }} page views · <a href="{{ s.site_url }}/cars/{{ v.slug }}" target="_blank" rel="noopener">view on website ↗</a></p>{% endif %}</div></div>
+<div class="grid g21">
+<form class="card" method="post" action="{{ '/inventory/' ~ v.id if v else '/inventory/new' }}">{{ csrf_field() }}
+  <input type="hidden" name="listing" value="{{ listing }}">
+  <div class="row">
+    <div class="field"><label>Year</label><input name="year" type="number" min="1980" max="2030" required value="{{ v.year if v else '' }}"></div>
+    <div class="field"><label>Make</label><input name="make" required value="{{ v.make if v }}"></div>
+    <div class="field"><label>Model</label><input name="model" required value="{{ v.model if v }}"></div>
+    <div class="field"><label>Trim</label><input name="trim" value="{{ v.trim if v }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Body</label><select name="body">{% for b in body_types %}<option value="{{ b }}" {{ 'selected' if v and v.body == b }}>{{ b }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Status</label><select name="status">{% for st in statuses %}<option value="{{ st }}" {{ 'selected' if (v.status if v else 'available') == st }}>{{ st|replace('_', ' ') }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Seats</label><input name="seats" type="number" min="1" max="15" value="{{ v.seats if v else 5 }}"></div>
+    <div class="field"><label>Doors</label><input name="doors" type="number" min="2" max="5" value="{{ v.doors if v else 4 }}"></div>
+  </div>
+  {% if listing == 'rent' %}
+  <div class="row">
+    <div class="field"><label>Daily rate ($)</label><input name="daily_rate" inputmode="decimal" required value="{{ v.daily_rate if v and v.daily_rate is not none }}"></div>
+    <div class="field"><label>Weekly rate ($)</label><input name="weekly_rate" inputmode="decimal" value="{{ v.weekly_rate if v and v.weekly_rate is not none }}"><div class="help">Used for each full 7 days</div></div>
+    <div class="field"><label>Deposit ($)</label><input name="deposit" inputmode="decimal" value="{{ v.deposit if v and v.deposit is not none else 250 }}"></div>
+    <div class="field"><label>Mileage</label><input name="mileage" inputmode="numeric" value="{{ v.mileage if v and v.mileage is not none }}"></div>
+  </div>
+  {% else %}
+  <div class="row">
+    <div class="field"><label>Price ($)</label><input name="sale_price" inputmode="decimal" required value="{{ v.sale_price if v and v.sale_price is not none }}"></div>
+    <div class="field"><label>Mileage</label><input name="mileage" inputmode="numeric" required value="{{ v.mileage if v and v.mileage is not none }}"></div>
+    <div class="field"><label>VIN</label><input name="vin" maxlength="17" value="{{ v.vin if v }}"></div>
+  </div>
+  {% endif %}
+  <div class="row">
+    <div class="field"><label>Transmission</label><select name="transmission">{% for t in ['Automatic','Manual'] %}<option {{ 'selected' if v and v.transmission == t }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Fuel</label><select name="fuel">{% for t in ['Gas','Hybrid','Electric','Diesel'] %}<option {{ 'selected' if v and v.fuel == t }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="field"><label>MPG / range</label><input name="mpg" value="{{ v.mpg if v }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Color name</label><input name="color" value="{{ v.color if v }}"></div>
+    <div class="field"><label>Color (for the drawing)</label><input name="color_hex" type="color" value="{{ v.color_hex if v else '#9aa3ad' }}"></div>
+    <div class="field"><label>Location</label><input name="location" value="{{ v.location if v }}" placeholder="Main lot"></div>
+  </div>
+  <div class="field"><label>Description</label><textarea name="description" placeholder="Who it's great for, condition, anything special">{{ v.description if v }}</textarea></div>
+  <div class="field"><label>Features (one per line)</label><textarea name="features">{{ v.features|join('\n') if v }}</textarea></div>
+  <div class="field"><label class="check"><input type="checkbox" name="featured" {{ 'checked' if v and v.featured }}> Featured on the homepage <span class="help">(the Fleet agent may rotate this by demand)</span></label></div>
+  <div class="btns"><button class="btn" type="submit">Save</button>{% if v %}<button class="btn bad" name="action" value="delete" data-confirm="Delete this car? Cars with bookings are hidden instead.">Delete</button>{% endif %}</div>
+</form>
+<div>
+  {% if v %}
+  <form class="card" method="post" action="/inventory/{{ v.id }}" enctype="multipart/form-data">{{ csrf_field() }}<input type="hidden" name="action" value="upload">
+    <h2>Photos</h2>
+    {% if v.photos %}<div class="thumbs" style="margin-bottom:12px">{% for p in v.photos %}<div class="thumb"><img src="{{ p }}" alt=""><div class="btns">{% if not loop.first %}<button class="btn ghost sm" form="ph-first-{{ loop.index }}">Cover</button>{% else %}<span class="tag ok">cover</span>{% endif %}<button class="btn bad sm" form="ph-del-{{ loop.index }}">✕</button></div></div>{% endfor %}</div>{% else %}<div style="max-width:240px;margin-bottom:10px">{{ car_svg(v.body, v.color_hex, 'e' ~ v.id) }}</div><p class="small muted">No photos yet — the website shows this drawing. Real photos get far more bookings.</p>{% endif %}
+    <input type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple>
+    <button class="btn ghost" type="submit" style="margin-top:8px">Upload</button>
+    <p class="help">JPG, PNG or WebP, up to 12 MB in total per upload. Landscape 3:2 photos look best.</p>
+  </form>
+  {% for p in v.photos %}
+  <form id="ph-first-{{ loop.index }}" method="post" action="/inventory/{{ v.id }}">{{ csrf_field() }}<input type="hidden" name="action" value="photo_first"><input type="hidden" name="photo" value="{{ p }}"></form>
+  <form id="ph-del-{{ loop.index }}" method="post" action="/inventory/{{ v.id }}">{{ csrf_field() }}<input type="hidden" name="action" value="photo_remove"><input type="hidden" name="photo" value="{{ p }}"></form>
+  {% endfor %}
+  {% if bookings %}<div class="card"><h2>Upcoming bookings</h2>{% for b in bookings %}<p class="small"><a href="/bookings/{{ b.ref }}">{{ b.ref }}</a> · {{ b.start_date }} → {{ b.end_date }} <span class="tag {{ b.status }}">{{ b.status }}</span></p>{% endfor %}</div>{% endif %}
+  {% else %}<div class="card small muted">Save the car first, then add photos.</div>{% endif %}
+</div>
+</div>
+{% endblock %}

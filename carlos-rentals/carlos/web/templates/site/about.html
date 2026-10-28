@@ -1,0 +1,16 @@
+{% extends "site/base.html" %}
+{% block title %}About — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>About {{ s.business_name }}</h1><p>{{ settings['site.tagline'] }}</p></div></div>
+<div class="wrap">
+  <div class="split" style="padding:48px 0">
+    <div>
+      <h2>A local car business that keeps it simple</h2>
+      <p>{{ s.business_name }} rents clean, late-model cars, SUVs, trucks and convertibles by the day or week{% if s.city %} in {{ s.city }}{% endif %}, and sells quality used cars with clean titles.</p>
+      <p>We built the whole experience around being upfront: the price you see includes tax and extras, cancellation is free until 24 hours before pickup, and you can reach us by chat, text, Instagram or Facebook.</p>
+      <p><a class="btn" href="/rentals">Find a rental</a> <a class="btn ghost" href="/contact">Get in touch</a></p>
+    </div>
+    <div class="art">{{ car_svg('suv', '#ff5a1f', 'about') }}</div>
+  </div>
+</div>
+{% endblock %}

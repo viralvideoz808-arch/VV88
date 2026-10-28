@@ -1,0 +1,11 @@
+services:
+  carlos:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"   # public website
+      - "127.0.0.1:8081:8081"   # console: keep private, reach it over SSH/VPN or put it behind HTTPS + login
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env

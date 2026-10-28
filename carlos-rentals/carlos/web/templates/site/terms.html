@@ -1,0 +1,16 @@
+{% extends "site/base.html" %}
+{% block title %}Rental terms — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Rental terms</h1><p>A plain-language summary. Your signed rental agreement at pickup governs.</p></div></div>
+<div class="wrap prose">
+  <p class="muted small">Have these reviewed for your state before going live — they're a starting point, not legal advice.</p>
+  <h2>1. Booking requests</h2><p>Online bookings are requests until we confirm them by email. Prices shown include the rental, selected extras, any young driver fee and estimated tax.</p>
+  <h2>2. Drivers</h2><p>Every driver must be at least {{ settings['rental.min_age'] }}, hold a valid license, and be listed on the agreement. Additional drivers can be added as an extra.</p>
+  <h2>3. Deposit and payment</h2><p>Payment and a refundable security deposit are collected at pickup by card in the renter's name. The deposit is released after the car is returned without new damage, with the same fuel level, and with no outstanding charges.</p>
+  <h2>4. Insurance and damage</h2><p>You must have insurance that covers rental vehicles or purchase our collision damage waiver. You are responsible for damage, tolls, parking and traffic tickets during the rental period.</p>
+  <h2>5. Use of the car</h2><p>No smoking, no off-road use (unless agreed for 4x4 vehicles), no ride-share or delivery driving unless agreed in writing, and no leaving the country without permission.</p>
+  <h2>6. Returns</h2><p>Return the car on the agreed date and time. Late returns may be charged an extra day. Cleaning fees apply for excessive dirt, sand or pet hair.</p>
+  <h2>7. Cancellations</h2><p>Free cancellation more than 24 hours before pickup. Inside 24 hours, contact us.</p>
+  <h2>8. Messages</h2><p>By booking you agree we may contact you by email or phone about your booking. Reply STOP to any message to opt out of non-essential messages.</p>
+</div>
+{% endblock %}

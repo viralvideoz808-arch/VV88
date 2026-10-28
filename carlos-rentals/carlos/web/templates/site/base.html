@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ s.business_name }} — Car rentals & quality used cars{% if s.city %} in {{ s.city }}{% endif %}{% endblock %}</title>
+<meta name="description" content="{% block description %}Rent a car, SUV, truck or convertible by the day or week, or buy a quality used car from {{ s.business_name }}{% if s.city %} in {{ s.city }}{% endif %}. Transparent prices, book online in minutes.{% endblock %}">
+<meta property="og:title" content="{{ self.title() }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ s.site_url }}{{ path }}">
+<meta name="theme-color" content="#0d0f12">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/site.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":["AutoRental","AutoDealer"],"name":{{ s.business_name|tojson }},"url":{{ s.site_url|tojson }}{% if s.phone %},"telephone":{{ s.phone|tojson }}{% endif %}{% if s.address %},"address":{{ s.address|tojson }}{% endif %},"openingHours":{{ settings['site.hours']|tojson }}}</script>
+{% block head %}{% endblock %}
+</head>
+<body>
+{% if settings['site.announcement'] %}<div class="announce">{{ settings['site.announcement'] }}</div>{% endif %}
+<header class="header">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="{{ s.business_name }} home"><span class="mark">🚗</span><span>CAR<span class="dash">-</span>LOS<small>RENTALS · SALES</small></span></a>
+    <button class="menu-toggle" type="button" data-toggle="nav" aria-expanded="false">Menu</button>
+    <nav class="nav" id="nav">
+      <a href="/rentals" class="{{ 'on' if path.startswith('/rentals') }}">Rent a car</a>
+      <a href="/for-sale" class="{{ 'on' if path.startswith('/for-sale') }}">Cars for sale</a>
+      <a href="/sell" class="{{ 'on' if path.startswith('/sell') }}">Sell / trade-in</a>
+      <a href="/financing" class="{{ 'on' if path.startswith('/financing') }}">Financing</a>
+      <a href="/faq" class="{{ 'on' if path.startswith('/faq') }}">FAQ</a>
+      <a href="/contact" class="{{ 'on' if path.startswith('/contact') }}">Contact</a>
+      <a class="btn sm" href="/rentals">Book now</a>
+    </nav>
+  </div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <a class="logo" href="/"><span class="mark">🚗</span><span>CAR<span class="dash">-</span>LOS<small>RENTALS · SALES</small></span></a>
+        <p style="margin-top:14px">{{ settings['site.tagline'] }} Daily and weekly rentals, quality used cars, and fair offers on your trade-in.</p>
+        <p class="small">{{ settings['site.hours'] }}</p>
+      </div>
+      <div><h4>Rent</h4><a href="/rentals?body=sedan">Sedans</a><a href="/rentals?body=suv">SUVs</a><a href="/rentals?body=truck">Trucks</a><a href="/rentals?body=van">Minivans</a><a href="/rentals?body=convertible">Convertibles</a></div>
+      <div><h4>Buy & sell</h4><a href="/for-sale">Cars for sale</a><a href="/financing">Financing request</a><a href="/sell">Sell your car</a><a href="/sell">Trade-in offer</a></div>
+      <div><h4>Help</h4><a href="/manage">Manage booking</a><a href="/faq">FAQ</a><a href="/contact">Contact</a><a href="/about">About us</a>
+        {% if s.phone %}<a href="tel:{{ s.phone }}">{{ s.phone }}</a>{% endif %}{% if s.email %}<a href="mailto:{{ s.email }}">{{ s.email }}</a>{% endif %}</div>
+    </div>
+    <div class="legal"><span>© {{ now_year }} {{ s.business_name }}{% if s.address %} · {{ s.address }}{% endif %}</span><span><a href="/terms" style="display:inline">Rental terms</a> · <a href="/privacy" style="display:inline">Privacy</a></span></div>
+  </div>
+</footer>
+
+<button class="chat-fab" type="button" id="chat-fab" aria-label="Chat with us">💬<span class="dot"></span></button>
+<section class="chat" id="chat" aria-label="Chat with {{ s.business_name }}">
+  <header><span class="av">C</span><div><strong>{{ s.business_name }}</strong><small>Virtual assistant · replies instantly</small></div><button type="button" id="chat-close" aria-label="Close chat">×</button></header>
+  <div class="log" id="chat-log" aria-live="polite"></div>
+  <div class="chips" id="chat-chips">
+    <button type="button">What do I need to rent?</button>
+    <button type="button">SUVs this weekend?</button>
+    <button type="button">I want to sell my car</button>
+  </div>
+  <form id="chat-form"><label class="sr-only" for="chat-input">Message</label><input id="chat-input" autocomplete="off" placeholder="Ask about prices, dates, cars…" maxlength="1500"><button class="btn sm" type="submit">Send</button></form>
+  <div class="note">You're chatting with an automated assistant; a team member can take over. Don't share card numbers here.</div>
+</section>
+<script src="/static/site.js" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

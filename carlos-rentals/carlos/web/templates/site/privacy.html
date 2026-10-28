@@ -1,0 +1,13 @@
+{% extends "site/base.html" %}
+{% block title %}Privacy — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Privacy policy</h1><p>What we collect and why.</p></div></div>
+<div class="wrap prose">
+  <p class="muted small">Have this reviewed for your state (e.g. CCPA in California) before going live.</p>
+  <h2>What we collect</h2><ul><li>Details you give us: name, email, phone, booking dates, messages, and information about a car you want to sell.</li><li>Messages you send us on our website chat, Instagram, Facebook or Threads.</li><li>Public posts and comments that mention needing a rental or a car, or comments on our own posts, so we can reply.</li><li>Basic, anonymous page-view counts.</li></ul>
+  <h2>How we use it</h2><p>To answer your questions, handle bookings and sales, follow up on requests you made, and improve our service. We do not sell your personal information.</p>
+  <h2>Automated assistant</h2><p>Our chat and messages are first answered by an automated assistant (which may use a third-party AI provider to write replies). A team member reviews conversations and can take over at any time.</p>
+  <h2>Your choices</h2><p>Reply STOP to stop messages. Email {% if s.email %}<a href="mailto:{{ s.email }}">{{ s.email }}</a>{% else %}us{% endif %} to see, correct or delete your information.</p>
+  <h2>Cookies</h2><p>We use one cookie to remember which of our posts brought you here, and your browser stores a random chat ID so your chat history survives a page reload.</p>
+</div>
+{% endblock %}

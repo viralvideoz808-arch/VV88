@@ -1,0 +1,33 @@
+{% extends "ops/base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<div class="topbar"><div><h1>Leads</h1><p class="muted">People who publicly asked for a rental, a car, or to sell theirs — and people who commented on our posts.</p></div></div>
+<div class="tabs">
+  <a href="/leads" class="{{ 'on' if not status }}">All</a>
+  {% for st in ['qualified','manual','contacted','engaged','converted','low','review','no_response','opted_out'] %}<a href="/leads?status={{ st }}" class="{{ 'on' if status == st }}">{{ st|replace('_', ' ') }} {{ by_status.get(st, 0) }}</a>{% endfor %}
+</div>
+<div class="grid g21">
+  <div class="card tight"><div class="table-wrap"><table>
+    <tr><th>Score</th><th>Who / what they said</th><th>Intent</th><th>Status</th><th>Found</th></tr>
+    {% for l in rows %}<tr class="click"><td><span class="score {{ 'hi' if l.score >= 75 else 'mid' if l.score >= 55 }}">{{ l.score }}</span></td>
+      <td><a href="/leads/{{ l.id }}"><strong>{{ l.handle or 'unknown author' }}</strong></a> <span class="tag">{{ l.platform }}</span>{% if l.found_by == 'demo feed' %} <span class="tag info">demo</span>{% endif %}<br><span class="small muted">{{ l.text[:170] }}</span></td>
+      <td><span class="tag brand">{{ l.intent }}</span></td><td><span class="tag {{ l.status }}">{{ l.status|replace('_', ' ') }}</span></td><td class="small">{{ l.created_at|ago }}<br><span class="muted">{{ l.found_by }}</span></td></tr>
+    {% else %}<tr><td colspan="5" class="empty">No leads here yet.</td></tr>{% endfor %}
+  </table></div></div>
+  <div>
+    <form class="card" method="post" action="/leads-add">{{ csrf_field() }}
+      <h2>Add a lead by hand</h2>
+      <p class="small muted">Saw someone asking for a car in a Facebook group, on Marketplace or anywhere else? Paste it here — the Qualifier scores it and you'll get a suggested reply to send yourself.</p>
+      <div class="field"><label for="lh">Name / handle</label><input id="lh" name="handle"></div>
+      <div class="field"><label for="lu">Link (optional)</label><input id="lu" name="url" placeholder="https://"></div>
+      <div class="field"><label for="lt">What they wrote</label><textarea id="lt" name="text" required></textarea></div>
+      <button class="btn" type="submit">Add & score</button>
+    </form>
+    <div class="card"><h2>How leads are found</h2><ul class="small muted" style="padding-left:18px;margin:0">
+      <li><strong>Threads:</strong> keyword search of public posts → one public reply.</li>
+      <li><strong>Instagram & Facebook:</strong> comments on our own posts → one private reply (Meta's rule), then the DM conversation.</li>
+      <li><strong>Instagram hashtags:</strong> Meta hides the author, so these are "manual" — open the post and engage yourself.</li>
+      <li>No profile scraping, no cold DMs, opt-outs respected.</li></ul></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "site/base.html" %}
+{% from "site/_macros.html" import car_media %}
+{% block title %}Booking {{ b.ref }} — {{ s.business_name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>{% if new %}Request received — thank you!{% else %}Your booking{% endif %}</h1><p>Reference <strong style="color:#fff">{{ b.ref }}</strong> · keep this for your records</p></div></div>
+<div class="wrap two-col">
+  <div>
+    <div class="card" style="pointer-events:none"><div class="media">{{ car_media(b.vehicle) }}</div><div class="body"><h3>{{ b.vehicle.full_title }}</h3><div class="specs"><span>{{ b.vehicle.seats }} seats</span><span>{{ b.vehicle.fuel }}</span></div></div></div>
+  </div>
+  <div class="form-card">
+    {% if msg %}<div class="alert {{ 'ok' if 'cancelled' in msg else 'warn' }}">{{ msg }}</div>{% endif %}
+    {% if new %}<div class="alert ok">We've got your request. We'll confirm by email at <strong>{{ b.email }}</strong>, usually within the hour during business hours.</div>{% endif %}
+    <p>Status: <span class="status {{ b.status }}">{{ b.status }}</span></p>
+    <div class="summary">
+      <div class="line"><span>Pick-up</span><strong>{{ b.start_date|nicedate }}</strong></div>
+      <div class="line"><span>Return</span><strong>{{ b.end_date|nicedate }}</strong></div>
+      {% if b.pickup %}<div class="line"><span>Location</span><span>{{ b.pickup }}</span></div>{% endif %}
+      <div class="line"><span>Rental ({{ b.days }} day{{ 's' if b.days != 1 }})</span><span>{{ b.subtotal|money }}</span></div>
+      {% if b.extras_total %}<div class="line"><span>Extras</span><span>{{ b.extras_total|money }}</span></div>{% endif %}
+      {% if b.fees %}<div class="line"><span>Young driver fee</span><span>{{ b.fees|money }}</span></div>{% endif %}
+      <div class="line"><span>Tax</span><span>{{ b.tax|money }}</span></div>
+      <div class="line total"><span>Total</span><span>{{ b.total|money }}</span></div>
+      <div class="line small muted"><span>Refundable deposit at pickup</span><span>{{ b.deposit|money }}</span></div>
+    </div>
+    <h3>Next steps</h3>
+    <ol class="muted"><li>We confirm your booking by email.</li><li>Bring your driver's license and a card in your name.</li><li>Pick up, drive, return with the same fuel level.</li></ol>
+    {% if b.status in ('pending', 'confirmed') %}
+    <details class="faq" style="margin-top:16px"><summary>Need to cancel?</summary>
+      <form method="post" action="/booking/{{ b.ref }}/cancel" style="padding-bottom:16px">
+        <div class="field"><label for="c-email">Confirm the email on the booking</label><input type="email" id="c-email" name="email" required></div>
+        <button class="btn dark" type="submit">Cancel booking</button>
+        <p class="small muted">Free cancellation more than 24 hours before pickup.</p>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

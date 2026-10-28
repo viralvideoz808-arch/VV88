@@ -1,0 +1,11 @@
+{% extends "ops/base.html" %}
+{% block title %}Bookings{% endblock %}
+{% block content %}
+<div class="topbar"><div><h1>Bookings</h1><p class="muted">Requests from the website and the chat assistant. Confirm to lock the dates; the customer gets an email if SMTP is connected.</p></div></div>
+<div class="tabs"><a href="/bookings" class="{{ 'on' if not status }}">All</a>{% for st in statuses %}<a href="/bookings?status={{ st }}" class="{{ 'on' if status == st }}">{{ st }}</a>{% endfor %}</div>
+<div class="card tight"><div class="table-wrap"><table>
+<tr><th>Ref</th><th>Customer</th><th>Car</th><th>Dates</th><th>Total</th><th>Source</th><th>Status</th></tr>
+{% for b in rows %}<tr class="click"><td><a href="/bookings/{{ b.ref }}" class="mono"><strong>{{ b.ref }}</strong></a></td><td>{{ b.name }}<br><span class="small muted">{{ b.email }} {{ b.phone }}</span></td><td>{{ b.car }}</td><td class="small">{{ b.start_date|nicedate }} →<br>{{ b.end_date|nicedate }} · {{ b.days }}d</td><td><strong>{{ b.total|money }}</strong></td><td class="small">{{ b.source }}{% if b.lead_id %}<br><a href="/leads/{{ b.lead_id }}">from lead</a>{% endif %}</td><td><span class="tag {{ b.status }}">{{ b.status }}</span></td></tr>
+{% else %}<tr><td colspan="7" class="empty">No bookings yet.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

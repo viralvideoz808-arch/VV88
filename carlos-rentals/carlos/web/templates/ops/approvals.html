@@ -1,0 +1,30 @@
+{% extends "ops/base.html" %}
+{% block title %}Approvals{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Approvals</h1><p class="muted">Everything the agents want to post or send to someone new waits here. Edit, send, or reject. Turn approval off for outreach in Settings once you trust it.</p></div>
+  {% if pending %}<form method="post" action="/approvals-all" data-confirm="Send all {{ pending|length }} messages?">{{ csrf_field() }}<button class="btn ok" type="submit">✓ Approve & send all ({{ pending|length }})</button></form>{% endif %}
+</div>
+{% for o in pending %}
+<form class="approval" method="post" action="/approvals/{{ o.id }}">{{ csrf_field() }}
+  <div>
+    <div class="btns" style="margin-bottom:8px"><span class="tag brand">{{ o.kind }}</span><span class="tag">{{ compliance.CHANNELS.get(o.channel, o.channel) }}</span>{% if o.score %}<span class="score {{ 'hi' if o.score >= 75 else 'mid' }}">{{ o.score }}</span>{% endif %}</div>
+    {% if o.lead_text %}
+      <p class="small muted">{{ o.platform }} · <strong>{{ o.handle or 'unknown' }}</strong> wrote{% if o.post_url %} (<a href="{{ o.post_url }}" target="_blank" rel="noopener">open post</a>){% endif %}:</p>
+      <div class="quote">{{ o.lead_text }}</div>
+    {% elif o.contact_name or o.contact_handle %}<p class="small muted">Reply to <strong>{{ o.contact_name or o.contact_handle }}</strong> · <a href="/inbox/{{ o.conversation_id }}">open conversation</a></p>{% endif %}
+    <p class="small muted" style="margin-top:8px">Why: {{ o.reason }}</p>
+    {% if o.error %}<p class="small" style="color:var(--bad)">Last attempt: {{ o.error }}</p>{% endif %}
+  </div>
+  <div>
+    <label for="b{{ o.id }}">Message</label>
+    <textarea id="b{{ o.id }}" name="body" data-count="c{{ o.id }}" maxlength="2000">{{ o.body }}</textarea>
+    <div class="chars" id="c{{ o.id }}"></div>
+    <div class="btns" style="margin-top:8px"><button class="btn ok" name="action" value="approve" type="submit">✓ Send</button><button class="btn bad" name="action" value="reject" type="submit">Reject</button></div>
+  </div>
+</form>
+{% else %}<div class="card empty">Nothing waiting. 🎉 The agents will queue new drafts as they find leads.</div>{% endfor %}
+<div class="card tight"><h2>Recently decided</h2><div class="table-wrap"><table><tr><th>#</th><th>Kind</th><th>Channel</th><th>Message</th><th>Status</th><th>When</th></tr>
+{% for o in recent %}<tr><td class="small">{{ o.id }}</td><td><span class="tag">{{ o.kind }}</span></td><td class="small">{{ o.channel }}</td><td class="small">{{ o.body[:160] }}{% if o.error %}<br><span style="color:var(--bad)">{{ o.error }}</span>{% endif %}</td><td><span class="tag {{ o.status }}">{{ o.status }}</span>{% if o.status == 'sent' and (o.external_id or '').startswith('sandbox') %} <span class="tag info">sandbox</span>{% endif %}{% if o.status == 'failed' %}<form method="post" action="/approvals/{{ o.id }}" class="inline">{{ csrf_field() }}<button class="btn ghost sm" name="action" value="approve">Retry</button></form>{% endif %}</td><td class="small">{{ (o.sent_at or o.decided_at or o.created_at)|ago }}</td></tr>{% else %}<tr><td colspan="6" class="empty">No history yet.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "site/base.html" %}
+{% from "site/_macros.html" import car_media, car_card, hp %}
+{% block title %}{{ v.full_title }} — {{ ('Rent from ' ~ (v.daily_rate|money) ~ '/day') if v.listing == 'rent' else (v.sale_price|money) }} · {{ s.business_name }}{% endblock %}
+{% block description %}{{ v.description }}{% endblock %}
+{% block head %}
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Car","name":{{ v.full_title|tojson }},"brand":{{ v.make|tojson }},"model":{{ v.model|tojson }},"vehicleModelDate":"{{ v.year }}","color":{{ v.color|tojson }},"seatingCapacity":{{ v.seats or 5 }}{% if v.listing == 'sale' %},"mileageFromOdometer":{"@type":"QuantitativeValue","value":{{ v.mileage or 0 }},"unitCode":"SMI"},"offers":{"@type":"Offer","price":{{ v.sale_price or 0 }},"priceCurrency":"USD","availability":"https://schema.org/{{ 'InStock' if v.status == 'available' else 'SoldOut' }}"}{% endif %}}</script>
+{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="breadcrumbs"><a href="/">Home</a> › <a href="{{ '/rentals' if v.listing == 'rent' else '/for-sale' }}">{{ 'Rentals' if v.listing == 'rent' else 'Cars for sale' }}</a> › {{ v.title }}</div>
+  <div class="detail">
+    <div>
+      <div class="gallery">
+        <div class="main" id="gallery-main">
+          <div class="badges">{% if v.listing == 'sale' %}<span class="badge brand">For sale</span>{% endif %}{% if v.sample %}<span class="badge muted">Sample listing</span>{% endif %}</div>
+          {{ car_media(v, big=True) }}
+        </div>
+        {% if v.photos|length > 1 %}
+        <div class="thumbs" id="thumbs">{% for p in v.photos %}<button type="button" class="{{ 'on' if loop.first }}" data-src="{{ p }}" aria-label="Photo {{ loop.index }}"><img src="{{ p }}" alt="" loading="lazy"></button>{% endfor %}</div>
+        {% endif %}
+      </div>
+      <h1 style="margin-top:22px;font-size:clamp(1.7rem,3.5vw,2.4rem)">{{ v.title }} <span class="muted" style="font-weight:600">{{ v.trim }}</span></h1>
+      <p class="muted">{{ v.color }}{% if v.location %} · {{ v.location }}{% endif %}</p>
+      <div class="spec-grid">
+        <div class="spec"><span>Seats</span><strong>{{ v.seats }}</strong></div>
+        <div class="spec"><span>Fuel</span><strong>{{ v.fuel }}</strong></div>
+        <div class="spec"><span>Transmission</span><strong>{{ v.transmission }}</strong></div>
+        <div class="spec"><span>{{ 'Mileage' if v.listing == 'sale' else 'Economy' }}</span><strong>{{ (v.mileage|miles) if v.listing == 'sale' else (v.mpg or '—') }}</strong></div>
+      </div>
+      <h2 style="font-size:1.3rem">About this {{ 'car' if v.body in ('sedan','coupe','convertible','hatchback') else v.body|replace('suv','SUV') }}</h2>
+      <p>{{ v.description }}</p>
+      {% if v.features %}<h2 style="font-size:1.3rem">Features</h2><ul class="features">{% for f in v.features %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+      {% if v.listing == 'rent' %}
+      <h2 style="font-size:1.3rem;margin-top:26px">What you'll need</h2>
+      <ul class="features"><li>Driver aged {{ min_age }}+ with a valid license</li><li>Card for the {{ v.deposit|money }} refundable deposit</li><li>Proof of insurance or our damage waiver</li><li>Same fuel/charge level on return</li></ul>
+      {% elif v.vin %}<p class="small muted">VIN {{ v.vin }}</p>{% endif %}
+    </div>
+
+    <aside class="panel" id="book">
+      {% if v.listing == 'rent' %}
+        <div class="price-big">{{ v.daily_rate|money }} <small>/ day</small></div>
+        {% if v.weekly_rate %}<p class="muted small">{{ v.weekly_rate|money }} / week for 7+ days</p>{% endif %}
+        {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+        {% if v.status != 'available' %}<div class="alert warn">This car isn't taking new bookings right now. <a href="/rentals?body={{ v.body }}">See similar cars</a>.</div>{% endif %}
+        <form method="post" action="/cars/{{ v.slug }}/book" id="book-form" data-car="{{ v.slug }}">
+          {{ hp() }}
+          <div class="grid2">
+            <div class="field"><label for="b-start">Pick-up</label><input type="date" id="b-start" name="start" required value="{{ start }}" min="{{ today }}"></div>
+            <div class="field"><label for="b-end">Return</label><input type="date" id="b-end" name="end" required value="{{ end }}" min="{{ today }}"></div>
+          </div>
+          <label>Extras</label>
+          <div class="extras">
+            {% for key, x in extras_catalog.items() %}
+            <label><span><input type="checkbox" name="extras" value="{{ key }}"> {{ x.label }}</span><span class="muted small">{% if x.per_day %}{{ x.per_day|money }}/day{% else %}{{ x.flat|money }}{% endif %}</span></label>
+            {% endfor %}
+          </div>
+          <div class="summary" id="quote" hidden></div>
+          <div class="grid2">
+            <div class="field"><label for="b-name">Full name</label><input id="b-name" name="name" required autocomplete="name"></div>
+            <div class="field"><label for="b-age">Driver age</label><input id="b-age" name="age" inputmode="numeric" required placeholder="{{ min_age }}+"></div>
+          </div>
+          <div class="field"><label for="b-email">Email</label><input type="email" id="b-email" name="email" required autocomplete="email"></div>
+          <div class="field"><label for="b-phone">Phone</label><input type="tel" id="b-phone" name="phone" autocomplete="tel"></div>
+          <div class="field"><label for="b-pickup">Pick-up location (optional)</label><input id="b-pickup" name="pickup" placeholder="Our lot, airport, or your address for delivery"></div>
+          <div class="field"><label class="check"><input type="checkbox" name="agree" required> I agree to the <a href="/terms" target="_blank">rental terms</a>.</label></div>
+          <button class="btn block" type="submit" {{ 'disabled' if v.status != 'available' }}>Request booking</button>
+          <p class="small muted center" style="margin:10px 0 0">No payment now. We confirm by email; pay at pickup.</p>
+        </form>
+      {% else %}
+        <div class="price-big">{{ v.sale_price|money }}</div>
+        <p class="muted small">{{ v.mileage|miles }} · {{ v.color }}</p>
+        {% if sent %}<div class="alert ok">Thanks! We'll get back to you shortly.</div>{% endif %}
+        {% if v.status == 'pending_sale' %}<div class="alert warn">Sale pending — ask to be notified if it falls through.</div>{% endif %}
+        <form method="post" action="/inquiry" id="form">
+          {{ hp() }}
+          <input type="hidden" name="car" value="{{ v.slug }}"><input type="hidden" name="back" value="/cars/{{ v.slug }}">
+          <div class="field"><label for="i-kind">I'd like to</label><select id="i-kind" name="kind"><option value="test_drive">Schedule a test drive</option><option value="buy">Ask a question / make an offer</option><option value="financing">Ask about financing</option><option value="trade_in">Trade in my car</option></select></div>
+          <div class="field"><label for="i-name">Name</label><input id="i-name" name="name" required autocomplete="name"></div>
+          <div class="grid2">
+            <div class="field"><label for="i-email">Email</label><input type="email" id="i-email" name="email" autocomplete="email"></div>
+            <div class="field"><label for="i-phone">Phone</label><input type="tel" id="i-phone" name="phone" autocomplete="tel"></div>
+          </div>
+          <div class="field"><label for="i-time">Preferred day/time</label><input id="i-time" name="preferred_time" placeholder="e.g. Saturday morning"></div>
+          <div class="field"><label for="i-msg">Message</label><textarea id="i-msg" name="message" placeholder="Anything we should know?"></textarea></div>
+          <button class="btn block" type="submit">Send</button>
+        </form>
+      {% endif %}
+    </aside>
+  </div>
+
+  {% if similar %}
+  <section style="padding-bottom:64px">
+    <div class="section-head"><h2>You might also like</h2></div>
+    <div class="cards">{% for c in similar %}{{ car_card(c) }}{% endfor %}</div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

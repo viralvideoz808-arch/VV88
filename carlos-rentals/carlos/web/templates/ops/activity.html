@@ -1,0 +1,9 @@
+{% extends "ops/base.html" %}
+{% block title %}Activity{% endblock %}
+{% block content %}
+<div class="topbar"><div><h1>Activity log</h1><p class="muted">Every send, booking, opt-out and agent run.</p></div></div>
+<div class="grid g2">
+<div class="card tight"><h2>Events</h2><div class="table-wrap"><table><tr><th>When</th><th>Who</th><th>What</th></tr>{% for e in events %}<tr><td class="small" style="white-space:nowrap">{{ e.at|ago }}</td><td class="small"><strong>{{ e.actor }}</strong></td><td class="small">{{ e.kind }}<br><span class="muted">{{ e.detail }}</span></td></tr>{% else %}<tr><td colspan="3" class="empty">Nothing yet.</td></tr>{% endfor %}</table></div></div>
+<div class="card tight"><h2>Agent runs</h2><div class="table-wrap"><table><tr><th>When</th><th>Agent</th><th>Result</th></tr>{% for r in runs %}<tr><td class="small" style="white-space:nowrap">{{ r.started_at|ago }}</td><td class="small"><span class="status-dot {{ r.status }}"></span>{{ r.agent }} <span class="muted">({{ r.trigger }})</span></td><td class="small">{{ r.summary }}</td></tr>{% else %}<tr><td colspan="3" class="empty">No runs yet.</td></tr>{% endfor %}</table></div></div>
+</div>
+{% endblock %}

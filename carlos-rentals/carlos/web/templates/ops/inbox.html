@@ -1,0 +1,12 @@
+{% extends "ops/base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<div class="topbar"><div><h1>Inbox</h1><p class="muted">Every conversation in one place: website chat, Instagram & Messenger DMs, Threads replies.</p></div></div>
+<div class="tabs">{% for k, label in [('open','Open'),('waiting','Waiting for reply'),('human','Handed to you'),('closed','Closed')] %}<a href="/inbox?f={{ k }}" class="{{ 'on' if f == k }}">{{ label }}</a>{% endfor %}</div>
+<div class="card tight"><div class="table-wrap"><table>
+<tr><th>Who</th><th>Channel</th><th>Last message</th><th>Handled by</th><th>Updated</th></tr>
+{% for c in convs %}<tr class="click"><td><a href="/inbox/{{ c.id }}"><strong>{{ c.contact_name or c.contact_handle or 'Visitor' }}</strong></a>{% if c.needs_reply %} <span class="tag warn">needs reply</span>{% endif %}{% if c.external_id.startswith('demo') %} <span class="tag info">demo</span>{% endif %}</td>
+<td class="small">{{ c.channel|replace('_', ' ') }}</td><td class="small muted">{{ (c.last_body or '')[:120] }}</td><td>{% if c.mode == 'human' %}<span class="tag human">you</span>{% else %}<span class="tag">assistant</span>{% endif %}{% if c.status != 'open' %} <span class="tag {{ c.status }}">{{ c.status }}</span>{% endif %}</td><td class="small">{{ c.updated_at|ago }}</td></tr>
+{% else %}<tr><td colspan="5" class="empty">No conversations here.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

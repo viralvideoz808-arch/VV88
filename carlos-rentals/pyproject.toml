@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carlos-rentals"
+version = "1.0.0"
+description = "CAR-LOS Rentals: the public car rental & sales website, the operations console, and the agents that find and answer customers."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "jinja2>=3.1",
+  "itsdangerous>=2.1",
+  "python-multipart>=0.0.9",
+  "requests>=2.31",
+  "anthropic>=1.0",
+  "tzdata; platform_system == 'Windows'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+carlos = "carlos.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["carlos*"]
+
+[tool.setuptools.package-data]
+"carlos.web" = ["templates/site/*.html", "templates/ops/*.html", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,9 @@
+{% extends "site/base.html" %}
+{% block title %}Not found — {{ s.business_name }}{% endblock %}
+{% block content %}
+<section class="band"><div class="wrap center">
+  <h1>We couldn't find that {{ what or 'page' }}.</h1>
+  <p class="muted">It may have been rented, sold, or moved.</p>
+  <p><a class="btn" href="/rentals">Browse rentals</a> <a class="btn ghost" href="/for-sale">Cars for sale</a></p>
+</div></section>
+{% endblock %}

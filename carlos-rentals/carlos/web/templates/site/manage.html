@@ -1,0 +1,13 @@
+{% extends "site/base.html" %}
+{% block title %}Manage your booking — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Manage your booking</h1><p>Check status, see your total, or cancel.</p></div></div>
+<div class="wrap" style="max-width:520px;padding:40px 20px 64px">
+  <form class="form-card" method="post" action="/manage">
+    {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+    <div class="field"><label for="m-ref">Booking reference</label><input id="m-ref" name="ref" placeholder="CL-XXXXXX" required></div>
+    <div class="field"><label for="m-email">Email used to book</label><input type="email" id="m-email" name="email" required></div>
+    <button class="btn block" type="submit">Find my booking</button>
+  </form>
+</div>
+{% endblock %}

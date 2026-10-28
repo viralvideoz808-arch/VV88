@@ -1,0 +1,55 @@
+{% extends "ops/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="topbar"><div><h1>Settings</h1><p class="muted">How the agents find people, how careful they are, and what the website says.</p></div></div>
+<form method="post" action="/settings">{{ csrf_field() }}
+<div class="grid g2">
+  <div class="card"><h2>Lead Scout</h2>
+    <div class="field"><label>Threads search phrases (one per line)</label><textarea name="keywords" rows="8">{{ cfg['scout.keywords']|join('\n') }}</textarea><div class="help">Phrases people actually write: "need a rental car", "looking to buy a used car"… Up to 20 are searched each run.</div></div>
+    <div class="field"><label>Instagram hashtags (one per line)</label><textarea name="hashtags" rows="4">{{ cfg['scout.hashtags']|join('\n') }}</textarea><div class="help">Meta allows 30 different hashtags per 7 days; the scout uses the first 5.</div></div>
+    <div class="field"><label>Areas you serve (one per line)</label><textarea name="locations" rows="3" placeholder="Miami&#10;Fort Lauderdale&#10;MIA airport">{{ cfg['scout.locations']|join('\n') }}</textarea><div class="help">Leads mentioning these get a higher score.</div></div>
+    <div class="field"><label>Ignore posts older than (days)</label><input name="max_age_days" type="number" min="1" max="30" value="{{ cfg['scout.max_age_days'] }}"></div>
+  </div>
+  <div class="card"><h2>Outreach rules</h2>
+    <div class="field"><label class="check"><input type="checkbox" name="outreach_approval" {{ 'checked' if cfg['outreach.require_approval'] }}> I approve every first message before it's sent (recommended)</label></div>
+    <div class="field"><label>Only reach out to leads scoring at least</label><input name="min_score" type="number" min="0" max="100" value="{{ cfg['outreach.min_score'] }}"></div>
+    <label>Daily limits (rolling 24 h)</label>
+    <div class="row">{% for ch in ['threads_reply','ig_private_reply','fb_private_reply','ig_comment_reply','fb_comment_reply'] %}<div class="field"><label class="small">{{ ch|replace('_', ' ') }}</label><input name="cap_{{ ch }}" type="number" min="0" max="500" value="{{ cfg['outreach.daily_caps'].get(ch, 10) }}"></div>{% endfor %}</div>
+    <div class="row"><div class="field"><label>Quiet hours start</label><input name="quiet_start" type="number" min="0" max="23" value="{{ cfg['outreach.quiet_hours'][0] }}"></div><div class="field"><label>Quiet hours end</label><input name="quiet_end" type="number" min="0" max="23" value="{{ cfg['outreach.quiet_hours'][1] }}"></div></div>
+    <div class="help">No new outreach between these hours ({{ s.timezone }}). Replies to people who wrote to you aren't affected.</div>
+    <h2 style="margin-top:18px">Conversations</h2>
+    <div class="field"><label class="check"><input type="checkbox" name="auto_reply" {{ 'checked' if cfg['concierge.auto_reply'] }}> Assistant answers DMs, Threads replies and website chat automatically</label></div>
+    <div class="field"><label class="check"><input type="checkbox" name="concierge_approval" {{ 'checked' if cfg['concierge.require_approval'] }}> Hold DM/Threads replies for my approval (website chat always answers instantly)</label></div>
+    <div class="field"><label>Hand to me when a message mentions (one per line)</label><textarea name="handoff" rows="4">{{ cfg['concierge.handoff_keywords']|join('\n') }}</textarea></div>
+  </div>
+  <div class="card"><h2>Website</h2>
+    <div class="field"><label>Tagline</label><input name="tagline" value="{{ cfg['site.tagline'] }}" maxlength="120"></div>
+    <div class="field"><label>Opening hours</label><input name="hours" value="{{ cfg['site.hours'] }}" maxlength="120"></div>
+    <div class="field"><label>Announcement bar (leave empty to hide)</label><input name="announcement" value="{{ cfg['site.announcement'] }}" maxlength="200" placeholder="Thanksgiving week: book early — SUVs going fast"></div>
+    <div class="field"><label class="check"><input type="checkbox" name="auto_feature" {{ 'checked' if cfg.get('fleet.auto_feature') is not false }}> Fleet agent picks the homepage's featured cars by demand</label></div>
+    <div class="field"><label class="check"><input type="checkbox" name="daily_post" {{ 'checked' if cfg.get('fleet.daily_post') is not false }}> Draft a daily "car of the day" post for our own Threads/Facebook (always needs approval)</label></div>
+    <p class="help">Business name, phone, email, address and city come from the .env file (CARLOS_BUSINESS_NAME, CARLOS_PHONE…).</p>
+  </div>
+  <div class="card"><h2>Rental rules & prices</h2>
+    <div class="row">
+      <div class="field"><label>Sales tax %</label><input name="tax_rate" inputmode="decimal" value="{{ (cfg['rental.tax_rate'] * 100)|round(3) }}"></div>
+      <div class="field"><label>Minimum age</label><input name="min_age" type="number" value="{{ cfg['rental.min_age'] }}"></div>
+      <div class="field"><label>Young driver under</label><input name="young_age" type="number" value="{{ cfg['rental.young_driver_age'] }}"></div>
+      <div class="field"><label>Young driver fee $/day</label><input name="young_fee" inputmode="decimal" value="{{ cfg['rental.young_driver_fee'] }}"></div>
+      <div class="field"><label>Max online days</label><input name="max_days" type="number" value="{{ cfg['rental.max_days'] }}"></div>
+    </div>
+    <label>Extras</label>
+    <div class="row">{% for key, x in cfg['rental.extras'].items() %}<div class="field"><label class="small">{{ x.label }} ({{ 'flat' if 'flat' in x else 'per day' }})</label><input name="extra_{{ key }}" inputmode="decimal" value="{{ x.flat if 'flat' in x else x.per_day }}"></div>{% endfor %}</div>
+  </div>
+</div>
+<button class="btn" type="submit">Save settings</button>
+</form>
+
+<div class="card" id="connections" style="margin-top:20px"><h2>Connections</h2>
+  <p class="small muted">These are set in the <span class="mono">.env</span> file (restart after changing). See <span class="mono">docs/CONNECT.md</span> for step-by-step setup with Meta and Threads.</p>
+  <table><tr><th>Service</th><th>Status</th><th>Settings</th><th>When off</th></tr>
+  {% for c in connections %}<tr><td><strong>{{ c.name }}</strong></td><td>{% if c.on %}<span class="tag ok">connected</span>{% else %}<span class="tag">not connected</span>{% endif %}</td><td class="mono small">{{ c.env }}</td><td class="small muted">{{ '' if c.on else c.off_note }}</td></tr>{% endfor %}
+  </table>
+  <p class="small" style="margin-top:12px">Meta webhook callback: <span class="mono">{{ s.site_url }}/webhooks/meta</span> · verify token: <span class="mono">META_VERIFY_TOKEN</span> in .env</p>
+</div>
+{% endblock %}

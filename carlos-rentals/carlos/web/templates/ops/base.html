@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Console{% endblock %} · CAR-LOS</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/ops.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand"><span class="mark">🚗</span><div>CAR-LOS<small>OPERATIONS</small></div></div>
+    <nav>
+      <a href="/" class="{{ 'on' if path == '/' }}">Dashboard</a>
+      <a href="/agents" class="{{ 'on' if path.startswith('/agents') }}">Agents</a>
+      <a href="/approvals" class="{{ 'on' if path.startswith('/approvals') }}">Approvals {% if counts.approvals %}<span class="count">{{ counts.approvals }}</span>{% endif %}</a>
+      <a href="/inbox" class="{{ 'on' if path.startswith('/inbox') }}">Inbox {% if counts.inbox %}<span class="count {{ 'dim' if not counts.human }}">{{ counts.inbox }}</span>{% endif %}</a>
+      <a href="/leads" class="{{ 'on' if path.startswith('/leads') }}">Leads {% if counts.leads %}<span class="count dim">{{ counts.leads }}</span>{% endif %}</a>
+      <div class="sep">Business</div>
+      <a href="/bookings" class="{{ 'on' if path.startswith('/bookings') }}">Bookings {% if counts.bookings %}<span class="count">{{ counts.bookings }}</span>{% endif %}</a>
+      <a href="/inquiries" class="{{ 'on' if path.startswith('/inquiries') }}">Inquiries {% if counts.inquiries %}<span class="count">{{ counts.inquiries }}</span>{% endif %}</a>
+      <a href="/inventory" class="{{ 'on' if path.startswith('/inventory') }}">Inventory</a>
+      <div class="sep">System</div>
+      <a href="/settings" class="{{ 'on' if path.startswith('/settings') }}">Settings</a>
+      <a href="/activity" class="{{ 'on' if path.startswith('/activity') }}">Activity log</a>
+      <a href="{{ s.site_url }}" target="_blank" rel="noopener">Open website ↗</a>
+    </nav>
+    <div class="foot">
+      {{ 'Demo mode · sandbox sends' if s.demo_mode else 'Live mode' }}<br>{{ 'Claude on' if s.llm_enabled else 'Rules mode (no Claude key)' }}
+      <form method="post" action="/logout">{{ csrf_field() }}<button type="submit">Log out</button></form>
+    </div>
+  </aside>
+  <main class="main">
+    {% if s.demo_mode %}<div class="banner info"><strong>Demo mode.</strong> No social accounts are connected yet, so the Scout reads a sample feed and every "send" lands in a sandbox — nothing reaches real people. Connect accounts in <a href="/settings#connections">Settings</a>.</div>{% endif %}
+    {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="/static/ops.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+{% extends "site/base.html" %}
+{% from "site/_macros.html" import car_card %}
+{% block content %}
+<section class="hero">
+  <div class="wrap grid">
+    <div>
+      <span class="eyebrow">Car rentals · Used car sales{% if s.city %} · {{ s.city }}{% endif %}</span>
+      {% set t = settings['site.tagline'] %}
+      <h1>{% if 'talk about' in t %}{{ t.split('talk about', 1)[0] }}<em>talk about</em>{{ t.split('talk about', 1)[1] }}{% else %}{{ t }}{% endif %}</h1>
+      <p class="lead">Daily and weekly rentals{% if cheapest %} from {{ cheapest|money }}/day{% endif %}, quality used cars with clean titles, and a fair offer on yours. No counter lines — book online in two minutes.</p>
+      <form class="search" action="/rentals" method="get" id="hero-search">
+        <div class="tabs" role="tablist">
+          <button type="button" class="on" data-mode="rent" role="tab" aria-selected="true">Rent</button>
+          <button type="button" data-mode="sale" role="tab" aria-selected="false">Buy</button>
+        </div>
+        <div class="row" data-for="rent">
+          <div><label for="s-start">Pick-up</label><input type="date" id="s-start" name="start" value="{{ tomorrow }}" min="{{ today }}"></div>
+          <div><label for="s-end">Return</label><input type="date" id="s-end" name="end" value="{{ in3 }}" min="{{ tomorrow }}"></div>
+          <div><label for="s-body">Vehicle</label><select id="s-body" name="body"><option value="">Any type</option>{% for b in ['sedan','suv','truck','van','convertible','hatchback'] %}<option value="{{ b }}">{{ b|capitalize if b != 'suv' else 'SUV' }}</option>{% endfor %}</select></div>
+          <div class="go"><button class="btn block" type="submit">Find a car</button></div>
+        </div>
+        <div class="row sale" data-for="sale" hidden>
+          <div><label for="s-max">Max price</label><select id="s-max" name="max_price" disabled><option value="">Any price</option><option>15000</option><option>20000</option><option>25000</option><option>30000</option><option>40000</option></select></div>
+          <div><label for="s-body2">Body style</label><select id="s-body2" name="body" disabled><option value="">Any</option><option value="sedan">Sedan</option><option value="suv">SUV</option><option value="truck">Truck</option></select></div>
+          <div class="go"><button class="btn block" type="submit">See cars for sale</button></div>
+        </div>
+        <input type="hidden" name="available" value="1">
+      </form>
+      <div class="trust"><span>Transparent pricing</span><span>Free cancellation 24h+ before pickup</span><span>Delivery available</span></div>
+    </div>
+    <div class="art"><div class="glow"></div>{% if rentals %}<div class="car">{{ car_svg('coupe', '#ff5a1f', 'hero') }}</div>{% endif %}</div>
+  </div>
+</section>
+
+<section class="band soft">
+  <div class="wrap">
+    <div class="section-head"><div><span class="eyebrow">Browse by type</span><h2>What are you driving this week?</h2></div></div>
+    <div class="cats">
+      {% for b in ['sedan','suv','truck','van','convertible','hatchback','coupe'] if counts[b] %}
+      <a class="cat" href="/rentals?body={{ b }}"><div class="art">{{ car_svg(b, '#2b3038', 'cat' ~ loop.index) }}</div><strong>{{ 'SUV' if b == 'suv' else b }}{{ 's' if b != 'suv' }}</strong><span>{{ counts[b] }} available</span></a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="section-head"><div><span class="eyebrow">Rent</span><h2>Popular rentals</h2></div><a class="btn ghost" href="/rentals">See all rentals</a></div>
+    <div class="cards">{% for v in rentals %}{{ car_card(v) }}{% else %}<div class="empty">New cars are being added — check back soon.</div>{% endfor %}</div>
+  </div>
+</section>
+
+<section class="band soft">
+  <div class="wrap">
+    <div class="section-head"><div><span class="eyebrow">How it works</span><h2>Keys in hand in four steps</h2></div></div>
+    <div class="steps">
+      <div class="step"><h3>Pick your car</h3><p class="muted">See the real price for your dates — taxes and extras included before you book.</p></div>
+      <div class="step"><h3>Request online</h3><p class="muted">Takes two minutes. We confirm by email, usually within the hour.</p></div>
+      <div class="step"><h3>Pick up or get it delivered</h3><p class="muted">Bring your license and a card for the refundable deposit.</p></div>
+      <div class="step"><h3>Drive & return</h3><p class="muted">Return with the same fuel level. That's it.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="section-head"><div><span class="eyebrow">Buy</span><h2>Quality used cars for sale</h2><p>Inspected, clean titles, test drives any day.</p></div><a class="btn ghost" href="/for-sale">All cars for sale</a></div>
+    <div class="cards">{% for v in sales %}{{ car_card(v) }}{% else %}<div class="empty">Inventory updates weekly.</div>{% endfor %}</div>
+  </div>
+</section>
+
+<section class="band soft">
+  <div class="wrap">
+    <div class="why">
+      <div class="item"><div class="icon">💵</div><h3>Prices you can see</h3><p>The total you see — tax, extras, fees — is what you pay. No surprise counter charges.</p></div>
+      <div class="item"><div class="icon">⚡</div><h3>Fast answers</h3><p>Chat with us any time. Our assistant answers instantly; a real person follows up on anything else.</p></div>
+      <div class="item"><div class="icon">🤝</div><h3>Local & flexible</h3><p>Delivery to your door, weekly discounts, and options for drivers 21–24.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="cta-band">
+      <div><h2>Selling or trading in your car?</h2><p>Tell us the year, make and mileage — get a no-obligation offer.</p></div>
+      <a class="btn light" href="/sell">Get my offer</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

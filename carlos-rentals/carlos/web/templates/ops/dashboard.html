@@ -1,0 +1,45 @@
+{% extends "ops/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div><h1>Today at {{ s.business_name }}</h1><p class="muted">Agents find and answer customers; you approve, confirm and hand over keys.</p></div>
+  <div class="btns">
+    <form method="post" action="/agents/run-all">{{ csrf_field() }}<button class="btn" type="submit">▶ Run all agents now</button></form>
+    <form method="post" action="/agents/pause">{{ csrf_field() }}<input type="hidden" name="back" value="/"><button class="btn ghost" type="submit">{{ '▶ Resume schedule' if paused else '⏸ Pause schedule' }}</button></form>
+  </div>
+</div>
+{% if paused %}<div class="banner bad">The agent schedule is paused. Nothing runs automatically until you resume it.</div>{% endif %}
+{% if counts.approvals or counts.human or counts.bookings %}
+<div class="grid g3" style="margin-bottom:16px">
+  {% if counts.approvals %}<a class="card" href="/approvals" style="border-color:#f3dca4;background:var(--warn-soft)"><strong>{{ counts.approvals }} message{{ 's' if counts.approvals != 1 }} waiting for your approval</strong><br><span class="small muted">Review and send →</span></a>{% endif %}
+  {% if counts.human %}<a class="card" href="/inbox?f=human" style="border-color:#c9dbf7;background:var(--info-soft)"><strong>{{ counts.human }} conversation{{ 's' if counts.human != 1 }} need you</strong><br><span class="small muted">Handed off by the assistant →</span></a>{% endif %}
+  {% if counts.bookings %}<a class="card" href="/bookings?status=pending" style="border-color:#bfe6d1;background:var(--ok-soft)"><strong>{{ counts.bookings }} booking request{{ 's' if counts.bookings != 1 }} to confirm</strong><br><span class="small muted">Confirm or decline →</span></a>{% endif %}
+</div>
+{% endif %}
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="kpi"><span>Leads found · 7d</span><strong>{{ kpi.leads_7d }}</strong><small>{{ kpi.qualified_7d }} qualified</small></div>
+  <div class="kpi"><span>Reached out · 7d</span><strong>{{ kpi.contacted_7d }}</strong><small>{{ kpi.converted }} converted all-time</small></div>
+  <div class="kpi"><span>Bookings · 30d</span><strong>{{ kpi.bookings_30d }}</strong><small>{{ kpi.on_rent }} on rent now</small></div>
+  <div class="kpi"><span>Rental revenue · 30d</span><strong>{{ kpi.revenue_30d|money }}</strong><small>{{ kpi.fleet }} rentals · {{ kpi.for_sale }} for sale · {{ kpi.views_7d }} page views/7d</small></div>
+</div>
+<div class="grid g21">
+  <div>
+    <div class="card tight"><h2>Agents</h2>
+      <div class="table-wrap"><table><tr><th>Agent</th><th>Last run</th><th>Result</th><th></th></tr>
+      {% for name, r in runs.items() %}<tr><td><strong>{{ agents[name].title }}</strong></td><td class="small">{% if r %}<span class="status-dot {{ r.status }}"></span>{{ r.started_at|ago }}{% else %}<span class="muted">never</span>{% endif %}</td><td class="small">{{ r.summary if r else '' }}</td>
+      <td><form method="post" action="/agents/{{ name }}/run">{{ csrf_field() }}<button class="btn ghost sm" type="submit">Run</button></form></td></tr>{% endfor %}
+      </table></div>
+    </div>
+    <div class="card tight"><h2>Hottest leads</h2>
+      <div class="table-wrap"><table>{% for l in hot %}<tr class="click"><td><span class="score {{ 'hi' if l.score >= 75 else 'mid' if l.score >= 55 }}">{{ l.score }}</span></td><td><a href="/leads/{{ l.id }}"><strong>{{ l.handle or 'unknown' }}</strong></a> <span class="tag">{{ l.platform }}</span> <span class="tag brand">{{ l.intent }}</span><br><span class="small muted">{{ l.text[:140] }}</span></td><td><span class="tag {{ l.status }}">{{ l.status }}</span></td></tr>{% else %}<tr><td class="empty">No leads yet — run the Lead Scout.</td></tr>{% endfor %}</table></div>
+    </div>
+  </div>
+  <div>
+    <div class="card"><h2>Lead funnel</h2><div class="funnel">{% set top = funnel[0][1] or 1 %}{% for label, n in funnel %}<div class="bar"><span>{{ label }}</span><div class="track"><div class="fill" style="width:{{ (100 * n / top)|round(0) }}%"></div></div><strong>{{ n }}</strong></div>{% endfor %}</div></div>
+    <div class="card"><h2>Upcoming pickups</h2>{% for b in pickups %}<p><a href="/bookings/{{ b.ref }}">{{ b.ref }}</a> · {{ b.car }} · {{ b.start_date|nicedate }} <span class="tag {{ b.status }}">{{ b.status }}</span><br><span class="small muted">{{ b.name }}</span></p>{% else %}<p class="muted">None scheduled.</p>{% endfor %}
+      {% if returns %}<h3 style="margin-top:12px">Out on rent</h3>{% for b in returns %}<p class="small"><a href="/bookings/{{ b.ref }}">{{ b.ref }}</a> · {{ b.car }} · due {{ b.end_date|nicedate }}</p>{% endfor %}{% endif %}</div>
+    {% if issues %}<div class="card"><h2>Listings to fix ({{ issues|length }})</h2>{% for i in issues[:6] %}<p class="small"><a href="/inventory/{{ i.id }}">{{ i.title }}</a> — {{ i.problems|join(', ') }}</p>{% endfor %}{% if issues|length > 6 %}<a class="small" href="/inventory">See all →</a>{% endif %}</div>{% endif %}
+    <div class="card"><h2>Recent activity</h2>{% for e in events %}<p class="small"><span class="muted">{{ e.at|ago }}</span> · <strong>{{ e.actor }}</strong> {{ e.kind }} <span class="muted">{{ e.detail[:90] }}</span></p>{% endfor %}<a class="small" href="/activity">Full log →</a></div>
+  </div>
+</div>
+{% endblock %}

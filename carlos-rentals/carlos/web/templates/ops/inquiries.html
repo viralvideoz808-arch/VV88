@@ -1,0 +1,13 @@
+{% extends "ops/base.html" %}
+{% block title %}Inquiries{% endblock %}
+{% block content %}
+<div class="topbar"><div><h1>Inquiries</h1><p class="muted">Test drives, purchase questions, financing requests, trade-ins and "sell my car" offers. The Follow-up agent emails each person once after 24 hours if you haven't moved it on.</p></div></div>
+<div class="card tight"><div class="table-wrap"><table>
+<tr><th>#</th><th>Type</th><th>Who</th><th>About</th><th>Message & details</th><th>Status</th></tr>
+{% for i in rows %}<tr><td class="small">{{ i.id }}<br><span class="muted">{{ i.created_at|ago }}</span></td><td><span class="tag brand">{{ i.kind|replace('_', ' ') }}</span></td><td><strong>{{ i.name }}</strong><br><span class="small">{% if i.email %}<a href="mailto:{{ i.email }}">{{ i.email }}</a>{% endif %} {% if i.phone %}<a href="tel:{{ i.phone }}">{{ i.phone }}</a>{% endif %}</span><br><span class="small muted">{{ i.source }}{% if i.lead_id %} · <a href="/leads/{{ i.lead_id }}">lead</a>{% endif %}</span></td>
+<td class="small">{% if i.car %}<a href="{{ s.site_url }}/cars/{{ i.slug }}" target="_blank" rel="noopener">{{ i.car }}</a>{% endif %}</td>
+<td class="small">{{ i.message[:300] }}{% if i.details %}<br>{% for k, v in i.details.items() %}<span class="tag">{{ k|replace('_', ' ') }}: {{ v }}</span> {% endfor %}{% endif %}</td>
+<td><form method="post" action="/inquiries/{{ i.id }}">{{ csrf_field() }}<select name="status" data-autosubmit>{% for st in ['new','in_progress','won','lost','closed'] %}<option value="{{ st }}" {{ 'selected' if i.status == st }}>{{ st|replace('_', ' ') }}</option>{% endfor %}</select><noscript><button class="btn ghost sm">Save</button></noscript></form></td></tr>
+{% else %}<tr><td colspan="6" class="empty">No inquiries yet.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

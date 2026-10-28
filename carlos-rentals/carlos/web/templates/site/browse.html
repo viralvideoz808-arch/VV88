@@ -1,0 +1,36 @@
+{% extends "site/base.html" %}
+{% from "site/_macros.html" import car_card %}
+{% block title %}{{ 'Rent a car' if listing == 'rent' else 'Used cars for sale' }}{% if s.city %} in {{ s.city }}{% endif %} — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap">
+  <h1>{{ 'Rent a car' if listing == 'rent' else 'Cars for sale' }}{% if body %} · {{ 'SUVs' if body == 'suv' else body|capitalize ~ 's' }}{% endif %}</h1>
+  <p>{{ cars|length }} {{ 'vehicle' if cars|length == 1 else 'vehicles' }}{% if listing == 'rent' %} · daily & weekly rates · weekly rate kicks in at 7 days{% else %} · clean titles · test drives any day{% endif %}</p>
+</div></div>
+<div class="wrap browse">
+  <form class="filters" method="get">
+    <h3>Filter</h3>
+    {% if listing == 'rent' %}
+    <div class="field"><label for="f-start">Pick-up</label><input type="date" id="f-start" name="start" value="{{ start }}"></div>
+    <div class="field"><label for="f-end">Return</label><input type="date" id="f-end" name="end" value="{{ end }}"></div>
+    <div class="field"><label class="check"><input type="checkbox" name="available" value="1" {{ 'checked' if qp.get('available') == '1' }}> Only show cars free on these dates</label></div>
+    {% endif %}
+    <div class="field"><label for="f-q">Search</label><input id="f-q" name="q" value="{{ qp.get('q', '') }}" placeholder="Make or model"></div>
+    <div class="field"><label for="f-body">Type</label><select id="f-body" name="body"><option value="">Any type</option>{% for b in body_types %}<option value="{{ b }}" {{ 'selected' if b == body }}>{{ 'SUV' if b == 'suv' else b|capitalize }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-seats">Seats</label><select id="f-seats" name="seats"><option value="">Any</option>{% for n in [4,5,7,8] %}<option value="{{ n }}" {{ 'selected' if qp.get('seats') == n|string }}>{{ n }}+</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-max">{{ 'Max per day' if listing == 'rent' else 'Max price' }}</label><input id="f-max" name="max_price" inputmode="numeric" value="{{ qp.get('max_price', '') }}" placeholder="{{ '100' if listing == 'rent' else '25000' }}"></div>
+    <div class="field"><label for="f-sort">Sort</label><select id="f-sort" name="sort">{% for k, label in [('featured','Most popular'),('price_low','Price: low to high'),('price_high','Price: high to low'),('newest','Newest')] %}<option value="{{ k }}" {{ 'selected' if qp.get('sort', 'featured') == k }}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="btn block" type="submit">Apply</button>
+    <p class="small center" style="margin-top:10px"><a href="{{ path }}">Clear filters</a></p>
+  </form>
+  <div>
+    {% if date_error %}<div class="alert bad">{{ date_error }}</div>{% endif %}
+    <div class="pills" style="margin-bottom:18px">
+      <a class="pill {{ 'on' if not body }}" href="{{ path }}">All</a>
+      {% for b in body_types %}<a class="pill {{ 'on' if b == body }}" href="{{ path }}?body={{ b }}{% if start %}&start={{ start }}&end={{ end }}{% endif %}">{{ 'SUV' if b == 'suv' else b }}</a>{% endfor %}
+    </div>
+    <div class="cards">
+      {% for v in cars %}{{ car_card(v, quotes.get(v.id), start, end) }}{% else %}<div class="empty" style="grid-column:1/-1">No cars match these filters. <a href="{{ path }}">See everything</a> or <a href="/contact">ask us</a> — we may have something coming in.</div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

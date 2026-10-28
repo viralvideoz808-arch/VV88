@@ -1,0 +1,26 @@
+{% extends "site/base.html" %}
+{% block title %}Financing request — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Financing request</h1><p>Tell us what you're looking for and we'll come back with options.</p></div></div>
+<div class="wrap two-col">
+  <div>
+    <h2>Simple and private</h2>
+    <p class="muted">This form doesn't run a credit check and doesn't ask for your SSN. We use it to understand your budget and reach out with options. Any formal application happens later, directly and securely, and only if you choose to go ahead.</p>
+    <ul class="features" style="grid-template-columns:1fr"><li>Self-reported credit range is fine</li><li>Trade-ins can go toward your down payment</li><li>No obligation</li></ul>
+  </div>
+  <form class="form-card" method="post" action="/inquiry" id="form">
+    {% if sent %}<div class="alert ok">Thanks! We'll be in touch with options soon.</div>{% endif %}
+    {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+    <input type="hidden" name="kind" value="financing"><input type="hidden" name="back" value="/financing">
+    <div class="field"><label for="car">Car you're interested in</label><select id="car" name="car"><option value="">Not sure yet</option>{% for c in sale_cars %}<option value="{{ c.slug }}" {{ 'selected' if car and car.id == c.id }}>{{ c.full_title }} — {{ c.sale_price|money }}</option>{% endfor %}</select></div>
+    <div class="grid2">
+      <div class="field"><label for="dp">Down payment</label><select id="dp" name="down_payment"><option>$0–$1,000</option><option>$1,000–$3,000</option><option>$3,000–$5,000</option><option>$5,000+</option></select></div>
+      <div class="field"><label for="cr">Credit (your estimate)</label><select id="cr" name="credit"><option>Excellent (720+)</option><option>Good (660–719)</option><option>Fair (600–659)</option><option>Rebuilding (&lt;600)</option><option>Not sure</option></select></div>
+    </div>
+    <div class="field"><label for="em">Employment</label><select id="em" name="employment"><option>Full-time</option><option>Part-time</option><option>Self-employed</option><option>Retired</option><option>Other</option></select></div>
+    {% include "site/_contact_fields.html" %}
+    <div class="field"><label for="msg">Questions?</label><textarea id="msg" name="message"></textarea></div>
+    <button class="btn block" type="submit">Send request</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "site/base.html" %}
+{% block title %}Sell or trade in your car{% if s.city %} in {{ s.city }}{% endif %} — {{ s.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="wrap"><h1>Sell or trade in your car</h1><p>A fair, no-obligation offer — usually within one business day.</p></div></div>
+<div class="wrap two-col">
+  <div>
+    <h2>How it works</h2>
+    <div class="steps" style="grid-template-columns:1fr">
+      <div class="step"><h3>Tell us about your car</h3><p class="muted">Year, make, model, mileage and condition. Photos help — you can text or email them after.</p></div>
+      <div class="step"><h3>Get your offer</h3><p class="muted">We review the market value and send a written offer.</p></div>
+      <div class="step"><h3>Get paid or trade up</h3><p class="muted">Accept the offer and we handle the paperwork — or put it toward a car from our lot.</p></div>
+    </div>
+  </div>
+  <form class="form-card" method="post" action="/inquiry" id="form">
+    {% if sent %}<div class="alert ok">Thanks! We'll review your car and get back to you with an offer.</div>{% endif %}
+    {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+    <input type="hidden" name="back" value="/sell">
+    <div class="field"><label for="k">I want to</label><select id="k" name="kind"><option value="sell">Sell my car</option><option value="trade_in">Trade it in toward another car</option></select></div>
+    <div class="grid3">
+      <div class="field"><label for="y">Year</label><input id="y" name="year" inputmode="numeric" required></div>
+      <div class="field"><label for="mk">Make</label><input id="mk" name="make" required></div>
+      <div class="field"><label for="md">Model</label><input id="md" name="model" required></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="mi">Mileage</label><input id="mi" name="mileage" inputmode="numeric" required></div>
+      <div class="field"><label for="cd">Condition</label><select id="cd" name="condition"><option>Excellent</option><option selected>Good</option><option>Fair</option><option>Needs work</option></select></div>
+    </div>
+    <div class="field"><label for="vin">VIN (optional)</label><input id="vin" name="vin" maxlength="17"></div>
+    {% include "site/_contact_fields.html" %}
+    <div class="field"><label for="msg">Anything else?</label><textarea id="msg" name="message" placeholder="Accidents, upgrades, loan payoff…"></textarea></div>
+    <button class="btn block" type="submit">Get my offer</button>
+  </form>
+</div>
+{% endblock %}

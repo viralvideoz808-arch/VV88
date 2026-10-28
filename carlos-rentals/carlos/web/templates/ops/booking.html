@@ -1,0 +1,27 @@
+{% extends "ops/base.html" %}
+{% block title %}Booking {{ b.ref }}{% endblock %}
+{% block content %}
+<div class="topbar"><div><p class="small"><a href="/bookings">← Bookings</a></p><h1 class="mono">{{ b.ref }} <span class="tag {{ b.status }}">{{ b.status }}</span></h1><p class="muted">{{ b.vehicle.full_title }} · created {{ b.created_at|ago }} via {{ b.source }}</p></div>
+  <a class="btn ghost" href="{{ s.site_url }}/booking/{{ b.ref }}" target="_blank" rel="noopener">Customer view ↗</a></div>
+<div class="grid g2">
+  <div class="card"><h2>Customer</h2><p><strong>{{ b.name }}</strong><br><a href="mailto:{{ b.email }}">{{ b.email }}</a>{% if b.phone %}<br><a href="tel:{{ b.phone }}">{{ b.phone }}</a>{% endif %}{% if b.driver_age %}<br>Driver age {{ b.driver_age }}{% endif %}</p>
+    {% if lead %}<p class="small">Came from <a href="/leads/{{ lead.id }}">{{ lead.platform }} lead {{ lead.handle }}</a> ✓</p>{% endif %}
+    <h2 style="margin-top:16px">Trip</h2><p>{{ b.start_date|nicedate }} → {{ b.end_date|nicedate }} ({{ b.days }} days){% if b.pickup %}<br>Pickup: {{ b.pickup }}{% endif %}</p>
+    {% if b.extras %}<p class="small">Extras: {% for e in b.extras %}<span class="tag">{{ extras[e].label if e in extras else e }}</span> {% endfor %}</p>{% endif %}
+  </div>
+  <div class="card"><h2>Price</h2><table>
+    <tr><td>Rental</td><td>{{ b.subtotal|money }}</td></tr><tr><td>Extras</td><td>{{ b.extras_total|money }}</td></tr><tr><td>Young driver fee</td><td>{{ b.fees|money }}</td></tr><tr><td>Tax</td><td>{{ b.tax|money }}</td></tr><tr><td><strong>Total</strong></td><td><strong>{{ b.total|money }}</strong></td></tr><tr><td class="muted">Deposit at pickup</td><td class="muted">{{ b.deposit|money }}</td></tr></table></div>
+</div>
+<form class="card" method="post" action="/bookings/{{ b.ref }}">{{ csrf_field() }}
+  <h2>Update</h2>
+  <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes">{{ b.notes }}</textarea></div>
+  <div class="btns">
+    {% if b.status == 'pending' %}<button class="btn ok" name="status" value="confirmed">✓ Confirm booking</button>{% endif %}
+    {% if b.status == 'confirmed' %}<button class="btn dark" name="status" value="active">Mark picked up</button>{% endif %}
+    {% if b.status == 'active' %}<button class="btn ok" name="status" value="completed">Mark returned</button>{% endif %}
+    {% if b.status in ('pending', 'confirmed') %}<button class="btn bad" name="status" value="cancelled" data-confirm="Cancel this booking?">Cancel booking</button>{% endif %}
+    <button class="btn ghost" name="status" value="">Save notes</button>
+  </div>
+  <p class="help">Checklist at pickup: license matches name, card in renter's name, deposit authorised, insurance or damage waiver, photos of the car, fuel level noted.</p>
+</form>
+{% endblock %}
