@@ -139,13 +139,66 @@ Serial Launcher Profiler · Rugcheck Risk Scorer · Exit Liquidity Guard · Rug 
 Transaction Velocity Tracker · Trend Acceleration Engine · Holder Growth Monitor · Whale Flow Tracker
 
 **Market structure:** Bonding Curve Analyst · Market Cap Positioner · Launch Timing Agent ·
-Volatility Risk Agent · Entry Timing Agent
+Volatility Risk Agent · Entry Timing Agent · Cost Hurdle Agent
 
-**Narrative & social:** Social Presence Verifier · Metadata Quality Inspector · Narrative & Meta Detector ·
-Copycat Detector · DexScreener Attention Agent
+**Narrative & social:** Social & Marketing Verifier · Metadata Quality Inspector · Narrative & Meta Detector ·
+Copycat Detector
 
 Each agent votes BUY, HOLD, AVOID or ABSTAIN, and gives a one-line reason. Every vote is shown in the dashboard.
 An agent abstains when it lacks data; it never guesses.
+
+The browser version differs from the Python server in two places:
+- The **Cost Hurdle Agent** replaced the DexScreener Attention Agent in the browser version. Paid DexScreener
+  marketing now counts inside the Social & Marketing Verifier.
+- The browser version's agents read the **on-chain flow** below. The Python server still uses DexScreener data only.
+
+### On-chain flow (browser version)
+
+Every 2 seconds the page reads the exact bonding-curve account of young coins, strong candidates, live signals and
+held positions. From that it knows, exactly:
+- the price at each read;
+- the net SOL that entered or left the curve;
+- the change since the exact launch price (30 SOL / 1.073B tokens), even for a coin seconds old.
+
+Twelve agents use this feed when it is fresh, and fall back to DexScreener otherwise. A coin can therefore be judged
+before DexScreener has indexed it.
+
+Free RPC limits (measured): PublicNode allows 10 accounts per call and about 2 calls per second, so the default
+watches up to 40 coins. The poller shrinks that number when it is rate limited and grows it back afterwards. Paste
+your own RPC URL (for example a free Helius key) in the demo-account settings to watch up to 300 coins.
+
+### How the entry rules were tuned
+
+I recorded the exact bonding-curve state of live pump.fun launches every 2 seconds, plus active curve coins found on
+DexScreener (266 coins in the design set). I then simulated $10-account trades on them, using:
+- a $3 position (0.03 SOL), entering about 2 seconds after the decision;
+- exact curve math, 1.25% pump.fun fees each way, and network fees;
+- the demo exit plan: stop −15%, sell half at +20%, the rest at +40%, a 10-minute limit, and the break-even and
+  trailing rules.
+
+| Rule | Trades | Avg per trade (0.0005 SOL priority) | Avg per trade (0.0001 SOL priority) | Win rate |
+|---|---|---|---|---|
+| Buy every coin at first look | 266 | −6.5% | −3.7% | 11% |
+| First-draft sniper rules (pullback/breakout + momentum + inflow) | 8 | −23.5% | – | 0% |
+| Pullback/breakout timing alone | 82 | −8.8% | −5.8% | 26% |
+| **Current rules** (stage 5–20 SOL, safe, no chase, not deteriorating) | 14 | +0.4% | +3.6% (90% CI −7%…+15%) | 57% |
+
+What the data showed, and what changed because of it:
+- **Sniping the first moments is the worst entry.** Odds of +20% before −15% within 10 minutes were 14% at 0.5–2 SOL
+  in the curve, 34% at 2–5 SOL and 50% at 5–10 SOL. The Bonding Curve and Market Cap agents now vote by stage:
+  AVOID below 2 SOL, prefer 5–20 SOL.
+- **Demanding rising momentum selects chase entries.** The flow agents (momentum, volume, buy pressure,
+  acceleration, velocity) now only object when a coin is clearly deteriorating. Entry Timing only refuses vertical
+  candles and drawdowns over 30%.
+- **Network fees dominate at $10.** A 0.0005 SOL priority fee is 3.4% of a 0.03 SOL round trip. The default is now
+  0.0001 SOL; raise it in the settings if your transactions need to land faster.
+
+**Honest bottom line:** none of these rules has a statistically proven edge. The best version is roughly break-even
+in this sample, and the confidence interval spans losses. Pump.fun conditions change hour to hour. Treat the demo
+account's measured track record as the only real evidence, and re-run the research when it disagrees.
+
+The research scripts are in `research/`. `collect.py` records curves, `analyze.py` runs the rule search and the
+train/test split, and `analyze2.py` produces the robust statistics and the out-of-sample check.
 
 ### When does a signal fire?
 
