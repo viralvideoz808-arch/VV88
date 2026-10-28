@@ -11,10 +11,11 @@
 // Stop aborts them all.
 
 import {
-  AGENTS, AGENTS_BY_ID, AVOID, MarketContext, Token, buildSignal, compareRank,
+  AGENTS, AGENTS_BY_ID, AVOID, MarketContext, Token, buildSignal, chainView, compareRank, currentMcap,
   curveProgressFromMcapSol, defaultRules, runCouncil, scoreOutcome,
 } from "./core.js";
-import { PaperAccount } from "./paper.js";
+import { CurveWatch } from "./flow.js";
+import { ChainReader, DEFAULT_RPC, PaperAccount } from "./paper.js";
 import {
   Http, applyRugReport, parseCreateEvent, parseDexPair, parseMetadata, parseRugReport,
   parseTradeEvent, pickPair, pumpportalStream, sleep,
@@ -88,6 +89,9 @@ export class Engine {
         this.addToken(new Token({ mint: p.mint, name: p.name, symbol: p.symbol, pair_address: p.curve, pool_address: p.pool, migrated: p.migrated }));
       }
       loops.push(this.paperLoop(signal));
+      const custom = this.paper.settings.rpcUrl !== DEFAULT_RPC;
+      this.curveWatch = new CurveWatch(new ChainReader(this.paper.settings.rpcUrl), { batch: custom ? 100 : 10 });
+      loops.push(this.curveLoop(signal));
     }
     this.started_at = this.clock();
     for (const p of loops) {
@@ -234,7 +238,7 @@ export class Engine {
   async deepLoop(signal) {
     while (!signal.aborted) {
       let now = this.clock();
-      const cands = [...this.tokens.values()].filter((t) => t.snap && !t.vetoed && t.buy_votes >= 11
+      const cands = [...this.tokens.values()].filter((t) => (t.snap || (t.chain && t.chain.length)) && !t.vetoed && t.buy_votes >= 11
         && now - t.rug_attempt > 60 && (!t.rug || now - t.rug.fetched_at > 180));
       cands.sort((a, b) => ((!b.rug) - (!a.rug)) || (b.buy_votes - a.buy_votes) || (b.conviction - a.conviction));
       if (!cands.length) { await sleep(1000, signal); continue; }
@@ -250,6 +254,48 @@ export class Engine {
       const err = this.http.errors.rugcheck;
       this.status.rugcheck = err ? `error: ${err}` : "ok";
     }
+  }
+
+  // ------------------------------------------------------------ on-chain flow
+
+  // Coins whose bonding curve is read every ~2 s: young launches, strong candidates, live signals, held positions.
+  chainTargets(now) {
+    const held = new Set(this.paperPositions().map((p) => p.mint));
+    const pick = [];
+    for (const t of this.tokens.values()) {
+      if (t.migrated || !t.pair_address || t.chain_dead) continue;
+      const age = t.ageMin(now);
+      const prio = held.has(t.mint) || this.isSignalLive(t.mint) ? 3 : t.buy_votes >= 10 && !t.vetoed ? 2 : age < 15 ? 1 : 0;
+      if (prio) pick.push([prio, -age, t]);
+    }
+    pick.sort((a, b) => (b[0] - a[0]) || (b[1] - a[1]));
+    return pick.slice(0, this.curveWatch ? this.curveWatch.capacity : 300).map((x) => x[2]);
+  }
+
+  async curveLoop(signal) {
+    while (!signal.aborted) {
+      const t0 = performance.now();
+      const now = this.clock();
+      await this.curveWatch.poll(this.chainTargets(now), () => this.clock());
+      // Most launches never get going: after 4 minutes with under 0.3 SOL in the curve, stop watching them.
+      for (const t of this.tokens.values()) {
+        if (!t.chain || t.chain_dead || t.ageMin(now) < 4) continue;
+        const v = chainView(t, now);
+        if (v && v.realSol < 0.3) t.chain_dead = true;
+      }
+      const w = this.curveWatch;
+      this.status["solana rpc"] = w.errors && w.lastError ? `${w.watched} curves, last error: ${w.lastError}` : `ok (${w.watched} curves every 2s)`;
+      await sleep(Math.max(500, 2000 - (performance.now() - t0)), signal);
+    }
+  }
+
+  // The size the demo account would trade right now (what the Cost Hurdle agent prices against).
+  tradeSize() {
+    const P = this.paper;
+    if (!P) return null;
+    const network = Number(P.networkFee()) / 1e9;
+    let free = P.acct ? Number(P.freeLamports()) / 1e9 : (this.ctx.sol_usd > 0 ? 10 / this.ctx.sol_usd : 0.1);
+    return { size_sol: Math.max(free * P.settings.sizePct / 100, 0.001), network_fee_sol: network };
   }
 
   paperPositions() { return this.paper && this.paper.acct ? Object.values(this.paper.acct.positions) : []; }
@@ -299,15 +345,16 @@ export class Engine {
     ctx.symbol_index = new Map();
     for (const tok of this.tokens.values()) if (tok.symbol) ctx.indexSymbol(tok);
     ctx.refreshHotWords();
+    ctx.trade = this.tradeSize();
     const tally = Object.fromEntries(AGENTS.map((a) => [a.id, {}]));
     const fresh = [];
     for (const tok of [...this.tokens.values()]) {
-      if (!tok.snapshots.length) continue;
+      if (!tok.snapshots.length && !chainView(tok, now)) continue; // needs DexScreener data or a fresh on-chain series
       const verdict = runCouncil(tok, ctx, this.rules);
       this.analyzed.add(tok.mint);
       for (const v of verdict.votes) tally[v.agent][v.stance] = (tally[v.agent][v.stance] || 0) + 1;
       if (verdict.is_signal && this.cooldownOk(tok, now)) {
-        const sig = buildSignal(tok, verdict, this.rules, now);
+        const sig = buildSignal(tok, verdict, this.rules, now, ctx);
         tok.signaled_at = now;
         this.signals.push(sig);
         fresh.push(sig);
@@ -344,8 +391,8 @@ export class Engine {
         continue;
       }
       if (!tok || state !== "active") continue;
-      const s = tok.snap;
-      if (s && s.mcap_usd > sig.max_entry_mcap_usd) {
+      const mcapNow = currentMcap(sig, tok);
+      if (mcapNow != null && mcapNow > sig.max_entry_mcap_usd) {
         sig.state = "void";
         sig.state_reason = "price ran past the max entry; do not chase";
         changed = true;
@@ -381,7 +428,8 @@ export class Engine {
     for (const [m, t] of [...this.tokens]) {
       if (live.has(m)) continue;
       const age = t.ageMin(now), s = t.snap;
-      if ((!s && age > 25 && t.dex_misses >= 3)
+      if ((!s && t.chain_dead)
+        || (!s && age > 25 && t.dex_misses >= 3)
         || (s && age > 30 && s.buys_m5 + s.sells_m5 < 5)
         || (s && age > 20 && s.mcap_usd < 4500 && !t.migrated)) {
         this.tokens.delete(m);
@@ -419,17 +467,20 @@ export class Engine {
 
   coinRow(t, now) {
     const s = t.snap;
+    const cv = !t.migrated ? chainView(t, now) : null;
     let progress = null;
-    if (s && !t.migrated && this.ctx.sol_usd > 0) progress = Math.round(100 * curveProgressFromMcapSol(s.mcap_usd / this.ctx.sol_usd));
+    if (cv) progress = Math.round(100 * cv.progress);
+    else if (s && !t.migrated && this.ctx.sol_usd > 0) progress = Math.round(100 * curveProgressFromMcapSol(s.mcap_usd / this.ctx.sol_usd));
     const vetoes = t.last_votes.filter((v) => v.stance === AVOID && AGENTS_BY_ID[v.agent].veto).map((v) => v.reason);
     return {
       mint: t.mint, name: t.name, symbol: t.symbol, image: t.image,
-      mcap: s ? s.mcap_usd : null, change_m5: s ? s.change_m5 : null,
+      mcap: s ? s.mcap_usd : (cv && this.ctx.sol_usd > 0 ? cv.price * 1e9 * this.ctx.sol_usd : null),
+      change_m5: s ? s.change_m5 : (cv && cv.change(300) != null ? cv.change(300) * 100 : null),
       buys_m5: s ? s.buys_m5 : null, sells_m5: s ? s.sells_m5 : null, vol_m5: s ? s.vol_m5 : null,
       age_min: Math.round(t.ageMin(now) * 10) / 10, curve_pct: progress, migrated: t.migrated,
       buy_votes: t.buy_votes, avoid_votes: t.avoid_votes, vetoed: t.vetoed,
       conviction: Math.round(t.conviction * 10) / 10, veto_reason: vetoes[0] || "",
-      deep_checked: t.rug != null, votes: t.last_votes,
+      deep_checked: t.rug != null, votes: t.last_votes, on_chain: !t.migrated && chainView(t, now) != null,
     };
   }
 
@@ -442,9 +493,10 @@ export class Engine {
       if (["active", "void", "cancelled"].includes(sig.state || "active") && now < sig.expires) {
         active = { ...sig, state: sig.state || "active", remaining_s: Math.max(0, Math.floor(sig.expires - now)) };
         const tok = this.tokens.get(sig.mint);
-        if (tok && tok.snap) {
-          active.now_mcap_usd = tok.snap.mcap_usd;
-          active.since_entry_pct = Math.round((tok.snap.mcap_usd / sig.entry_mcap_usd - 1) * 1000) / 10;
+        const mcapNow = tok ? currentMcap(sig, tok) : null;
+        if (mcapNow != null) {
+          active.now_mcap_usd = mcapNow;
+          active.since_entry_pct = Math.round((mcapNow / sig.entry_mcap_usd - 1) * 1000) / 10;
         }
         break;
       }
@@ -459,6 +511,7 @@ export class Engine {
       stats: {
         watched: this.tokens.size,
         with_market_data: [...this.tokens.values()].filter((t) => t.snapshots.length).length,
+        chain_watched: this.curveWatch ? this.curveWatch.watched : 0,
         deep_checked: [...this.tokens.values()].filter((t) => t.rug).length,
         analyzed_total: this.analyzed.size,
         launches_seen: this.launches_seen,

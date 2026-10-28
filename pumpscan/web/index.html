@@ -138,6 +138,8 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 10px
         <label>Max positions <input type="number" id="ps_maxPositions" min="1" max="10" step="1"></label>
         <label>Time stop <input type="number" id="ps_maxHoldMin" min="1" max="1440" step="1"> min</label>
         <label><input type="checkbox" id="ps_exitOnVeto"> Sell on safety veto</label>
+        <label><input type="checkbox" id="ps_breakevenAfterTp1"> After TP1, stop at break-even</label>
+        <label>After TP1, trail <input type="number" id="ps_trailAfterTp1Pct" min="5" max="90" step="1"> % from peak</label>
         <label><input type="checkbox" id="ps_closeAccounts"> Close token account on exit (refund rent)</label>
         <label style="flex-basis:100%">Solana RPC <input type="url" id="ps_rpcUrl" style="flex:1;min-width:0"></label>
         <button id="ps_save">Save settings</button>

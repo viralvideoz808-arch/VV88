@@ -28,6 +28,8 @@ export const WSOL_MINT = "So11111111111111111111111111111111111111112";
 // request that carries a browser Origin header, so a web page cannot use it.
 export const DEFAULT_RPC = "https://solana-rpc.publicnode.com";
 export const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com", "https://solana-mainnet.gateway.tatum.io"];
+// Free-tier limits measured 2026-10-28: PublicNode allows 10 accounts per getMultipleAccounts call and sustained
+// ~4 calls/s; Tatum allows 100 accounts per call but only 5 calls per minute, so it is a fallback only.
 const BROWSER_BLOCKED_RPCS = new Set(["https://api.mainnet-beta.solana.com"]);
 
 export const LAMPORTS_PER_SOL = 1_000_000_000n;
@@ -274,6 +276,8 @@ export const DEFAULT_SETTINGS = {
   maxPositions: 3,
   maxHoldMin: 30,        // time stop
   exitOnVeto: true,      // sell when a safety agent turns to AVOID
+  trailAfterTp1Pct: 25,  // after take-profit 1: sell the rest if price falls this far from its peak...
+  breakevenAfterTp1: true, // ...or back to the entry price (the first half already banked the profit)
   closeAccounts: true,   // close the token account on full exit (refunds its rent)
   rpcUrl: DEFAULT_RPC,
 };
@@ -558,8 +562,12 @@ export class PaperAccount {
       if (!spot) continue;
       const chg = (spot / pos.entry_spot - 1) * 100;
       const held = (now - pos.opened) / 60;
+      pos.peak_spot = Math.max(pos.peak_spot || pos.entry_spot, spot);
+      const fromPeak = (spot / pos.peak_spot - 1) * 100;
       let action = null;
       if (chg <= pos.plan.sl) action = [1, `stop loss (${chg.toFixed(1)}%)`];
+      else if (pos.tp1_done && this.settings.breakevenAfterTp1 && chg <= 0) action = [1, `break-even stop after take-profit 1 (${chg.toFixed(1)}%)`];
+      else if (pos.tp1_done && fromPeak <= -this.settings.trailAfterTp1Pct) action = [1, `trailing stop: ${fromPeak.toFixed(1)}% from the peak`];
       else if (!pos.tp1_done && chg >= pos.plan.tp1) action = [0.5, `take profit 1 (+${chg.toFixed(1)}%)`];
       else if (chg >= pos.plan.tp2) action = [1, `take profit 2 (+${chg.toFixed(1)}%)`];
       else if (held >= this.settings.maxHoldMin) action = [1, `time limit (${held.toFixed(0)} min)`];

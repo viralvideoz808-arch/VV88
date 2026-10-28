@@ -62,6 +62,7 @@ export class Token {
       snapshots: [], trades: [], rug: null, holder_history: [], ath_mcap: 0, ath_t: 0,
       last_votes: [], buy_votes: 0, avoid_votes: 0, vetoed: false, conviction: 0, signaled_at: null,
       last_dex: 0, dex_misses: 0, rug_attempt: 0,
+      chain: [], chain_dead: false, // on-chain bonding-curve series (flow.js) and "never got going" flag
     }, f);
   }
 
@@ -153,6 +154,82 @@ export class MarketContext {
     }
     this.word_coins = coins;
   }
+}
+
+// ------------------------------------------------------------------ on-chain flow
+// High-resolution on-chain flow for bonding-curve coins.
+//
+// DexScreener aggregates (5-minute buckets, refreshed every few seconds and only after a coin is indexed) are too
+// coarse and too late for sniper entries. Every ~2 s this module reads the exact bonding-curve account of every
+// young coin, every promising candidate and every held position (100 accounts per RPC call), and keeps a short
+// series per coin. From the curve's own reserves we know, exactly:
+//   - the price at each poll (virtual SOL / virtual tokens),
+//   - the net SOL that entered or left the curve between polls (real SOL reserves),
+//   - the launch price (30 SOL / 1.073B tokens), so even a 40-second-old coin has an exact "change since launch".
+
+export const LAUNCH_PRICE = 30 / 1_073_000_000; // SOL per token at creation
+const MAX_POINTS = 400; // ~13 min at 2 s
+
+export function pushPoint(tok, p) {
+  const s = tok.chain || (tok.chain = []);
+  if (s.length && p.t <= s[s.length - 1].t) return;
+  s.push(p);
+  if (s.length > MAX_POINTS) s.splice(0, s.length - MAX_POINTS);
+}
+
+const priceOf = (p) => (p.vSol / 1e9) / (p.vTok / 1e6);
+
+// The newest point at least `sec` seconds old (or null).
+function pointAgo(s, now, sec) {
+  for (let i = s.length - 1; i >= 0; i--) if (now - s[i].t >= sec) return s[i];
+  return null;
+}
+
+// Everything the agents need from the on-chain series, or null when there is no fresh series.
+export function chainView(tok, now, maxAge = 20) {
+  const s = tok.chain;
+  if (!s || !s.length) return null;
+  const last = s[s.length - 1];
+  if (now - last.t > maxAge) return null; // stale: polling stopped or RPC trouble
+  const price = priceOf(last);
+  const born = tok.created_at;
+  const change = (sec) => {
+    const p = pointAgo(s, last.t, sec);
+    if (p) return price / priceOf(p) - 1;
+    if (born != null && last.t - born <= sec + 3) return price / LAUNCH_PRICE - 1; // younger than the window: since launch
+    return null;
+  };
+  const inflow = (sec) => {
+    const p = pointAgo(s, last.t, sec);
+    if (p) return (last.realSol - p.realSol) / 1e9;
+    if (born != null && last.t - born <= sec + 3) return last.realSol / 1e9; // since launch
+    return null;
+  };
+  // Gross flow and activity over a window, from poll-to-poll deltas (netting inside one 2 s gap is unavoidable).
+  const flows = (sec) => {
+    let gin = 0, gout = 0, active = 0, pairs = 0, maxIn = 0, maxOut = 0, maxOutFrac = 0;
+    for (let i = s.length - 1; i > 0 && last.t - s[i - 1].t <= sec; i--) {
+      const d = (s[i].realSol - s[i - 1].realSol) / 1e9;
+      pairs++;
+      if (d > 0) { gin += d; active++; maxIn = Math.max(maxIn, d); }
+      if (d < 0) {
+        gout -= d; active++; maxOut = Math.max(maxOut, -d);
+        if (s[i - 1].realSol > 0) maxOutFrac = Math.max(maxOutFrac, -d / (s[i - 1].realSol / 1e9));
+      }
+    }
+    return { gin, gout, active, pairs, maxIn, maxOut, maxOutFrac };
+  };
+  let high = price, highT = last.t;
+  for (let i = s.length - 1; i >= 0 && last.t - s[i].t <= 300; i--) {
+    const p = priceOf(s[i]);
+    if (p > high) { high = p; highT = s[i].t; }
+  }
+  const span = last.t - s[0].t;
+  return {
+    t: last.t, span, points: s.length, price, realSol: last.realSol / 1e9,
+    progress: Math.max(0, Math.min(1, (last.vSol / 1e9 - 30) / 85)), complete: last.complete,
+    change, inflow, flows, high5m: high, highAgo: last.t - highT, drawdown: 1 - price / high,
+  };
 }
 
 // ------------------------------------------------------------------ agents
@@ -470,9 +547,15 @@ agent("entry", "Entry Timing Agent", "structure", "Breakout to new highs, or a h
 
 // ---- narrative & social
 
-agent("socials", "Social Presence Verifier", "narrative", "Twitter / Telegram / website attached to the coin.", false, (tok) => {
+agent("socials", "Social & Marketing Verifier", "narrative", "Twitter / Telegram / website, and paid DexScreener marketing (profile, boosts, takeover).", false, (tok) => {
   if (!tok.metadata_loaded && !tok.has_profile) return [ABSTAIN, 0, "metadata loading"];
   const links = [tok.twitter, tok.telegram, tok.website].filter(Boolean);
+  // someone paying to market it (DexScreener profile, boosts, community takeover) counts like a social link
+  if (tok.cto) return [BUY, 0.6, `community takeover on DexScreener${links.length ? ` + ${links.length} social link(s)` : ""}`];
+  if (tok.boosts > 0 || tok.has_profile) {
+    return [BUY, Math.min(0.8, 0.5 + 0.05 * Math.min(tok.boosts, 4) + 0.05 * links.length),
+      `${tok.boosts ? `${tok.boosts} DexScreener boosts` : "paid DexScreener profile"}${links.length ? ` + ${links.length} social link(s)` : ""}`];
+  }
   if (tok.metadata_unreachable && !links.length) return [ABSTAIN, 0, "metadata host blocks browser access"];
   if (links.length >= 2) return [BUY, 0.5 + 0.2 * (links.length - 2), `${links.length} social links`];
   if (tok.twitter) return [BUY, 0.4, "has an X/Twitter link"];
@@ -518,13 +601,20 @@ agent("copycat", "Copycat Detector", "narrative", "Is this a clone of a bigger c
   return [BUY, 0.4, "unique ticker"];
 });
 
-agent("attention", "DexScreener Attention Agent", "narrative", "Paid profile, boosts or community takeover: someone is spending to market it.", false, (tok) => {
-  if (tok.cto) return [BUY, 0.6, "community takeover on DexScreener"];
-  if (tok.boosts > 0) return [BUY, 0.5 + 0.1 * Math.min(tok.boosts, 5), `${tok.boosts} DexScreener boosts`];
-  if (tok.has_profile) return [BUY, 0.5, "paid DexScreener profile"];
-  if (!tok.snapshots.length) return [ABSTAIN, 0, "not on DexScreener yet"];
-  return [HOLD, 0.3, "no paid attention yet"];
-});
+agent("cost", "Cost Hurdle Agent", "structure",
+  "Round-trip costs (pump.fun fees both ways, network fees, price impact) at your trade size versus how far the coin actually moves.", false, (tok, ctx) => {
+    const { hurdle, size } = roundTripCost(tok, ctx);
+    const sigma1 = ctx.view ? chainVolatility(tok, ctx.now) : (tok.snapshots.length >= 4 ? realisedVolatility(tok, ctx.now) : null);
+    if (hurdle > TUNING.maxHurdle) {
+      return [AVOID, 0.7, `costs are ${(hurdle * 100).toFixed(1)}% of a ${size.toFixed(3)} SOL round trip: raise the size or lower the priority fee`];
+    }
+    if (sigma1 == null) return [ABSTAIN, 0, `costs ${(hurdle * 100).toFixed(1)}% per round trip; need price history`];
+    const sigma10 = sigma1 * Math.sqrt(10);
+    if (sigma10 < TUNING.minMoveToCost * hurdle) {
+      return [HOLD, 0.3, `moves ~${(sigma10 * 100).toFixed(0)}% per 10 min: too little to beat ${(hurdle * 100).toFixed(1)}% costs`];
+    }
+    return [BUY, 0.4 + 0.5 * ramp(sigma10 / hurdle, TUNING.minMoveToCost, 8), `moves ~${(sigma10 * 100).toFixed(0)}% per 10 min vs ${(hurdle * 100).toFixed(1)}% round-trip costs`];
+  });
 
 if (AGENTS.length !== 25) throw new Error(`expected 25 agents, got ${AGENTS.length}`);
 export const AGENTS_BY_ID = Object.fromEntries(AGENTS.map((a) => [a.id, a]));
@@ -532,13 +622,168 @@ export const AGENTS_BY_ID = Object.fromEntries(AGENTS.map((a) => [a.id, a]));
 export function vote(a, tok, ctx) {
   let stance, strength, reason;
   try {
-    [stance, strength, reason] = a.fn(tok, ctx);
+    const rule = ctx.view ? CHAIN_RULES[a.id] : null;
+    const out = rule ? rule(tok, ctx, ctx.view) : null;
+    [stance, strength, reason] = out || a.fn(tok, ctx);
   } catch (e) { // one broken input must not take the council down
     [stance, strength, reason] = [ABSTAIN, 0, `error: ${e.message}`];
   }
   if (!Number.isFinite(strength)) strength = 0;
   return { agent: a.id, stance, strength: Math.round(clamp(strength, 0, 1) * 1000) / 1000, reason };
 }
+
+// ------------------------------------------------------------------ on-chain rules
+// When a coin has a fresh on-chain series (flow.js), these rules replace the DexScreener-based logic of the
+// matching agent: exact prices every 2 s instead of 5-minute buckets that arrive late. Thresholds live in TUNING;
+// they were checked against recorded live launches (see README "How the entry rules were tuned").
+
+export const TUNING = {
+  dumpFrac: 0.15,        // one 2 s window removing this share of the curve's SOL = a dump
+  crash30: -0.25,        // -25% in 30 s
+  drainDD: 0.45,         // 45% below the 5-minute on-chain high
+  verticalChg10: 0.12,   // +12% in 10 s: a vertical candle, wait
+  verticalChg30: 0.30,   // +30% in 30 s
+  pullbackMin: 0.05, pullbackMax: 0.30, // healthy pullback from the 5-minute high
+  minInflow60: 0.3,      // SOL net in over 60 s to count as real demand
+  strongInflow60: 1.0,
+  minActive: 0.35,       // share of 2 s windows with trading
+  maxHurdle: 0.12,       // round-trip cost above this = no trade
+  minMoveToCost: 2.0,    // 10-minute typical move must be at least this many times the costs
+};
+
+// Round-trip cost of one trade as a fraction of its size: pump.fun fees both ways (1.25% each on the curve; PumpSwap
+// tiers are at most the same), two network fees, and the price impact of our own buy and sell on the curve.
+export function roundTripCost(tok, ctx) {
+  const trade = ctx.trade || { size_sol: 0.03, network_fee_sol: 0.000505 };
+  const size = Math.max(trade.size_sol, 1e-6);
+  let vsol = null;
+  if (ctx.view) vsol = 30 + ctx.view.progress * 85;
+  else if (!tok.migrated && tok.snap && ctx.sol_usd > 0) vsol = 30 + curveProgressFromMcapSol(tok.snap.mcap_usd / ctx.sol_usd) * 85;
+  const impact = vsol ? 2 * size / vsol : 0.004;
+  return { hurdle: 0.025 + 2 * trade.network_fee_sol / size + impact, size };
+}
+
+// Per-minute volatility from the 2 s on-chain series (fraction); null when too short.
+export function chainVolatility(tok, now) {
+  const s = (tok.chain || []).filter((p) => now - p.t <= 300);
+  if (s.length < 8) return null;
+  const rets = [];
+  for (let i = 1; i < s.length; i++) {
+    const a = (s[i - 1].vSol / s[i - 1].vTok), b = (s[i].vSol / s[i].vTok);
+    rets.push(Math.log(b / a) / Math.sqrt(Math.max(1, s[i].t - s[i - 1].t) / 60));
+  }
+  return pstdev(rets);
+}
+
+const fmtPct = (x) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(0)}%`;
+const fmtSol = (x) => `${x >= 0 ? "" : "-"}${Math.abs(x).toFixed(2)} SOL`;
+
+export const CHAIN_RULES = {
+  rug_pattern: (tok, ctx, v) => {
+    const f = v.flows(60);
+    if (f.maxOutFrac >= TUNING.dumpFrac && f.maxOut >= 0.3) {
+      return [AVOID, 1, `${fmtSol(f.maxOut)} pulled from the curve in one 2-second window (${(f.maxOutFrac * 100).toFixed(0)}% of it)`];
+    }
+    const c30 = v.change(30);
+    if (c30 != null && c30 <= TUNING.crash30) return [AVOID, 1, `crashed ${fmtPct(c30)} in 30 s (on-chain)`];
+    return [BUY, 0.5, "no dump in the on-chain flow"];
+  },
+  exit_liq: (tok, ctx, v) => {
+    if (v.drawdown >= TUNING.drainDD) return [AVOID, 0.9, `${(v.drawdown * 100).toFixed(0)}% below its 5-minute high: buyers already trapped`];
+    const f = v.flows(120);
+    if (f.gout > 1 && f.gout > 2 * f.gin) return [AVOID, 0.8, `sellers draining the curve: ${fmtSol(f.gout)} out vs ${fmtSol(f.gin)} in (2 min)`];
+    return [BUY, 0.5, `exits clear: ${v.realSol.toFixed(1)} SOL in the curve`];
+  },
+  momentum: (tok, ctx, v) => {
+    const c1 = v.change(60), c5 = v.change(300);
+    if (c1 == null) return null;
+    if (c5 != null && c5 > 2.5) return [AVOID, 0.5, `parabolic ${fmtPct(c5)} in 5 min: late`];
+    if (c1 < -0.10) return [AVOID, 0.6, `falling ${fmtPct(c1)} in the last minute`];
+    if (c1 > 0.40) return [HOLD, 0.3, `${fmtPct(c1)} in one minute: chase risk`];
+    if (c1 >= 0.03) return [BUY, 0.5 + 0.5 * (1 - Math.abs(c1 - 0.15) / 0.25), `climbing ${fmtPct(c1)} in the last minute (on-chain)`];
+    return [HOLD, 0.2, `flat ${fmtPct(c1)} in the last minute`];
+  },
+  volume: (tok, ctx, v) => {
+    const in60 = v.inflow(60), in300 = v.inflow(300);
+    if (in60 == null) return null;
+    const prior = in300 != null && v.span >= 120 ? (in300 - in60) / 4 : null; // average per minute before this one
+    if (in60 <= -0.3) return [AVOID, 0.6, `${fmtSol(in60)} net left the curve in the last minute`];
+    if (in60 >= TUNING.strongInflow60 && (prior == null || in60 >= 1.5 * Math.max(prior, 0.1))) {
+      return [BUY, 0.9, `${fmtSol(in60)} net inflow in the last minute${prior != null ? ` (${(in60 / Math.max(prior, 0.1)).toFixed(1)}x the pace before)` : ""}`];
+    }
+    if (in60 >= TUNING.minInflow60) return [BUY, 0.6, `${fmtSol(in60)} net inflow in the last minute`];
+    return [HOLD, 0.3, `little new money: ${fmtSol(in60)} net in the last minute`];
+  },
+  buy_pressure: (tok, ctx, v) => {
+    const f = v.flows(60);
+    if (f.pairs < 5) return null;
+    const r = f.gin / (f.gout + 0.05);
+    if (f.gin >= 0.5 && r >= 1.8) return [BUY, 0.5 + 0.5 * ramp(r, 1.8, 5), `${fmtSol(f.gin)} bought vs ${fmtSol(f.gout)} sold in 60 s (on-chain)`];
+    if (r < 0.8 && f.gout >= 0.3) return [AVOID, 0.6, `sellers dominate: ${fmtSol(f.gout)} out vs ${fmtSol(f.gin)} in (60 s)`];
+    return [HOLD, 0.3, `balanced flow: ${fmtSol(f.gin)} in / ${fmtSol(f.gout)} out (60 s)`];
+  },
+  velocity: (tok, ctx, v) => {
+    const f = v.flows(60);
+    if (f.pairs < 8) return null;
+    const a = f.active / f.pairs;
+    if (a >= 0.6) return [BUY, 0.5 + 0.5 * ramp(a, 0.6, 0.95), `trading in ${(a * 100).toFixed(0)}% of 2-second windows`];
+    if (a >= TUNING.minActive) return [HOLD, 0.3, `trading in ${(a * 100).toFixed(0)}% of 2-second windows`];
+    return [AVOID, 0.5, `quiet: trades in only ${(a * 100).toFixed(0)}% of 2-second windows`];
+  },
+  accel: (tok, ctx, v) => {
+    const c30 = v.change(30), c90 = v.change(90);
+    if (c30 == null || c90 == null || v.span < 60) return null;
+    const recent = c30 / 0.5, before = ((1 + c90) / (1 + c30) - 1) / 1.0; // per-minute rates: last 30 s vs the minute before
+    if (recent > 0 && recent >= before) return [BUY, 0.5 + 0.5 * ramp(recent, 0, 0.3), `accelerating: ${fmtPct(recent)}/min now vs ${fmtPct(before)}/min before`];
+    if (recent > 0) return [HOLD, 0.3, `rising but slowing: ${fmtPct(recent)}/min vs ${fmtPct(before)}/min`];
+    return [AVOID, 0.5, `rolling over: ${fmtPct(recent)}/min`];
+  },
+  whales: (tok, ctx, v) => {
+    const f = v.flows(120);
+    if (f.gin < 0.5) return null;
+    const share = f.maxIn / f.gin;
+    if (share > 0.5) return [HOLD, 0.3, `one buy-sized burst is ${(share * 100).toFixed(0)}% of 2-minute inflow: whale-driven`];
+    return [BUY, 0.4 + 0.4 * (1 - share), `spread-out buying: largest burst ${(share * 100).toFixed(0)}% of inflow`];
+  },
+  curve: (tok, ctx, v) => {
+    const p = v.progress;
+    if (p < 0.08) return [HOLD, 0.2, `curve ${(p * 100).toFixed(0)}%: very early`];
+    if (p < 0.2) return [HOLD, 0.3, `curve ${(p * 100).toFixed(0)}%`];
+    if (p <= 0.88) return [BUY, 0.5 + 0.5 * ramp(p, 0.2, 0.75), `curve ${(p * 100).toFixed(0)}% filled (${v.realSol.toFixed(1)} SOL): graduation in sight`];
+    return [HOLD, 0.3, `curve ${(p * 100).toFixed(0)}%: graduation sell-off risk`];
+  },
+  mcap: (tok, ctx, v) => {
+    if (!(ctx.sol_usd > 0)) return null;
+    const m = v.price * 1e9 * ctx.sol_usd;
+    if (m < 6000) return [AVOID, 0.4, `${usd(m)} mcap: no traction`];
+    if (m < 9000) return [HOLD, 0.2, `${usd(m)} mcap: unproven`];
+    return [BUY, 0.5 + 0.4 * (1 - ramp(m, 40000, 90000)), `${usd(m)} mcap on the curve (on-chain)`];
+  },
+  volatility: (tok, ctx, v) => {
+    const sig = chainVolatility(tok, ctx.now);
+    if (sig == null) return null;
+    const vol = sig * 100;
+    if (vol > 25) return [HOLD, 0.2, `${vol.toFixed(0)}%/min swings: coin flip`];
+    if (vol < 0.5) return [HOLD, 0.2, "barely moving"];
+    return [BUY, 0.6, `${vol.toFixed(1)}%/min volatility: tradeable`];
+  },
+  // Sniper timing: never chase a vertical candle; buy a pullback once buyers return, or a breakout backed by inflow.
+  entry: (tok, ctx, v) => {
+    const c10 = v.change(10), c30 = v.change(30), in30 = v.inflow(30);
+    if (c10 == null || c30 == null || in30 == null) return null;
+    if (c10 >= TUNING.verticalChg10 || c30 >= TUNING.verticalChg30) {
+      return [HOLD, 0.3, `vertical candle (${fmtPct(c10)} in 10 s, ${fmtPct(c30)} in 30 s): wait for the pullback`];
+    }
+    const dd = v.drawdown, in10 = v.inflow(10);
+    // a pullback that has started to bounce: buyers back in the last 10 s and price ticking up again
+    if (dd >= TUNING.pullbackMin && dd <= TUNING.pullbackMax && v.highAgo >= 20 && in10 > 0 && c10 > 0) {
+      return [BUY, 0.8, `pullback ${(dd * 100).toFixed(0)}% from the high, bouncing with buyers back (${fmtSol(in10)} in 10 s)`];
+    }
+    if (dd < 0.02 && c30 >= 0.02 && in30 > 0) return [BUY, 0.7, `breaking out on fresh inflow (${fmtSol(in30)} in 30 s)`];
+    if (dd > TUNING.pullbackMax) return [HOLD, 0.2, `${(dd * 100).toFixed(0)}% below the high: no base yet`];
+    return [HOLD, 0.3, in30 <= 0 ? "no fresh buyers in the last 30 s" : "no clean entry yet"];
+  },
+};
 
 // ------------------------------------------------------------------ council
 
@@ -553,7 +798,9 @@ export function defaultRules() {
 }
 
 export function runCouncil(tok, ctx, rules) {
+  ctx.view = tok.migrated ? null : chainView(tok, ctx.now);
   const votes = AGENTS.map((a) => vote(a, tok, ctx));
+  ctx.view = null;
   const counts = { BUY: 0, HOLD: 0, AVOID: 0, ABSTAIN: 0 };
   for (const v of votes) counts[v.stance]++;
   const vetoedBy = votes.filter((v) => v.stance === AVOID && AGENTS_BY_ID[v.agent].veto).map((v) => v.agent);
@@ -591,9 +838,16 @@ export function realisedVolatility(tok, now) {
 const round1 = (x) => Math.round(x * 10) / 10;
 
 // The actionable verdict shown to the user.
-export function buildSignal(tok, verdict, rules, now) {
-  const s = tok.snap;
-  const stop = Math.min(0.3, Math.max(0.12, 2.5 * realisedVolatility(tok, now)));
+export function buildSignal(tok, verdict, rules, now, ctx = null) {
+  const view = !tok.migrated ? chainView(tok, now) : null;
+  // Snapshot for the plan: DexScreener if present, else the exact on-chain price.
+  const s = tok.snap && (!view || tok.snap.t >= view.t - 10) ? tok.snap
+    : { price_usd: view.price * (ctx && ctx.sol_usd || 0), mcap_usd: view.price * 1e9 * (ctx && ctx.sol_usd || 0) };
+  const vol = (view && chainVolatility(tok, now)) ?? realisedVolatility(tok, now);
+  const stop = Math.min(0.3, Math.max(0.12, 2.5 * vol));
+  // Take-profit 1 must clear the round-trip costs at least twice over, or even a "win" loses money.
+  const hurdle = ctx ? roundTripCost(tok, { ...ctx, view }).hurdle : 0.06;
+  const tp1 = Math.max(stop * 1.5, hurdle * 2);
   const reasons = verdict.votes.filter((v) => v.stance === BUY).sort((a, b) => b.strength - a.strength);
   const cautions = verdict.votes.filter((v) => v.stance === HOLD || v.stance === AVOID);
   return {
@@ -603,7 +857,9 @@ export function buildSignal(tok, verdict, rules, now) {
     headline: `BUY NOW: ${tok.name || tok.symbol} ($${tok.symbol}) within the next ${rules.window_minutes} minutes`,
     entry_price_usd: s.price_usd, entry_mcap_usd: s.mcap_usd,
     max_entry_mcap_usd: s.mcap_usd * (1 + rules.max_chase_pct / 100),
-    stop_loss_pct: round1(-stop * 100), take_profit_1_pct: round1(stop * 1.5 * 100), take_profit_2_pct: round1(stop * 3 * 100),
+    stop_loss_pct: round1(-stop * 100), take_profit_1_pct: round1(tp1 * 100), take_profit_2_pct: round1(Math.max(stop * 3, tp1 * 2) * 100),
+    cost_hurdle_pct: round1(hurdle * 100),
+    entry_price_sol: view ? view.price : null, // exact on-chain entry; outcomes are scored on the chain when present
     agree: verdict.buy_votes, total_agents: AGENTS.length, conviction: verdict.conviction,
     reasons: reasons.map((v) => ({ agent: AGENTS_BY_ID[v.agent].name, reason: v.reason, strength: v.strength })),
     cautions: cautions.map((v) => ({ agent: AGENTS_BY_ID[v.agent].name, stance: v.stance, reason: v.reason })),
@@ -617,9 +873,23 @@ export function buildSignal(tok, verdict, rules, now) {
 }
 
 // After the window closes: what actually happened to the price.
+// Market cap path of a coin, from the exact on-chain series when the signal recorded an on-chain entry price.
+function mcapPath(sig, tok) {
+  if (sig.entry_price_sol && tok.chain && tok.chain.length) {
+    const scale = sig.entry_mcap_usd / sig.entry_price_sol;
+    return tok.chain.map((p) => ({ t: p.t, mcap_usd: (p.vSol / 1e9) / (p.vTok / 1e6) * scale }));
+  }
+  return tok.snapshots;
+}
+
+export function currentMcap(sig, tok) {
+  const path = mcapPath(sig, tok);
+  return path.length ? path[path.length - 1].mcap_usd : null;
+}
+
 export function scoreOutcome(sig, tok, now) {
   if (now < sig.expires || !tok) return null;
-  const pts = tok.snapshots.filter((x) => x.t >= sig.created && x.t <= sig.expires + 30 && x.mcap_usd > 0);
+  const pts = mcapPath(sig, tok).filter((x) => x.t >= sig.created && x.t <= sig.expires + 30 && x.mcap_usd > 0);
   if (!pts.length) return { status: "no_data" };
   const entry = sig.entry_mcap_usd;
   const peak = Math.max(...pts.map((x) => x.mcap_usd));

@@ -134,6 +134,7 @@ function renderVerdict() {
       <div><span>Stop loss</span><b class="neg">${sig.stop_loss_pct}%</b></div>
       <div><span>Take profit 1 (sell ½)</span><b class="pos">+${sig.take_profit_1_pct}%</b></div>
       <div><span>Take profit 2</span><b class="pos">+${sig.take_profit_2_pct}%</b></div>
+      ${sig.cost_hurdle_pct != null ? `<div><span>Round-trip costs</span><b>${sig.cost_hurdle_pct}%</b></div>` : ""}
     </div>
     <h2>Why the council says buy</h2>
     <ul class="reasons">${sig.reasons.map((r) => `<li><b>${esc(r.agent)}:</b> ${esc(r.reason)}</li>`).join("")}</ul>
@@ -156,7 +157,7 @@ function renderStats() {
   const st = S.stats;
   const items = [
     ["Watching now", st.watched], ["Analyzed this run", st.analyzed_total], ["Deep on-chain checks", st.deep_checked],
-    ["New launches seen", st.launches_seen], ["Council passes", st.passes], ["Pass time", st.last_pass_ms + " ms"],
+    ["New launches seen", st.launches_seen], ["On-chain every 2 s", st.chain_watched ?? 0], ["Pass time", st.last_pass_ms + " ms"],
     ["SOL", st.sol_usd ? "$" + st.sol_usd : "–"], ["Hot narratives", st.hot_words.slice(0, 4).join(", ") || "–"],
   ];
   $("stats").innerHTML = items.map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join("");
@@ -177,13 +178,14 @@ function renderCandidates() {
     const status = c.vetoed ? `<span class="tag v" title="${esc(c.veto_reason)}">veto</span>`
       : c.buy_votes >= S.rules.min_buy_votes && c.avoid_votes === 0 ? `<span class="tag ok">consensus</span>`
       : `<span class="muted">${c.buy_votes}/25${c.deep_checked ? "" : " · pre-scan"}</span>`;
+    const live = c.on_chain ? ` <span class="tag ok" title="judged from the exact bonding-curve state every 2 s">chain</span>` : "";
     return `<tr data-mint="${esc(c.mint)}" class="${c.mint === selected ? "sel" : ""}">
       <td class="muted">${i + 1}</td>
       <td><div class="coin">${img ? `<img src="${img}" alt="" loading="lazy">` : `<img alt="">`}<div>${esc((c.name || "?").slice(0, 22))}<div class="sym">$${esc(c.symbol)}</div></div></div></td>
       <td>${usd(c.mcap)}</td><td>${pct(c.change_m5)}</td>
       <td>${c.buys_m5 ?? "–"} / ${c.sells_m5 ?? "–"}</td><td>${age(c.age_min)}</td>
       <td>${c.migrated ? "graduated" : c.curve_pct == null ? "–" : c.curve_pct + "%"}</td>
-      <td>${voteBar(c)}</td><td>${status}</td></tr>`;
+      <td>${voteBar(c)}</td><td>${status}${live}</td></tr>`;
   }).join("") : `<tr><td colspan="9" class="muted">${S.running ? "Collecting market data…" : "Not running."}</td></tr>`;
   document.querySelectorAll("#cands tr[data-mint]").forEach((tr) => tr.onclick = () => { selected = tr.dataset.mint; render(); });
 }
@@ -246,7 +248,8 @@ function paperLine(sig) {
 }
 
 let paperFormInit = false;
-const PS_FIELDS = ["autoTrade", "sizePct", "slippagePct", "priorityFeeSol", "latencyMs", "maxPositions", "maxHoldMin", "exitOnVeto", "closeAccounts", "rpcUrl"];
+const PS_FIELDS = ["autoTrade", "sizePct", "slippagePct", "priorityFeeSol", "latencyMs", "maxPositions", "maxHoldMin", "exitOnVeto",
+  "breakevenAfterTp1", "trailAfterTp1Pct", "closeAccounts", "rpcUrl"];
 
 function fillPaperForm(st) {
   for (const k of PS_FIELDS) {

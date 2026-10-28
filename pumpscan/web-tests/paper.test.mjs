@@ -215,3 +215,26 @@ test("a position not yet valued on-chain counts at cost in equity", async () => 
   assert.ok(Math.abs(snap.equity_sol - expected) < 1e-12);
   assert.equal(snap.positions[0].value_sol, null);
 });
+
+test("curve poller drops to 10-account batches when the RPC demands it", async () => {
+  const { CurveWatch } = await import("../web/js/flow.js");
+  const { Token } = await import("../web/js/core.js");
+  const curve = FX.bonding_curve;
+  const sizes = [];
+  const reader = {
+    accounts: async (addrs) => {
+      sizes.push(addrs.length);
+      if (addrs.length > 10) throw new Error("-32602: A maximum of 10 accounts is allowed");
+      return addrs.map(() => ({ owner: curve.owner, data: [curve.data, "base64"] }));
+    },
+  };
+  const w = new CurveWatch(reader, { batch: 100 }); // as with a user-supplied RPC
+  const toks = Array.from({ length: 25 }, (_, i) => new Token({ mint: `M${i}pump`, pair_address: curve.address }));
+  await w.poll(toks, () => 100);
+  assert.equal(w.batch, 10);
+  assert.equal(toks[0].chain.length, 0); // the rejected first call
+  await w.poll(toks, () => 102);
+  assert.deepEqual(sizes, [25, 10, 5, 10, 10, 5]); // recovers inside the first poll, then full 10-batches
+  assert.equal(toks[24].chain.length, 2); // read in both polls
+  assert.equal(toks[24].chain[0].realSol, 12464823524);
+});

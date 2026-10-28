@@ -134,7 +134,7 @@ test("outcome counts the stop first when both were hit", () => {
 
 test("unreadable metadata abstains instead of voting 'no socials'", () => {
   const tok = runner();
-  Object.assign(tok, { twitter: "", telegram: "", website: "", description: "", metadata_unreachable: true });
+  Object.assign(tok, { twitter: "", telegram: "", website: "", description: "", metadata_unreachable: true, boosts: 0, has_profile: false });
   const ctx = context([tok]);
   assert.equal(vote(AGENTS_BY_ID.socials, tok, ctx).stance, "ABSTAIN");
   assert.equal(vote(AGENTS_BY_ID.metadata, tok, ctx).stance, "ABSTAIN");
