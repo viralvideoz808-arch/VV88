@@ -211,6 +211,41 @@ built to avoid the worst entries and to be honest about the rest, not to promise
 what actually happens. Treat it as the only evidence, and re-run the research before trusting any change in market
 conditions.
 
+### Why the account was losing (and the exit changes)
+
+I traced every trade the current agents would have taken across both recorded periods (118 trades on 1,161 coins),
+with the demo exit plan of that time (stop −15%, half at +20%, rest at +40%, 10-minute limit).
+
+- **Losses by source, per trade:** price movement −1.4%, pump.fun fees −2.5%, network fees −0.8%. Total −4.7%.
+- **The stop-loss did not protect.** 38% of trades ended at the stop. It was set at −15%, but on average it
+  *triggered* at −31% and filled at −33%. pump.fun coins gap down: a holder dumps and the price jumps past the stop
+  between two 2-second checks. Those trades averaged −32.7% each, the largest single drain.
+- **Time in the trade is the risk.** The shorter the hold, the better, in both periods independently:
+
+| Exit plan | Period 1 (67 trades) | Period 2 (51 trades) |
+|---|---|---|
+| 10-minute hold, stop −15% (old) | −9.8% | +2.1% |
+| 3-minute hold | −7.7% | +3.5% |
+| **60-second hold, stop −10% (new default)** | **−3.8%** | **+5.0%** |
+
+  Every hold from 30 to 90 seconds lands around break-even pooled (−1% to +0.2%), so this is a broad effect,
+  not one tuned number.
+- **Selling on a safety veto slightly hurt in both periods.** By the time the veto fires, the dump has happened.
+  It is now off by default.
+
+The demo account now exits within 60 seconds, with a −10% stop and take-profits at +20% (half) and +40%. Saved
+settings from earlier versions move to these defaults once; later edits are kept. The dashboard's **"Why am I
+winning or losing?"** panel splits your own account's result into:
+- price movement;
+- pump.fun and LP fees;
+- network fees and failed transactions;
+- rent;
+- the SOL price's own move;
+- how positions ended, including how far stop-outs gapped past the planned stop.
+
+Even with these exits the expected result is about break-even before any edge from the agents. pump.fun's 2.5%
+round-trip fee is the floor that every trade has to beat.
+
 The research scripts are in `research/`. `collect.py` records curves, `analyze.py` runs the rule search and the
 train/test split, and `analyze2.py` produces the robust statistics and the out-of-sample check.
 

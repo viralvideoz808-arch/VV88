@@ -260,3 +260,49 @@ test("curve poller backs off on rate limits and regrows", async () => {
   assert.equal(w.capacity, 23);
   assert.equal(w.watched, 22);
 });
+
+test("old saved settings move to the research defaults once; the user's own choices are kept", () => {
+  localStorage.setItem("pumpscan.paper", JSON.stringify({ settings: { maxHoldMin: 30, exitOnVeto: true, priorityFeeSol: 0.0005, sizePct: 50 } }));
+  const a = new PaperAccount({ clock: () => 1000, solUsd: () => 100, reader: fakeReader([curveVenue(fresh())]) });
+  assert.equal(a.settings.maxHoldMin, 1);
+  assert.equal(a.settings.exitOnVeto, false);
+  assert.equal(a.settings.priorityFeeSol, 0.0001);
+  assert.equal(a.settings.stopLossPct, 10);
+  assert.equal(a.settings.sizePct, 50); // not a migrated key: the user's value stays
+  a.setSettings({ maxHoldMin: 2 });
+  const b = new PaperAccount({ clock: () => 1000, solUsd: () => 100, reader: fakeReader([curveVenue(fresh())]) });
+  assert.equal(b.settings.maxHoldMin, 2); // a later edit survives reloads
+});
+
+test("60-second time stop sells the position", async () => {
+  let now = 1000;
+  const a = new PaperAccount({ clock: () => now, solUsd: () => 100, reader: fakeReader([curveVenue(fresh())]), sleepFn: async () => {} });
+  a.ensureFunded();
+  await a.onSignal(signal, tok);
+  assert.ok(a.acct.positions.MINTpump);
+  now += 30;
+  await a.monitor(() => tok);
+  assert.ok(a.acct.positions.MINTpump, "still held at 30 s");
+  now += 31;
+  await a.monitor(() => tok);
+  assert.equal(a.acct.positions.MINTpump, undefined);
+  assert.match(a.acct.trades[0].reason, /time limit \(61 s\)/);
+});
+
+test("the loss breakdown adds up to the account's P&L", async () => {
+  const c0 = curveBuy(fresh(), 20n * SOL).after;
+  const a = account([curveVenue(c0)]);
+  const pos = await a.onSignal(signal, tok);
+  const up = curveBuy(curveBuy(c0, pos.cost).after, 15n * SOL).after;
+  a.reader.set(curveVenue(up));
+  await a.monitor(() => tok); // half at take-profit 1
+  const down = curveSell(up, 250_000_000_000_000n).after;
+  a.reader.set(curveVenue(down));
+  await a.monitor(() => tok); // rest at the stop
+  const snap = a.snapshot();
+  const d = snap.diagnosis;
+  const sum = Object.values(d.parts).reduce((x, y) => x + y, 0);
+  assert.ok(Math.abs(sum - d.pnl_sol) < 1e-9, `${sum} vs ${d.pnl_sol}`);
+  assert.ok(d.parts.pump_fees_sol < 0 && d.parts.network_fees_sol < 0);
+  assert.deepEqual(d.exits.map((e) => e.kind).sort(), ["stop loss", "take profit 1"]);
+});

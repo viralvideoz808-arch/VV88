@@ -135,6 +135,7 @@ function renderVerdict() {
       <div><span>Take profit 1 (sell ½)</span><b class="pos">+${sig.take_profit_1_pct}%</b></div>
       <div><span>Take profit 2</span><b class="pos">+${sig.take_profit_2_pct}%</b></div>
       ${sig.cost_hurdle_pct != null ? `<div><span>Round-trip costs</span><b>${sig.cost_hurdle_pct}%</b></div>` : ""}
+      ${sig.max_hold_s ? `<div><span>Exit by</span><b>${sig.max_hold_s} s</b> after buying</div>` : ""}
     </div>
     <h2>Why the council says buy</h2>
     <ul class="reasons">${sig.reasons.map((r) => `<li><b>${esc(r.agent)}:</b> ${esc(r.reason)}</li>`).join("")}</ul>
@@ -248,7 +249,7 @@ function paperLine(sig) {
 }
 
 let paperFormInit = false;
-const PS_FIELDS = ["autoTrade", "sizePct", "slippagePct", "priorityFeeSol", "latencyMs", "maxPositions", "maxHoldMin", "exitOnVeto",
+const PS_FIELDS = ["autoTrade", "sizePct", "slippagePct", "priorityFeeSol", "latencyMs", "maxPositions", "maxHoldMin", "stopLossPct", "tp1Pct", "tp2Pct", "exitOnVeto",
   "breakevenAfterTp1", "trailAfterTp1Pct", "closeAccounts", "rpcUrl"];
 
 function fillPaperForm(st) {
@@ -279,6 +280,29 @@ $("paperPositions").onclick = (ev) => {
   engine().paperSell(b.dataset.mint, Number(b.dataset.sell));
   b.disabled = true;
 };
+
+// "Why am I winning / losing?": this account's own result split into its causes.
+function renderDiagnosis(P) {
+  const d = P.diagnosis, el = $("paperWhy");
+  if (!d || (!d.trades && !d.failed)) { el.innerHTML = `<p class="muted">The breakdown appears after the first demo trade.</p>`; return; }
+  const row = (label, v, hint) => `<tr><td>${label}</td><td style="text-align:right">${v >= 0 ? "+" : ""}${v.toFixed(5)} SOL</td><td class="muted" style="white-space:normal">${hint}</td></tr>`;
+  const p = d.parts;
+  el.innerHTML = `
+    <p style="margin:0 0 8px"><b class="${d.pnl_sol >= 0 ? "pos" : "neg"}">${d.pnl_sol >= 0 ? "+" : ""}${d.pnl_sol.toFixed(5)} SOL</b> since the start
+      over ${d.trades} filled buys${d.failed ? `, ${d.failed} failed transactions` : ""}. Where it came from:</p>
+    <div class="table-wrap"><table>
+      ${row("Price movement", p.price_sol, "what the coins did between your fills (after slippage and gaps)")}
+      ${row("pump.fun fees", p.pump_fees_sol, "1.25% each way on the curve; tiered on PumpSwap")}
+      ${row("PumpSwap LP fees", p.lp_fees_sol, "graduated coins only")}
+      ${row("Network fees", p.network_fees_sol, "5,000 lamports + your priority fee per transaction")}
+      ${row("Failed transactions", p.failed_tx_sol, "slippage-limit failures still pay network fees")}
+      ${p.rent_locked_sol ? row("Rent left in token accounts", p.rent_locked_sol, "turn on closing accounts to get it back") : ""}
+    </table></div>
+    ${d.sol_price_effect_usd != null ? `<p class="muted" style="margin:6px 0">In dollars, SOL's own price move accounts for ${d.sol_price_effect_usd >= 0 ? "+" : "-"}$${Math.abs(d.sol_price_effect_usd).toFixed(2)} of the change.</p>` : ""}
+    ${d.exits.length ? `<p style="margin:8px 0 4px"><b>How positions ended</b></p><div class="table-wrap"><table>${d.exits.map((e) =>
+      `<tr><td>${esc(e.kind)}</td><td>${e.count}×</td><td style="text-align:right">${signedPct(e.avg_pnl_pct)}</td></tr>`).join("")}</table></div>` : ""}
+    ${d.notes.length ? `<ul style="margin:8px 0 0;padding-left:18px">${d.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}`;
+}
 
 function renderPaper() {
   const P = S.paper, sec = $("paper");
@@ -312,6 +336,7 @@ function renderPaper() {
     ["Network fees", sol(t.network_fees_sol), "base + priority, incl. failed tx"],
     ["Rent", sol(t.rent_paid_sol - t.rent_refunded_sol, 5), `locked in ${P.positions.length} token account(s)`],
   ];
+  renderDiagnosis(P);
   $("paperCards").innerHTML = cards.map(([k, v, sub]) => `<div><span>${k}</span><b>${v}</b><span style="text-transform:none">${sub}</span></div>`).join("");
   $("paperPositions").innerHTML = P.positions.length ? P.positions.map((p) => `<tr>
       <td><b>$${esc(p.symbol)}</b><div class="sym muted">${esc((p.name || "").slice(0, 20))}</div></td>

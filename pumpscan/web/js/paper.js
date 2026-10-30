@@ -267,6 +267,8 @@ export const venueSpot = (venue) => venue.kind === "curve" ? curveSpot(venue.cur
 // ------------------------------------------------------------------ the demo account
 
 export const START_USD = 10;
+const SETTINGS_VERSION = 2;
+const MIGRATED_KEYS = ["maxHoldMin", "stopLossPct", "tp1Pct", "tp2Pct", "exitOnVeto", "priorityFeeSol"];
 export const DEFAULT_SETTINGS = {
   autoTrade: true,       // buy every BUY signal automatically
   sizePct: 30,           // % of free SOL per trade
@@ -274,12 +276,19 @@ export const DEFAULT_SETTINGS = {
   priorityFeeSol: 0.0001,// per transaction, paid even when it fails. At $10 size, 0.0005 alone costs 3.4% per round trip
   latencyMs: 1500,       // decision -> transaction lands
   maxPositions: 3,
-  maxHoldMin: 30,        // time stop
-  exitOnVeto: true,      // sell when a safety agent turns to AVOID
+  // Exits, set from recorded launches (README "Why the account was losing"): pump.fun coins gap down between
+  // 2-second checks, so a -15% stop filled at -33% on average, and the longer a position is held the more gaps it
+  // meets. A 60-second time stop improved both recorded periods (-9.8% -> -3.8% and +2.1% -> +5.0% per trade).
+  maxHoldMin: 1,         // time stop (minutes; fractions allowed)
+  stopLossPct: 10,       // sell below -10% (expect worse fills: dumps gap past it)
+  tp1Pct: 20,            // sell half at +20% (raised to 2x the round-trip cost when that is higher)
+  tp2Pct: 40,            // sell the rest at +40%
+  exitOnVeto: false,     // selling on a safety veto came after the dump and hurt slightly in both periods
   trailAfterTp1Pct: 25,  // after take-profit 1: sell the rest if price falls this far from its peak...
   breakevenAfterTp1: true, // ...or back to the entry price (the first half already banked the profit)
   closeAccounts: true,   // close the token account on full exit (refunds its rent)
   rpcUrl: DEFAULT_RPC,
+  version: 2,
 };
 
 const toSol = (lamports) => Number(lamports) / 1e9;
@@ -310,6 +319,12 @@ export class PaperAccount {
   load() {
     const s = storageGet(this.storageKey);
     this.settings = { ...DEFAULT_SETTINGS, ...(s && s.settings) };
+    const savedVersion = s && s.settings ? (s.settings.version || 1) : SETTINGS_VERSION; // a fresh account starts current
+    if (savedVersion < SETTINGS_VERSION) {
+      // Defaults changed by the research: move saved settings to them once; later edits are kept.
+      for (const k of MIGRATED_KEYS) this.settings[k] = DEFAULT_SETTINGS[k];
+      this.settings.version = SETTINGS_VERSION;
+    }
     if (BROWSER_BLOCKED_RPCS.has(String(this.settings.rpcUrl).replace(/\/+$/, ""))) this.settings.rpcUrl = DEFAULT_RPC;
     if (s && s.cash != null) {
       this.acct = {
@@ -351,6 +366,14 @@ export class PaperAccount {
     this.marks.clear();
     this.ensureFunded();
     this.save();
+  }
+
+  // The account's own exit plan (settings), with take-profit 1 kept at least 2x the signal's round-trip cost.
+  exitPlan(signal) {
+    const st = this.settings;
+    const tp1 = Math.max(st.tp1Pct, signal && signal.cost_hurdle_pct ? 2 * signal.cost_hurdle_pct : 0);
+    return { sl: -Math.abs(st.stopLossPct), tp1, tp2: Math.max(st.tp2Pct, tp1 * 2), max_hold_min: st.maxHoldMin,
+      signal_id: signal ? signal.id : null };
   }
 
   networkFee() { return BASE_FEE_LAMPORTS + BigInt(Math.round(this.settings.priorityFeeSol * 1e9)); }
@@ -458,9 +481,7 @@ export class PaperAccount {
           mint, symbol: tok.symbol, name: tok.name, curve: desc.curve, pool: desc.pool, migrated: desc.migrated,
           tokens: fill.tokens, cost: fill.total, rent, opened: this.clock(), entry_spot: entrySpot,
           entry_mcap_usd: tok.snap ? tok.snap.mcap_usd : null,
-          plan: signal
-            ? { sl: signal.stop_loss_pct, tp1: signal.take_profit_1_pct, tp2: signal.take_profit_2_pct, signal_id: signal.id }
-            : { sl: -20, tp1: 30, tp2: 60, signal_id: null },
+          plan: this.exitPlan(signal),
           tp1_done: false,
         };
       }
@@ -570,11 +591,68 @@ export class PaperAccount {
       else if (pos.tp1_done && fromPeak <= -this.settings.trailAfterTp1Pct) action = [1, `trailing stop: ${fromPeak.toFixed(1)}% from the peak`];
       else if (!pos.tp1_done && chg >= pos.plan.tp1) action = [0.5, `take profit 1 (+${chg.toFixed(1)}%)`];
       else if (chg >= pos.plan.tp2) action = [1, `take profit 2 (+${chg.toFixed(1)}%)`];
-      else if (held >= this.settings.maxHoldMin) action = [1, `time limit (${held.toFixed(0)} min)`];
+      else if (held >= (pos.plan.max_hold_min ?? this.settings.maxHoldMin)) action = [1, `time limit (${Math.round(held * 60)} s)`];
       else if (this.settings.exitOnVeto && tok && tok.vetoed) action = [1, "safety agent veto"];
       if (action) await this.sell(pos.mint, action[0], action[1], tok);
     }
     this.save();
+  }
+
+  // ---- why winning / losing (from this account's own trade log)
+
+  diagnosis(equitySol, px) {
+    const A = this.acct, tr = A.trades;
+    const sells = tr.filter((t) => t.side === "SELL" && t.status === "filled");
+    const failed = tr.filter((t) => t.status === "failed");
+    const t = A.totals;
+    const sol = (x) => Number(x) / 1e9;
+    let unrealized = 0;
+    for (const p of Object.values(A.positions)) {
+      const m = this.marks.get(p.mint);
+      if (m && m.value != null) unrealized += sol(m.value - p.cost);
+    }
+    const trading = sol(t.realized) + unrealized; // after pump.fun + LP fees
+    const pumpFees = sol(t.pumpFees), lpFees = sol(t.lpFees);
+    const failedFees = failed.reduce((a, x) => a + (x.network_fee || 0), 0);
+    const network = sol(t.networkFees);
+    const lockedRent = sol(t.rentPaid - t.rentRefunded);
+    const parts = {
+      price_sol: trading + pumpFees + lpFees, pump_fees_sol: -pumpFees, lp_fees_sol: -lpFees,
+      network_fees_sol: -(network - failedFees), failed_tx_sol: -failedFees,
+      rent_locked_sol: this.settings.closeAccounts ? 0 : -lockedRent,
+    };
+    const pnlSol = equitySol - sol(A.startLamports);
+    const usdNow = px ? equitySol * px : null;
+    const solPriceEffect = px ? sol(A.startLamports) * (px - A.startSolUsd) : null; // what SOL's own move did to the $10
+    // exits: how each closed slice ended, and how far stop-outs gapped past the planned stop
+    const cat = (r) => /^stop loss/.test(r) ? "stop loss" : /^take profit 1/.test(r) ? "take profit 1" : /^take profit 2/.test(r) ? "take profit 2"
+      : /^time limit/.test(r) ? "time limit" : /break-even|trailing/.test(r) ? "protective stop after TP1" : /veto/.test(r) ? "safety veto" : /^manual/.test(r) ? "manual" : "other";
+    const by = {};
+    for (const x of sells) {
+      const c = cat(x.reason || "");
+      const cost = (x.lamports_out || 0) - (x.pnl_lamports || 0);
+      const pct = cost > 0 ? (x.pnl_lamports / cost) * 100 : 0;
+      (by[c] = by[c] || []).push(pct);
+    }
+    const exits = Object.entries(by).map(([k, v]) => ({ kind: k, count: v.length, avg_pnl_pct: v.reduce((a, b) => a + b, 0) / v.length }))
+      .sort((a, b) => b.count - a.count);
+    const stops = by["stop loss"] || [];
+    const buys = tr.filter((t) => t.side === "BUY");
+    const slippageFails = failed.filter((x) => /slippage/.test(x.reason || "")).length;
+    const notes = [];
+    if (stops.length && stops.reduce((a, b) => a + b, 0) / stops.length < -Math.abs(this.settings.stopLossPct) - 5) {
+      notes.push(`Stop-outs averaged ${(stops.reduce((a, b) => a + b, 0) / stops.length).toFixed(0)}% against a ${-Math.abs(this.settings.stopLossPct)}% stop: coins gap down between checks. Shorter holds mean fewer gaps.`);
+    }
+    if (pumpFees + network > Math.abs(parts.price_sol) && pnlSol < 0) notes.push("Fees cost more than price movement: fewer, larger trades lose less to fees.");
+    if (failed.length && failedFees > 0.1 * Math.abs(pnlSol || 1e-9)) notes.push(`${failed.length} failed transactions (${slippageFails} on slippage) still paid network fees.`);
+    if (solPriceEffect != null && Math.abs(solPriceEffect) > 0.1 && Math.sign(solPriceEffect) !== Math.sign(pnlSol || solPriceEffect)) {
+      notes.push(`SOL itself moved ${px > A.startSolUsd ? "up" : "down"} since the start: $${solPriceEffect.toFixed(2)} of the dollar change is the SOL price, not trading.`);
+    }
+    return {
+      pnl_sol: pnlSol, pnl_usd: usdNow != null ? usdNow - A.startUsd : null, sol_price_effect_usd: solPriceEffect,
+      parts, exits, trades: buys.filter((x) => x.status === "filled").length, failed: failed.length,
+      skipped: tr.filter((x) => x.status === "skipped").length, notes,
+    };
   }
 
   // ---- UI
@@ -608,6 +686,7 @@ export class PaperAccount {
         rent_paid_sol: toSol(t.rentPaid), rent_refunded_sol: toSol(t.rentRefunded), realized_sol: toSol(t.realized) },
       positions,
       trades: this.acct.trades.slice(0, 60),
+      diagnosis: this.diagnosis(toSol(equity), px),
       rpc_error: this.reader.lastError, rpc_url: this.reader.url,
     };
   }

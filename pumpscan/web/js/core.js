@@ -838,11 +838,12 @@ export function buildSignal(tok, verdict, rules, now, ctx = null) {
   // Snapshot for the plan: DexScreener if present, else the exact on-chain price.
   const s = tok.snap && (!view || tok.snap.t >= view.t - 10) ? tok.snap
     : { price_usd: view.price * (ctx && ctx.sol_usd || 0), mcap_usd: view.price * 1e9 * (ctx && ctx.sol_usd || 0) };
-  const vol = (view && chainVolatility(tok, now)) ?? realisedVolatility(tok, now);
-  const stop = Math.min(0.3, Math.max(0.12, 2.5 * vol));
-  // Take-profit 1 must clear the round-trip costs at least twice over, or even a "win" loses money.
+  // Plan from recorded launches (README "Why the account was losing"): pump.fun coins gap down between checks, so
+  // short exposure beats wide stops. Exit within 60 s; stop -10%; half at +20%, rest at +40%. Take-profit 1 must
+  // still clear the round-trip costs at least twice over, or even a "win" loses money.
+  const stop = 0.10;
   const hurdle = ctx ? roundTripCost(tok, { ...ctx, view }).hurdle : 0.06;
-  const tp1 = Math.max(stop * 1.5, hurdle * 2);
+  const tp1 = Math.max(0.20, hurdle * 2);
   const reasons = verdict.votes.filter((v) => v.stance === BUY).sort((a, b) => b.strength - a.strength);
   const cautions = verdict.votes.filter((v) => v.stance === HOLD || v.stance === AVOID);
   return {
@@ -852,7 +853,8 @@ export function buildSignal(tok, verdict, rules, now, ctx = null) {
     headline: `BUY NOW: ${tok.name || tok.symbol} ($${tok.symbol}) within the next ${rules.window_minutes} minutes`,
     entry_price_usd: s.price_usd, entry_mcap_usd: s.mcap_usd,
     max_entry_mcap_usd: s.mcap_usd * (1 + rules.max_chase_pct / 100),
-    stop_loss_pct: round1(-stop * 100), take_profit_1_pct: round1(tp1 * 100), take_profit_2_pct: round1(Math.max(stop * 3, tp1 * 2) * 100),
+    stop_loss_pct: round1(-stop * 100), take_profit_1_pct: round1(tp1 * 100), take_profit_2_pct: round1(Math.max(0.40, tp1 * 2) * 100),
+    max_hold_s: 60,
     cost_hurdle_pct: round1(hurdle * 100),
     entry_price_sol: view ? view.price : null, // exact on-chain entry; outcomes are scored on the chain when present
     agree: verdict.buy_votes, total_agents: AGENTS.length, conviction: verdict.conviction,
