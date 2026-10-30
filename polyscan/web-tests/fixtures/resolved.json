@@ -1,0 +1,13 @@
+{
+ "id": "6075679",
+ "question": "Grizzlies vs. Trail Blazers",
+ "slug": "nba-mem-por-2026-10-29",
+ "conditionId": "0x92c9c48af78d045a419a6e08b1affb483ff5732cfc89902d84103f0c0ff01811",
+ "outcomes": "[\"Grizzlies\", \"Trail Blazers\"]",
+ "outcomePrices": "[\"1\", \"0\"]",
+ "clobTokenIds": "[\"106276744878539450078764807876981394100253045031785691396751308869542735250182\", \"35346859677939318338606964160955984199233179420085472825878475888972590806058\"]",
+ "closed": true,
+ "active": true,
+ "umaResolutionStatuses": "[\"proposed\", \"proposed\"]",
+ "endDate": "2026-10-30T02:00:00Z"
+}
