@@ -253,6 +253,11 @@ export class Engine {
       }
       m.verdicts = { best: best.get(m.id) };
     }
+    // ---- aggressive demo mode: execute the council's best picks even below the strict signal bar, so the demo
+    // always has something working on these fast markets. These are EXPLORATORY, not vetted signals: buying at the
+    // ask pays the spread + fee, which is expected to lose to costs on an efficient market. The beep/notification
+    // and the "signals" track record stay reserved for the strict signals above.
+    if (this.paper.settings.autoTrade && this.paper.settings.aggressive) this.autoExplore(best, now, fresh);
     this._lastBest = best;
     this._arbEvents = this.arbEvents();
     this.settleSignals(now);
@@ -261,6 +266,34 @@ export class Engine {
     this.last_pass_ms = (performance.now?.() ?? Date.now()) - t0;
     if (fresh.length) this.saveSignals();
     return fresh;
+  }
+
+  // Fill the demo up to its position cap with the highest-ranked unvetoed leaderboard picks (least-bad lean on an
+  // efficient market: tightest spread / closest to fair). Exploratory, and logged as such.
+  autoExplore(best, now, fresh) {
+    let open = Object.keys(this.paper.acct.positions).length;
+    if (open >= this.paper.settings.maxPositions) return;
+    const picks = [...best.values()]
+      .filter((v) => !v.vetoed_by.length && v.avoid_votes <= 2 && v.buy_votes >= 12)
+      .sort(compareRank);
+    const heldEvents = new Set(Object.values(this.paper.acct.positions).map((p) => this.marketEvent.get(p.marketId)));
+    for (const v of picks) {
+      if (open >= this.paper.settings.maxPositions) break;
+      const m = this.markets.get(v.marketId);
+      if (!m || !m.books || !m.asks(v.side).length) continue;
+      if (this.paper.acct.positions[`${m.id}:${v.side}`]) continue;
+      const evId = this.marketEvent.get(m.id);
+      if (evId && heldEvents.has(evId)) continue; // diversify: one leg per event
+      const ask = m.ask(v.side);
+      if (!ask || this.paper.tradeUsd() / ask < (m.minOrder || 5)) continue; // too small to clear the min order
+      if (!this.cooldownOk(m, v.side, now)) continue;
+      const ctx = v._ctx || { now, side: v.side, event: null, tradeUsd: this.paper.tradeUsd() };
+      const sig = buildSignal(m, v, this.rules, now, ctx);
+      sig.kind = "exploratory";
+      this.signals.push(sig); fresh.push(sig);
+      this.paper.onSignal(sig, m).catch((e) => console.error("explore", e));
+      heldEvents.add(evId); open++;
+    }
   }
 
   arbCooldownOk(eventId, now) {
@@ -312,6 +345,7 @@ export class Engine {
     const side = v ? v.side : 0;
     return {
       id: m.id, question: m.question, event: m.eventTitle, outcome: m.outcomes[side], image: m.image,
+      outcomes: m.outcomes, ask0: m.ask(0), ask1: m.ask(1),
       side, ask: m.ask(side), mid: m.mid(side), spread: m.spreadOf(side),
       vol24: m.vol24, liq: m.liq, hours: m.hoursToEnd(now),
       buy_votes: v ? v.buy_votes : 0, avoid_votes: v ? v.avoid_votes : 0, vetoed: v ? v.vetoed_by.length > 0 : false,
@@ -324,10 +358,10 @@ export class Engine {
     const now = this.clock();
     const rows = this._lastBest ? [...this._lastBest.keys()].map((id) => this.markets.get(id)).filter(Boolean).map((m) => this.marketRow(m, now)) : [];
     rows.sort((a, b) => (b.arb - a.arb) || ((b.edge ?? -9) - (a.edge ?? -9)) || (b.buy_votes - a.buy_votes));
-    let active = null;
+    let active = null; // the big card shows only vetted signals, never exploratory auto-buys
     for (let i = this.signals.length - 1; i >= 0; i--) {
       const s = this.signals[i];
-      if (!s.outcome_result) { active = { ...s }; const m = this.markets.get(s.marketId); if (m) { active.now_ask = m.ask(s.side); active.now_mid = m.mid(s.side); } break; }
+      if (!s.outcome_result && s.kind !== "exploratory") { active = { ...s }; const m = this.markets.get(s.marketId); if (m) { active.now_ask = m.ask(s.side); active.now_mid = m.mid(s.side); } break; }
     }
     return {
       running: this.running, now,

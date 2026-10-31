@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS = {
   sizePct: 40,          // % of free cash per directional trade ($4 of a fresh $10, enough to clear the 5-share min)
   maxPositions: 3,
   arbMaxUsd: 8,         // cap per risk-free set purchase
+  aggressive: true,     // also take the council's best lean each cycle (exploratory), not just vetted signals
   holdToResolution: true,
 };
 
@@ -45,7 +46,7 @@ export class PaperAccount {
   setSettings(patch) { Object.assign(this.settings, patch); this.save(); }
   reset() { localStorage.removeItem(this.storageKey); this.load(); this.save(); }
 
-  tradeUsd() { return Math.max(2, this.acct.cash * this.settings.sizePct / 100); }
+  tradeUsd() { return Math.min(this.acct.cash, Math.max(2, this.acct.startUsd * this.settings.sizePct / 100)); }
   freeCash() { return this.acct.cash; }
   log(e) { this.acct.trades.unshift({ t: this.nowMs(), ...e }); if (this.acct.trades.length > 200) this.acct.trades.length = 200; }
   posKey(marketId, side) { return `${marketId}:${side}`; }
@@ -85,7 +86,7 @@ export class PaperAccount {
         kind: sig ? sig.kind : "manual", arbGroup: null,
       };
       this.log({ ...base, status: "filled", shares: fill.shares, avg_price: fill.avgPrice, fee, cost,
-        reason: sig ? (sig.kind === "arbitrage" ? "risk-free set" : `signal ${sig.agree}/25, edge ${(sig.edge * 100).toFixed(1)}¢`) : "manual" });
+        reason: sig ? (sig.kind === "arbitrage" ? "risk-free set" : `${sig.kind === "exploratory" ? "exploratory: top lean" : "signal"} ${sig.agree}/25, edge ${(sig.edge * 100).toFixed(1)}¢`) : "manual" });
       return this.acct.positions[key];
     } finally { this.pending.delete(key); this.save(); }
   }

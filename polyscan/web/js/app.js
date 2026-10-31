@@ -37,7 +37,7 @@ function beep() {
 function notifyNew(signals) {
   const ids = new Set(signals.map((s) => s.id));
   if (seenSignals) {
-    const fresh = signals.filter((s) => !seenSignals.has(s.id) && !s.outcome_result);
+    const fresh = signals.filter((s) => !seenSignals.has(s.id) && !s.outcome_result && s.kind !== "exploratory");
     if (fresh.length) { beep(); const s = fresh[0]; if ("Notification" in window && Notification.permission === "granted") new Notification(s.kind === "arbitrage" ? "RISK-FREE SET" : `SIGNAL: ${s.outcome}`, { body: s.headline.slice(0, 120) }); }
   }
   seenSignals = ids;
@@ -63,8 +63,9 @@ function renderVerdict() {
   if (!sig) {
     const closest = (S.arb_watch || [])[0];
     v.className = ""; v.innerHTML = `<div class="v-title muted ${S.running ? "pulse" : ""}">${S.running ? "Scanning" : "Stopped"} · ${S.stats.markets} fast markets (≤${S.rules.max_resolve_hours}h), ${S.stats.complete_sets} complete sets · no signal yet</div>
-      <p class="v-sub">No risk-free set is below $1 and no directional edge has cleared the bar. No signal is better than a bad one.
-      ${closest && closest.cost ? `Closest set: <b>${esc(closest.title)}</b> costs ${usd(closest.cost)} for a $1 payout (${closest.edge >= 0 ? "arb!" : (-closest.edge * 100).toFixed(1) + "¢ short"}).` : ""}</p>`;
+      <p class="v-sub">No risk-free set is below $1 and no directional edge has cleared the strict bar — on efficient markets that is normal and rare.
+      ${closest && closest.cost ? `Closest set: <b>${esc(closest.title)}</b> costs ${usd(closest.cost)} for a $1 payout (${closest.edge >= 0 ? "arb!" : (-closest.edge * 100).toFixed(1) + "¢ short"}).` : ""}
+      ${S.paper.settings.aggressive ? `<br><b>Aggressive demo mode is on:</b> the account is taking the council's best fast picks (${S.paper.positions.length} open) — they settle within hours. These are exploratory and pay the spread; turn it off for vetted signals only.` : `<b>Tip:</b> turn on "aggressive (explore)" in the demo account, or use the Demo buy buttons, to make it trade now.`}</p>`;
     return;
   }
   const isArb = sig.kind === "arbitrage";
@@ -146,11 +147,13 @@ function renderPaper() {
     <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Position</th><th>Shares</th><th>Avg</th><th>Mark</th><th>P&amp;L</th><th>Resolves</th><th></th></tr></thead><tbody id="posbody">${posRows}</tbody></table></div>
     ${trades ? `<div style="margin-top:8px">${trades}</div>` : ""}
     <div class="row" style="margin-top:10px">
-      <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="autoTrade" ${P.settings.autoTrade ? "checked" : ""}> auto-trade signals</label>
+      <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="autoTrade" ${P.settings.autoTrade ? "checked" : ""}> auto-trade</label>
+      <label class="muted" style="display:flex;gap:6px;align-items:center" title="Also take the council's best lean each cycle, not just vetted signals. Exploratory — expected to lose the spread + fee on efficient markets."><input type="checkbox" id="aggressive" ${P.settings.aggressive ? "checked" : ""}> aggressive (explore)</label>
       <label class="muted" style="display:flex;gap:6px;align-items:center">size <input type="number" id="sizePct" min="2" max="100" step="1" value="${P.settings.sizePct}">% </label>
       <button id="resetPaper">Reset to $10</button>
     </div>`;
   $("autoTrade").onchange = (e) => engine.paper.setSettings({ autoTrade: e.target.checked });
+  $("aggressive").onchange = (e) => engine.paper.setSettings({ aggressive: e.target.checked });
   $("sizePct").onchange = (e) => { const v = +e.target.value; if (v >= 2 && v <= 100) engine.paper.setSettings({ sizePct: v }); };
   $("resetPaper").onclick = () => { if (confirm("Reset the demo account to $10? Positions and history are deleted.")) { engine.paper.reset(); refresh(); } };
   $("posbody").querySelectorAll("button[data-sellm]").forEach((b) => b.onclick = () => { engine.paperSell(b.dataset.sellm, +b.dataset.sells); b.disabled = true; });
@@ -167,13 +170,17 @@ function renderCandidates() {
   if (!rows.find((c) => c.id === selected)) selected = rows[0] ? rows[0].id : null;
   $("cands").innerHTML = rows.length ? rows.map((c) => {
     const status = c.arb ? `<span class="tag arb">arb</span>` : c.vetoed ? `<span class="tag v" title="${esc(c.veto_reason)}">veto</span>` : "";
+    const o0 = (c.outcomes && c.outcomes[0]) || "Yes", o1 = (c.outcomes && c.outcomes[1]) || "No";
+    const buyBtns = `<button class="tag" data-buym="${esc(c.id)}" data-buys="0" title="demo buy ${esc(o0)} @ ${cents(c.ask0)}">+${esc(o0.slice(0, 7))}</button> <button class="tag" data-buym="${esc(c.id)}" data-buys="1" title="demo buy ${esc(o1)} @ ${cents(c.ask1)}">+${esc(o1.slice(0, 7))}</button>`;
     return `<tr class="clk ${c.id === selected ? "sel" : ""}" data-id="${esc(c.id)}">
       <td>${esc((c.question || "?").slice(0, 40))}<div class="sym">${esc((c.event || "").slice(0, 36))}</div></td>
       <td><span class="pill ${c.side === 0 ? "yes" : "no"}">${esc((c.outcome || "").slice(0, 10))}</span></td>
       <td>${cents(c.ask)}</td><td>${signedC(c.edge)}</td><td>${cents(c.spread)}</td><td>${usdk(c.vol24)}</td><td>${dur(c.hours)}</td>
-      <td>${voteBar(c)} ${status}</td></tr>`;
-  }).join("") : `<tr><td colspan="8" class="muted">${S.running ? "Loading order books…" : "Not running."}</td></tr>`;
-  $("cands").querySelectorAll("tr[data-id]").forEach((tr) => tr.onclick = () => { selected = tr.dataset.id; render(); });
+      <td>${voteBar(c)} ${status}</td>
+      <td style="white-space:nowrap">${buyBtns}</td></tr>`;
+  }).join("") : `<tr><td colspan="9" class="muted">${S.running ? "Loading order books…" : "Not running."}</td></tr>`;
+  $("cands").querySelectorAll("tr[data-id]").forEach((tr) => tr.onclick = (e) => { if (e.target.closest("button")) return; selected = tr.dataset.id; render(); });
+  $("cands").querySelectorAll("button[data-buym]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); engine.paperBuy(b.dataset.buym, +b.dataset.buys); b.disabled = true; b.textContent = "…"; });
 }
 
 function renderAgents() {
@@ -190,9 +197,9 @@ function renderAgents() {
 
 function renderHistory() {
   const r = S.track_record;
-  $("record").innerHTML = `${r.arbs} arbitrage signal(s) flagged · ` + (r.scored
-    ? `${r.scored} directional signals resolved: <b class="pos">${r.wins} won</b>, win rate <b>${r.win_rate}%</b>, avg <b>${signedC(r.avg_net_per_share)}</b>/share`
-    : `${r.signals} signals so far; directional outcomes appear when markets resolve.`);
+  $("record").innerHTML = `${r.arbs} risk-free set(s) flagged · ` + (r.scored
+    ? `${r.scored} trades resolved: <b class="pos">${r.wins} won</b>, win rate <b>${r.win_rate}%</b>, avg <b>${signedC(r.avg_net_per_share)}</b>/share (includes exploratory buys, which pay the spread)`
+    : `${r.signals} trades so far; results appear as each market resolves (hours).`);
   $("history").innerHTML = S.signals.slice(0, 20).map((s) => {
     const o = s.outcome_result;
     const res = s.kind === "arbitrage" ? `<span class="tag arb">risk-free +${(s.arb.edge * 100).toFixed(1)}¢</span>`
