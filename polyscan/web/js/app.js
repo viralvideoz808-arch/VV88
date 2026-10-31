@@ -24,7 +24,7 @@ $("toggle").onclick = () => {
 };
 $("minAgree").oninput = () => $("minAgreeV").textContent = $("minAgree").value;
 $("saveRules").onclick = () => {
-  engine.setRules({ min_buy_votes: Math.round(+$("minAgree").value), min_edge: Math.max(0, (+$("minEdge").value || 2) / 100) });
+  engine.setRules({ min_buy_votes: Math.round(+$("minAgree").value), min_edge: Math.max(0, (+$("minEdge").value || 2) / 100), max_resolve_hours: Math.max(1, Math.min(168, +$("maxHours").value || 24)) });
   rulesInit = false; refresh();
 };
 
@@ -55,14 +55,14 @@ function renderVerdict() {
   const v = $("verdict"), sig = S.active_signal;
   if (!S.running && !sig) {
     v.className = ""; v.innerHTML = `<div class="v-title muted">Press START to turn the 25 agents loose on Polymarket.</div>
-      <p class="v-sub">They scan thousands of live markets, price every order book, and look for two things: a <b>risk-free set</b>
-      (buy every outcome of a complete question for under $1) and the rare market where the odds are genuinely mispriced after fees.
+      <p class="v-sub">They scan the <b>fast-resolving</b> markets (games and short-dated questions that settle within hours), price every order book, and look for two things:
+      a <b>risk-free set</b> (buy every outcome of a complete question for under $1) and the rare market where the odds are genuinely mispriced after fees.
       The scan runs right here in this tab — keep it open while you want it working.</p>`;
     return;
   }
   if (!sig) {
     const closest = (S.arb_watch || [])[0];
-    v.className = ""; v.innerHTML = `<div class="v-title muted ${S.running ? "pulse" : ""}">${S.running ? "Scanning" : "Stopped"} · ${S.stats.markets} markets, ${S.stats.complete_sets} complete sets · no signal yet</div>
+    v.className = ""; v.innerHTML = `<div class="v-title muted ${S.running ? "pulse" : ""}">${S.running ? "Scanning" : "Stopped"} · ${S.stats.markets} fast markets (≤${S.rules.max_resolve_hours}h), ${S.stats.complete_sets} complete sets · no signal yet</div>
       <p class="v-sub">No risk-free set is below $1 and no directional edge has cleared the bar. No signal is better than a bad one.
       ${closest && closest.cost ? `Closest set: <b>${esc(closest.title)}</b> costs ${usd(closest.cost)} for a $1 payout (${closest.edge >= 0 ? "arb!" : (-closest.edge * 100).toFixed(1) + "¢ short"}).` : ""}</p>`;
     return;
@@ -103,7 +103,7 @@ function renderVerdict() {
 function renderStats() {
   const st = S.stats;
   const items = [
-    ["Markets watched", st.markets], ["With order books", st.with_books], ["Complete sets", st.complete_sets],
+    ["Fast markets", st.markets], ["With order books", st.with_books], ["Complete sets", st.complete_sets],
     ["Analyzed", st.analyzed], ["Council passes", st.passes], ["Pass time", st.last_pass_ms + " ms"],
     ["Events", st.events], ["Uptime", S.uptime_s + "s"],
   ];
@@ -148,11 +148,11 @@ function renderPaper() {
     <div class="row" style="margin-top:10px">
       <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="autoTrade" ${P.settings.autoTrade ? "checked" : ""}> auto-trade signals</label>
       <label class="muted" style="display:flex;gap:6px;align-items:center">size <input type="number" id="sizePct" min="2" max="100" step="1" value="${P.settings.sizePct}">% </label>
-      <button id="resetPaper">Reset to $100</button>
+      <button id="resetPaper">Reset to $10</button>
     </div>`;
   $("autoTrade").onchange = (e) => engine.paper.setSettings({ autoTrade: e.target.checked });
   $("sizePct").onchange = (e) => { const v = +e.target.value; if (v >= 2 && v <= 100) engine.paper.setSettings({ sizePct: v }); };
-  $("resetPaper").onclick = () => { if (confirm("Reset the demo account to $100? Positions and history are deleted.")) { engine.paper.reset(); refresh(); } };
+  $("resetPaper").onclick = () => { if (confirm("Reset the demo account to $10? Positions and history are deleted.")) { engine.paper.reset(); refresh(); } };
   $("posbody").querySelectorAll("button[data-sellm]").forEach((b) => b.onclick = () => { engine.paperSell(b.dataset.sellm, +b.dataset.sells); b.disabled = true; });
 }
 
@@ -205,7 +205,7 @@ function renderHistory() {
 function render() {
   if (!S) return;
   renderHeader(); renderVerdict(); renderStats(); renderArbWatch(); renderPaper(); renderCandidates(); renderAgents(); renderHistory();
-  if (!rulesInit) { $("minAgree").value = S.rules.min_buy_votes; $("minAgreeV").textContent = S.rules.min_buy_votes; $("minEdge").value = (S.rules.min_edge * 100).toFixed(1); rulesInit = true; }
+  if (!rulesInit) { $("minAgree").value = S.rules.min_buy_votes; $("minAgreeV").textContent = S.rules.min_buy_votes; $("minEdge").value = (S.rules.min_edge * 100).toFixed(1); $("maxHours").value = S.rules.max_resolve_hours; rulesInit = true; }
 }
 
 function refresh() {

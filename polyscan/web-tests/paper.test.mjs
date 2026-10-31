@@ -16,17 +16,18 @@ function acct(markets = []) {
   return new PaperAccount({ nowMs: () => 1_000_000, getMarket: (id) => map.get(id), client: null, storageKey: `polyscan.paper.${acctN++}` });
 }
 
-test("funds at $100 and sizes trades from free cash", () => {
+test("funds at $10 and sizes trades from free cash", () => {
   const a = acct();
   assert.equal(a.acct.cash, START_USD);
-  assert.equal(a.tradeUsd(), 20); // 20% of $100
+  assert.equal(START_USD, 10);
+  assert.equal(a.tradeUsd(), 4); // 40% of $10
 });
 
 test("a buy walks the ask ladder and pays the taker fee", async () => {
   const m = market({ yesAsk: 0.5, yesBid: 0.49, feeRate: 0.05 });
   const a = acct([m]);
   const before = a.acct.cash;
-  const pos = await a.buy(m, 0, 20);
+  const pos = await a.buy(m, 0, 4);
   assert.ok(pos && pos.shares > 0);
   const expectedFee = feePerShare(m, 0.5) * pos.shares;
   assert.ok(Math.abs((before - a.acct.cash) - pos.cost) < 1e-9);
@@ -37,7 +38,7 @@ test("a buy walks the ask ladder and pays the taker fee", async () => {
 test("winning positions settle at $1/share, losing at $0", async () => {
   const m = market({ yesAsk: 0.6, yesBid: 0.59, feeRate: 0 });
   const a = acct([m]);
-  const pos = await a.buy(m, 0, 30);
+  const pos = await a.buy(m, 0, 4);
   const shares = pos.shares, cost = pos.cost;
   m.resolved = true; m.winner = 0;
   await a.monitor();
@@ -47,7 +48,7 @@ test("winning positions settle at $1/share, losing at $0", async () => {
 
   const m2 = market({ id: "M2", yesAsk: 0.6, yesBid: 0.59, feeRate: 0 });
   const b = acct([m2]);
-  const p2 = await b.buy(m2, 0, 30);
+  const p2 = await b.buy(m2, 0, 4);
   m2.resolved = true; m2.winner = 1; // the other side won
   await b.monitor();
   assert.equal(b.acct.trades[0].status, "loss");
@@ -57,11 +58,11 @@ test("winning positions settle at $1/share, losing at $0", async () => {
 test("selling into the bid returns proceeds minus fee", async () => {
   const m = market({ yesAsk: 0.6, yesBid: 0.58, feeRate: 0 });
   const a = acct([m]);
-  const pos = await a.buy(m, 0, 20);
+  const pos = await a.buy(m, 0, 4);
   await a.sellAll(m.id, 0, "manual");
   assert.equal(a.acct.positions[pos.key], undefined);
   // round trip at a 2c spread loses ~ the spread; cash below start
-  assert.ok(a.acct.cash < START_USD && a.acct.cash > START_USD - 2);
+  assert.ok(a.acct.cash < START_USD && a.acct.cash > START_USD - 1);
   assert.equal(a.acct.trades[0].side, "SELL");
 });
 
@@ -88,7 +89,7 @@ test("respects the max-position cap", async () => {
   const ms = Array.from({ length: 8 }, (_, i) => market({ id: `K${i}`, yesAsk: 0.5, yesBid: 0.49 }));
   const a = acct(ms);
   a.settings.maxPositions = 2;
-  for (const m of ms.slice(0, 2)) await a.buy(m, 0, 10, { kind: "directional", side: 0, agree: 20, edge: 0.03 });
+  for (const m of ms.slice(0, 2)) await a.buy(m, 0, 3, { kind: "directional", side: 0, agree: 20, edge: 0.03 });
   await a.onSignal({ kind: "directional", side: 0, agree: 20, edge: 0.03, question: "x", outcome: "Yes" }, ms[2]);
   assert.ok(Object.keys(a.acct.positions).length === 2);
   assert.match(a.acct.trades[0].reason, /already holding/);
@@ -97,7 +98,7 @@ test("respects the max-position cap", async () => {
 test("snapshot equity is cash plus the mark of open positions, and persists", async () => {
   const m = market({ yesAsk: 0.5, yesBid: 0.49, feeRate: 0 });
   const a = new PaperAccount({ nowMs: () => 1_000_000, getMarket: (id) => (id === m.id ? m : null) });
-  await a.buy(m, 0, 20);
+  await a.buy(m, 0, 4);
   const snap = a.snapshot();
   assert.ok(Math.abs(snap.equity - (snap.cash + snap.open_value)) < 1e-9);
   assert.equal(snap.positions.length, 1);

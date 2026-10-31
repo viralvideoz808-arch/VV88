@@ -13,7 +13,7 @@ export function market(f = {}) {
     yesMid: (yesAsk + yesBid) / 2, lastTrade: f.lastTrade ?? (yesAsk + yesBid) / 2, spread: yesAsk - yesBid,
     vol24: f.vol24 ?? 50000, liq: f.liq ?? 50000, openInterest: f.openInterest ?? 40000,
     chg1h: f.chg1h ?? 0.01, chg24h: f.chg24h ?? 0.03,
-    endMs: f.endMs ?? NOW + 3 * 24 * 3.6e6, createdMs: NOW - 10 * 24 * 3.6e6,
+    endMs: f.endMs ?? NOW + 4 * 3.6e6, createdMs: NOW - 10 * 24 * 3.6e6, // resolves in 4h: inside the fast window
     feeRate: f.feeRate ?? 0, feesEnabled: !!f.feeRate, feeExp: 1,
     negRisk: !!f.negRisk, negRiskAugmented: !!f.augmented,
     resolutionSource: "https://example.com", description: "A clearly described market with a resolution source.",

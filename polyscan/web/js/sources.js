@@ -147,9 +147,13 @@ export class PolyClient {
     }
   }
 
-  // A page of active, liquid events ordered by 24h volume.
-  async events(limit = 100, offset = 0) {
-    const url = `${GAMMA}/events?closed=false&active=true&archived=false&limit=${limit}&offset=${offset}&order=volume24hr&ascending=false`;
+  // A page of active events. With endMaxIso, only events resolving on or before that time (soonest first) — the
+  // fast-market universe; otherwise the highest-volume events.
+  async events(limit = 100, offset = 0, endMaxIso = null) {
+    const order = endMaxIso ? "endDate&ascending=true" : "volume24hr&ascending=false";
+    const nowIso = new Date().toISOString();
+    const window = endMaxIso ? `&end_date_min=${encodeURIComponent(nowIso)}&end_date_max=${encodeURIComponent(endMaxIso)}` : "";
+    const url = `${GAMMA}/events?closed=false&active=true&archived=false&limit=${limit}&offset=${offset}&order=${order}${window}`;
     const d = await this.getJson(url, "gamma", this.gammaLimit);
     return Array.isArray(d) ? d.map(parseEvent) : [];
   }

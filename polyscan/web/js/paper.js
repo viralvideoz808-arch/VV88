@@ -11,12 +11,12 @@
 
 import { feePerShare, usd, walkAsks, walkBids } from "./core.js";
 
-export const START_USD = 100;
+export const START_USD = 10;
 export const DEFAULT_SETTINGS = {
   autoTrade: true,
-  sizePct: 20,          // % of free cash per directional trade
-  maxPositions: 6,
-  arbMaxUsd: 25,        // cap per risk-free set purchase
+  sizePct: 40,          // % of free cash per directional trade ($4 of a fresh $10, enough to clear the 5-share min)
+  maxPositions: 3,
+  arbMaxUsd: 8,         // cap per risk-free set purchase
   holdToResolution: true,
 };
 
@@ -45,7 +45,7 @@ export class PaperAccount {
   setSettings(patch) { Object.assign(this.settings, patch); this.save(); }
   reset() { localStorage.removeItem(this.storageKey); this.load(); this.save(); }
 
-  tradeUsd() { return Math.max(5, this.acct.cash * this.settings.sizePct / 100); }
+  tradeUsd() { return Math.max(2, this.acct.cash * this.settings.sizePct / 100); }
   freeCash() { return this.acct.cash; }
   log(e) { this.acct.trades.unshift({ t: this.nowMs(), ...e }); if (this.acct.trades.length > 200) this.acct.trades.length = 200; }
   posKey(marketId, side) { return `${marketId}:${side}`; }

@@ -179,13 +179,14 @@ agent("liquidity", "Liquidity Floor", "tradeability",
   });
 
 agent("resolution_time", "Resolution Clock", "tradeability",
-  "Avoid markets about to resolve (no time for a thesis) or far from any catalyst.", true, (m, ctx) => {
+  "Fast markets only: prefer those that resolve within the window, but not in the next few minutes (no room for a directional view, and thin exit).", true, (m, ctx) => {
     const h = m.hoursToEnd(ctx.now);
-    if (h == null) return [HOLD, 0.3, "no end date"];
+    const maxH = (ctx.rules && ctx.rules.max_resolve_hours) || 24;
+    if (h == null) return [AVOID, 0.6, "no end date: can't confirm it resolves soon"];
     if (h < 0) return [AVOID, 1, "past its end date"];
-    if (h < 0.5 && ctx.event && !ctx.event.arb) return [AVOID, 0.6, `resolves in ${(h * 60).toFixed(0)} min: no room for a view`];
-    if (h > 24 * 180) return [HOLD, 0.3, `${(h / 24).toFixed(0)} days out: capital tied up a long time`];
-    return [BUY, 0.5, `${h < 48 ? h.toFixed(0) + "h" : (h / 24).toFixed(0) + "d"} to resolution`];
+    if (h > maxH) return [AVOID, 0.7, `resolves in ${h < 48 ? h.toFixed(0) + "h" : (h / 24).toFixed(0) + "d"}: slower than your ${maxH}h window`];
+    if (h < 0.1 && !(ctx.event && ctx.event.arb)) return [AVOID, 0.6, `resolves in ${(h * 60).toFixed(0)} min: too soon to enter`];
+    return [BUY, 0.5 + 0.4 * (1 - h / maxH), `resolves in ${h < 1 ? (h * 60).toFixed(0) + " min" : h.toFixed(1) + "h"}: quick`];
   });
 
 agent("extreme_price", "Extreme Price Guard", "tradeability",
@@ -358,13 +359,13 @@ agent("event_consistency", "Event Consistency Check", "structure",
     return [HOLD, 0.35, `${ev.siblings.length} sibling markets`];
   });
 
-agent("time_value", "Time-Decay Value", "structure",
-  "A directional view needs time to play out but not so long that capital is dead.", false, (m, ctx) => {
+agent("time_value", "Quick-Turnaround Agent", "structure",
+  "A fast market frees your capital quickly and gives a real result within hours.", false, (m, ctx) => {
     const h = m.hoursToEnd(ctx.now);
     if (h == null || h < 0) return [ABSTAIN, 0, "no valid end date"];
-    if (h >= 12 && h <= 24 * 60) return [BUY, 0.5, `${h < 48 ? h.toFixed(0) + "h" : (h / 24).toFixed(0) + "d"}: room for the view`];
-    if (h < 12) return [HOLD, 0.3, `${h.toFixed(0)}h: little time`];
-    return [HOLD, 0.3, `${(h / 24).toFixed(0)}d: slow`];
+    const maxH = (ctx.rules && ctx.rules.max_resolve_hours) || 24;
+    if (h <= maxH) return [BUY, 0.5 + 0.3 * (1 - h / maxH), `resolves in ${h < 1 ? (h * 60).toFixed(0) + " min" : h.toFixed(1) + "h"}: quick turnaround`];
+    return [HOLD, 0.25, `${(h / 24).toFixed(1)}d: ties up capital`];
   });
 
 agent("price_level", "Probability Band", "structure",
@@ -422,10 +423,12 @@ export function defaultRules() {
     max_avoid_votes: 0,
     min_edge: 0.02,        // directional signals need >= 2c/share net expected edge
     min_arb_edge: 0.005,   // risk-free sets need >= 0.5c/share after fees
+    max_resolve_hours: 24, // only trade markets that resolve within this many hours (fast markets)
   };
 }
 
 export function runCouncil(m, ctx, rules) {
+  ctx.rules = rules;
   const votes = AGENTS.map((a) => vote(a, m, ctx));
   const counts = { BUY: 0, HOLD: 0, AVOID: 0, ABSTAIN: 0 };
   for (const v of votes) counts[v.stance]++;

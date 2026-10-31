@@ -1,7 +1,8 @@
 # polyscan — a 25-agent council for Polymarket
 
-Open the site, press **START**. 25 analysis agents begin scanning every liquid Polymarket market, pricing each
-order book, and looking for two things:
+Open the site, press **START**. 25 analysis agents begin scanning the **fast-resolving** Polymarket markets —
+games and short-dated questions that settle within hours, not days — pricing each order book, and looking for two
+things:
 
 1. **Risk-free arbitrage.** On a *complete* question — one whose outcomes are mutually exclusive and exhaustive, so
    exactly one resolves YES — buying one share of every outcome returns exactly **$1** at resolution. If the whole
@@ -11,6 +12,10 @@ order book, and looking for two things:
 2. **A genuinely mispriced market.** Rare. Prediction-market prices are the crowd's probability and are hard to
    beat. A directional signal fires only when the council reaches consensus **and** the price is below a modest
    fair-value estimate by more than the fees — and it is labelled speculative.
+
+Only markets resolving within a window you choose (**24 hours by default**, adjustable down to an hour) are
+scanned, so positions settle quickly and the demo account builds a real, measured track record the same session —
+NBA/NFL/soccer/esports games, hourly crypto, same-day events. Markets that take days are skipped.
 
 The whole thing runs **inside your browser tab**. Polymarket's Gamma and CLOB APIs both allow direct browser
 access, so polyscan is a static site with no server. Keep the tab open while you want it working.
@@ -41,7 +46,7 @@ Momentum Scout · Price-History Trend · Volume Surge Analyst · Book Imbalance 
 Open Interest Monitor
 
 **Structure & context**
-Resolution Clarity · Event Consistency Check · Time-Decay Value · Probability Band · Category & Fee Fit
+Resolution Clarity · Event Consistency Check · Quick-Turnaround Agent · Probability Band · Category & Fee Fit
 
 Each agent votes BUY / HOLD / AVOID / ABSTAIN with a one-line reason; every vote is shown. An agent abstains when it
 lacks data — it never guesses.
@@ -65,10 +70,10 @@ lacks data — it never guesses.
 
 ## The demo account
 
-Starts with **$100** of simulated money and auto-trades the council's signals (toggle it off to trade by hand).
+Starts with **$10** of simulated money and auto-trades the council's signals (toggle it off to trade by hand).
 For an arbitrage signal it buys the whole set, sized to a per-set cap. For a directional signal it buys the outcome
 token at the ask. It values open positions at the live mid, settles resolved markets at $1/$0, and keeps everything
-in your browser's local storage. "Reset to $100" clears it.
+in your browser's local storage. "Reset to $10" clears it.
 
 ## Run it
 

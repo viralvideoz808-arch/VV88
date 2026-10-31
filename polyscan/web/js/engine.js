@@ -76,57 +76,93 @@ export class Engine {
 
   setRules(patch) {
     Object.assign(this.rules, patch);
-    storageSet("polyscan.rules", { min_buy_votes: this.rules.min_buy_votes, min_edge: this.rules.min_edge, min_arb_edge: this.rules.min_arb_edge });
+    storageSet("polyscan.rules", { min_buy_votes: this.rules.min_buy_votes, min_edge: this.rules.min_edge, min_arb_edge: this.rules.min_arb_edge, max_resolve_hours: this.rules.max_resolve_hours });
   }
 
   // ------------------------------------------------------------ data loops
 
   async eventsLoop(signal) {
     while (!signal.aborted) {
-      let offset = 0, pages = 0;
-      while (!signal.aborted && pages < 6) {
-        const evs = await this.client.events(100, offset);
+      // Events resolving within the fast window, soonest first (a buffer past the window so nothing is missed at the
+      // edge as time passes). The map is kept across sweeps so order books survive; stale markets are pruned below.
+      const endMaxIso = new Date(this.clock() + (this.rules.max_resolve_hours + 6) * 3.6e6).toISOString();
+      const seen = new Set();
+      for (let page = 0; page < 8 && !signal.aborted; page++) {
+        const evs = await this.client.events(100, page * 100, endMaxIso);
         if (!evs.length) break;
-        for (const ev of evs) {
-          if (ev.id) { this.events.set(ev.id, ev); this.events_seen++; }
-          for (const m of ev.markets) {
-            if (!m.id) continue;
-            const prev = this.markets.get(m.id);
-            // keep attached books/history across refreshes
-            if (prev) { m.books = prev.books; m.booksAt = prev.booksAt; m.history = prev.history; m.historyAt = prev.historyAt; }
-            if (this.markets.size < WATCH_CAP || prev) this.markets.set(m.id, m);
-            this.marketEvent.set(m.id, ev.id);
-          }
-        }
-        this.status.gamma = `ok (${this.events.size} events, ${this.markets.size} markets)`;
-        offset += 100; pages++;
-        await sleep(400, signal);
+        this.events_seen += this.absorb(evs, seen);
+        this.status.gamma = `ok (${this.events.size} events, ${this.markets.size} markets in the fast window)`;
+        await sleep(300, signal);
       }
-      await sleep(30000, signal);
+      this.prune(seen);
+      await sleep(25000, signal);
     }
   }
 
-  // The liquid, two-sided markets worth a full directional council. Deliberately excludes near-resolved longshots
-  // (mid outside 2c..98c) so the leaderboard shows real questions, not the 0.1c tail of big multi-outcome events.
+  absorb(evs, seen) {
+    let n = 0;
+    for (const ev of evs) {
+      if (!ev.id) continue;
+      if (!this.events.has(ev.id)) n++;
+      this.events.set(ev.id, ev);
+      for (const m of ev.markets) {
+        if (!m.id) continue;
+        seen && seen.add(m.id);
+        const prev = this.markets.get(m.id);
+        if (prev) { m.books = prev.books; m.booksAt = prev.booksAt; m.history = prev.history; m.historyAt = prev.historyAt; }
+        if (this.markets.size < WATCH_CAP || prev) this.markets.set(m.id, m);
+        this.marketEvent.set(m.id, ev.id);
+      }
+    }
+    return n;
+  }
+
+  // Drop markets that are clearly out of the fast window or long ended, unless the demo account holds them or an
+  // open signal references them. Keeps books for everything still in play.
+  prune(seen) {
+    const now = this.clock(), maxH = this.rules.max_resolve_hours;
+    const keep = new Set(Object.values(this.paper.acct.positions).map((p) => p.marketId));
+    for (const s of this.signals) if (!s.outcome_result) keep.add(s.marketId);
+    for (const [id, m] of this.markets) {
+      if (seen.has(id) || keep.has(id)) continue;
+      const h = m.hoursToEnd(now);
+      if (h == null || h < -1 || h > maxH + 12) {
+        this.markets.delete(id); this.marketEvent.delete(id);
+      }
+    }
+    // forget events with no remaining markets
+    for (const [eid, ev] of this.events) if (!ev.markets.some((m) => this.markets.has(m.id))) this.events.delete(eid);
+  }
+
+  // The liquid, fast-resolving, two-sided markets worth a full directional council. Only markets that resolve within
+  // the fast window, and not near-resolved longshots (mid outside 2c..98c). Sooner resolution ranks higher.
   candidates(now) {
     const out = [];
+    const maxH = this.rules.max_resolve_hours;
     for (const m of this.markets.values()) {
       if (m.closed || !m.active || !m.enableOrderBook || !m.acceptingOrders) continue;
       if (m.liq < 2000 && m.vol24 < 2000) continue;
       if (m.yesMid == null || m.yesMid < 0.02 || m.yesMid > 0.98) continue;
       const h = m.hoursToEnd(now);
-      if (h != null && h < 0) continue;
-      const score = Math.log10(Math.max(m.vol24, m.liq, 1)) - (m.spread || 0.1) * 5;
+      if (h == null || h < 0.08 || h > maxH) continue; // fast only; not already ending this minute
+      const soonBonus = 2 * (1 - h / maxH); // resolves sooner -> ranks higher
+      const score = Math.log10(Math.max(m.vol24, m.liq, 1)) - (m.spread || 0.1) * 5 + soonBonus;
       out.push([score, m]);
     }
     out.sort((a, b) => b[0] - a[0]);
     return out.slice(0, CANDIDATE_CAP).map((x) => x[1]);
   }
 
-  // Complete (mutually-exclusive and exhaustive) negRisk events, highest volume first: the arbitrage universe.
+  // Complete (mutually-exclusive and exhaustive) negRisk events that resolve within the fast window — the arbitrage
+  // universe, soonest first.
   arbEvents(limit = 30) {
-    return [...this.events.values()].filter((e) => e.complete && e.n >= 2 && e.n <= 20)
-      .sort((a, b) => b.vol24 - a.vol24).slice(0, limit);
+    const now = this.clock(), maxH = this.rules.max_resolve_hours;
+    return [...this.events.values()].filter((e) => {
+      if (!e.complete || e.n < 2 || e.n > 20) return false;
+      const hs = e.members.map((m) => m.hoursToEnd(now)).filter((h) => h != null);
+      const h = hs.length ? Math.min(...hs) : null;
+      return h != null && h > 0 && h <= maxH;
+    }).sort((a, b) => b.vol24 - a.vol24).slice(0, limit);
   }
 
   async booksLoop(signal) {
@@ -300,7 +336,8 @@ export class Engine {
         events: this.events.size, markets: this.markets.size,
         with_books: [...this.markets.values()].filter((m) => m.books).length,
         analyzed: this.analyzed.size, passes: this.passes, last_pass_ms: Math.round(this.last_pass_ms * 10) / 10,
-        complete_sets: [...this.events.values()].filter((e) => e.complete && e.n >= 2).length,
+        complete_sets: this.arbEvents(99).length,
+        max_resolve_hours: this.rules.max_resolve_hours,
       },
       sources: { ...this.status },
       rules: { ...this.rules },
