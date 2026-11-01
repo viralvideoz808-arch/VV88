@@ -1,0 +1,114 @@
+{
+ "out": "out/04_fake_cry_call_on_preme_stream.mp4",
+ "crop_w": 1300,
+ "headline": "SHE FAKE CRIED TO HER HOMIE ON PREME'S STREAM... *HE DIDN'T HESITATE*",
+ "keep": [
+  [
+   78.2,
+   79.3
+  ],
+  [
+   25.15,
+   28.1
+  ],
+  [
+   35.4,
+   39.6
+  ],
+  [
+   41.85,
+   45.75
+  ],
+  [
+   49.9,
+   55.5
+  ],
+  [
+   61.2,
+   62.6
+  ],
+  [
+   64.75,
+   66.65
+  ],
+  [
+   71.2,
+   79.3
+  ],
+  [
+   79.4,
+   82.4
+  ],
+  [
+   87.3,
+   91.45
+  ],
+  [
+   93.6,
+   97.3
+  ],
+  [
+   103.3,
+   105.45
+  ],
+  [
+   110.6,
+   111.85
+  ]
+ ],
+ "highlight": [
+  "MILKSHAKE.",
+  "MILKSHAKE",
+  "COME.",
+  "COMING?",
+  "JUMPED",
+  "PREME",
+  "REAL"
+ ],
+ "fix": [
+  [
+   35.4,
+   36.1,
+   "This",
+   "These b*tches"
+  ],
+  [
+   41.8,
+   42.4,
+   "Brown",
+   "Bro,"
+  ],
+  [
+   39.1,
+   39.6,
+   "bad",
+   "mad."
+  ],
+  [
+   94.5,
+   95.1,
+   "preem",
+   "Preme"
+  ],
+  [
+   101,
+   103.5,
+   "Chad",
+   ""
+  ],
+  [
+   0,
+   112,
+   "nigga",
+   "n*gga"
+  ],
+  [
+   0,
+   112,
+   "nigga.",
+   "n*gga."
+  ]
+ ],
+ "src": "hi/cry.mp4",
+ "words": "work/cry.words.json"
+}

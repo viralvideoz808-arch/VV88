@@ -1,0 +1,88 @@
+{
+ "out": "out/03_preme_ranks_the_girls_security.mp4",
+ "crop_w": 1440,
+ "headline": "PREME HAD TO RANK THE GIRLS *TO THEIR FACE*",
+ "keep": [
+  [
+   80.1,
+   83.0
+  ],
+  [
+   8.5,
+   17.35
+  ],
+  [
+   24.6,
+   33.7
+  ],
+  [
+   73.4,
+   75.9
+  ],
+  [
+   77.9,
+   91.2
+  ],
+  [
+   140.5,
+   150.45
+  ],
+  [
+   152.6,
+   154.0
+  ],
+  [
+   156.1,
+   160.4
+  ],
+  [
+   160.85,
+   166.95
+  ],
+  [
+   167.7,
+   170.6
+  ],
+  [
+   173.7,
+   174.45
+  ],
+  [
+   190.0,
+   191.85
+  ]
+ ],
+ "highlight": [
+  "SECURITY.",
+  "SECURITY",
+  "TORONTO.",
+  "TYPE?",
+  "TYPE.",
+  "DOOR.",
+  "OUT.",
+  "BEAUTIFUL.",
+  "HARD"
+ ],
+ "fix": [
+  [
+   12.6,
+   12.85,
+   "",
+   "sh*t."
+  ],
+  [
+   160.8,
+   161.1,
+   "Mega,",
+   ""
+  ],
+  [
+   157.7,
+   158.0,
+   "our",
+   "hard"
+  ]
+ ],
+ "src": "hi/type.mp4",
+ "words": "work/type.words.json"
+}

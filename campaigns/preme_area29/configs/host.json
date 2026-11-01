@@ -1,0 +1,58 @@
+{
+ "out": "out/06_preme_game_exposed_the_host.mp4",
+ "crop_w": 1440,
+ "headline": "PREME'S GAME EXPOSED THE HOST... HE'S *RETIRED* NOW",
+ "keep": [
+  [
+   33.3,
+   35.05
+  ],
+  [
+   0.0,
+   6.65
+  ],
+  [
+   23.85,
+   25.95
+  ],
+  [
+   26.75,
+   27.65
+  ],
+  [
+   32.0,
+   35.05
+  ],
+  [
+   46.0,
+   47.7
+  ],
+  [
+   48.45,
+   49.1
+  ]
+ ],
+ "highlight": [
+  "HOST",
+  "HOST.",
+  "HOE",
+  "HOE.",
+  "RETIRED."
+ ],
+ "fix": [
+  [
+   30,
+   48,
+   "hub",
+   "hoe"
+  ],
+  [
+   30,
+   48,
+   "hub.",
+   "hoe."
+  ]
+ ],
+ "src": "hi/host.mp4",
+ "words": "work/host.words.json"
+}

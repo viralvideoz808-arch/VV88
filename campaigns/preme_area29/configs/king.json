@@ -1,0 +1,117 @@
+{
+ "out": "out/01_preme_let_the_king_be_the_king.mp4",
+ "crop_w": 1400,
+ "headline": "PREME TOLD HER TO *LET THE KING* BE THE KING",
+ "keep": [
+  [
+   47.62,
+   50.0
+  ],
+  [
+   14.12,
+   17.45
+  ],
+  [
+   24.3,
+   45.15
+  ],
+  [
+   45.85,
+   50.0
+  ],
+  [
+   59.3,
+   62.2
+  ],
+  [
+   67.1,
+   69.45
+  ],
+  [
+   74.55,
+   86.7
+  ],
+  [
+   87.75,
+   99.0
+  ],
+  [
+   113.0,
+   127.5
+  ]
+ ],
+ "highlight": [
+  "KING",
+  "LEAD",
+  "LEAD.",
+  "ROLLS",
+  "ROYCE",
+  "LOVE",
+  "KISS",
+  "KISS."
+ ],
+ "fix": [
+  [
+   60,
+   62,
+   "K",
+   "K-I-N-G,"
+  ],
+  [
+   60,
+   62,
+   "-I",
+   ""
+  ],
+  [
+   60,
+   62,
+   "-M",
+   ""
+  ],
+  [
+   60,
+   62,
+   "-G",
+   ""
+  ],
+  [
+   88,
+   90,
+   "angel",
+   "energy"
+  ],
+  [
+   96,
+   97,
+   "leave",
+   "lead."
+  ],
+  [
+   120,
+   130,
+   "Prim",
+   "Preme"
+  ],
+  [
+   85,
+   86.2,
+   "shot",
+   "sh*t"
+  ],
+  [
+   0,
+   140,
+   "nigga",
+   "n*gga"
+  ],
+  [
+   0,
+   140,
+   "nigga,",
+   "n*gga,"
+  ]
+ ],
+ "src": "hi/king.mp4",
+ "words": "work/king.words.json"
+}

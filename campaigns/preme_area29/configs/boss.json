@@ -1,0 +1,86 @@
+{
+ "out": "out/05_she_pointed_at_her_boss.mp4",
+ "crop_w": 1400,
+ "headline": "SHE CALLED HER *BOSS* THE HARDEST TO DATE ON PREME'S STREAM",
+ "keep": [
+  [
+   53.8,
+   58.25
+  ],
+  [
+   8.2,
+   13.2
+  ],
+  [
+   31.95,
+   34.0
+  ],
+  [
+   37.6,
+   44.5
+  ],
+  [
+   46.3,
+   50.0
+  ],
+  [
+   53.8,
+   58.25
+  ],
+  [
+   59.4,
+   67.35
+  ],
+  [
+   69.15,
+   72.3
+  ],
+  [
+   87.4,
+   95.1
+  ],
+  [
+   104.3,
+   108.25
+  ],
+  [
+   127.35,
+   131.6
+  ],
+  [
+   159.8,
+   161.15
+  ],
+  [
+   168.4,
+   171.25
+  ]
+ ],
+ "highlight": [
+  "BOSS",
+  "BOSS!",
+  "BOSS,",
+  "MCDONALD'S",
+  "JOB",
+  "EX",
+  "EX.",
+  "HI",
+  "BOSSY."
+ ],
+ "fix": [
+  [
+   8.2,
+   8.4,
+   "point",
+   "Point"
+  ],
+  [
+   76,
+   78,
+   "Dean,",
+   ""
+  ]
+ ],
+ "src": "hi/boss.mp4",
+ "words": "work/boss.words.json"
+}
