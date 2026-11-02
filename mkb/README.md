@@ -25,6 +25,12 @@ mkb/
 └── tools/                  Regenerate logos (gen_brand.py) and the social kit (kit.html + export-kit.js)
 ```
 
+## Live site
+
+**https://mosesbrightkangara.vercel.app** is hosted free on Vercel (project `mosesbrightkangara`, team `vv-88`). It's static hosting, so visitor messages, proposals and orders go straight to your DMs. The admin works in local edit mode: export `content.json` and commit it to publish (see Option B below).
+
+Deployments are made from this repository's branch. To have every push publish automatically, install the Vercel GitHub app for this repository (Vercel dashboard → the project → **Settings → Git → Connect Git Repository**) and set the root directory to `mkb/public`.
+
 ## What visitors can do
 
 | | |
