@@ -13,4 +13,5 @@ rebuilt at full resolution with the name changed to **allviralvideozz**
 - `reference_original/`: the untouched crops of the originals ("viralvideoz"), cut from the option-sheet screenshots, for comparison.
 - Regenerate with `python3 brand/options/render_options.py` (deterministic, no network).
 
-The live kit in `brand/` (Loop 88) is not changed by these files.
+Option 1 (VV Network) is now the main kit in `brand/`; `brand/render.py` draws it with this script.
+The previous main kit, Loop 88, is archived in `loop_88/` with its renderer and its old approval.

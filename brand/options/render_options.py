@@ -168,14 +168,17 @@ def paste_box(img, mask, color, left, top, height, box):
 
 
 # ---------------------------------------------------------------- 1. avatars
-def avatar(kind, S=1024):
-    """Square profile picture; the mark sits where it sat in the sheet's circle."""
+def avatar(kind, S=1024, bg=None, colors=None):
+    """Square profile picture; the mark sits where it sat in the sheet's circle.
+    VV Network only: `bg` (an RGB colour) and `colors` ((left V, right V)) recolour it,
+    which the main kit uses for its alternates."""
     k = (S / 2) / FRAME_R
     if kind == "vv_network":
-        img = radial_bg(S, S, AV_LIFT, AV_INK, radius=S * 0.62)
+        img = radial_bg(S, S, AV_LIFT, AV_INK, radius=S * 0.62) if bg is None else Image.new("RGB", (S, S), bg)
         box = VV_BOX
         wm, ym = vv_masks((box[3] - box[1]) * k)
-        masks = ((wm, WHITE), (ym, YELLOW))
+        c_left, c_right = colors or (WHITE, YELLOW)
+        masks = ((wm, c_left), (ym, c_right))
     else:
         img = radial_bg(S, S, AV_VIOLET, AV_NIGHT, cy=S * 0.45, radius=S * 0.62)
         box = PULSE_BOX

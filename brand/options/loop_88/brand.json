@@ -1,0 +1,88 @@
+{
+  "concept_name": "Loop 88",
+  "rationale": "The mark is a figure-eight replay loop with a play button: one continuous stroke that crosses itself, so it reads as both a bold 8 and a replay / infinity loop, the thing a good clip makes people do. One diagonal passes over the other with a cut gap, which gives the loop its depth at large sizes and simply resolves to a bold 8 at 32-48 px. A play triangle sits in the larger lower counter to say 'video' without any text. Signal yellow #FFE600 on near-black #0F0F0F is the same colour pair as the karaoke captions on every clip, so the avatar, the banners and the videos look like one product. The banner and header wordmark spell the display name, ALL VIRAL VIDEOZZ, so profile name, handle and artwork match on every platform. No creator names and no 'official' language: the copy says what the page posts, that it is independent, and how a featured creator can ask for a correction or removal.",
+  "palette": [
+    "#FFE600",
+    "#0F0F0F",
+    "#F6F6F2",
+    "#8A8A85",
+    "#171717"
+  ],
+  "palette_roles": {
+    "#FFE600": "Signal Yellow - mark, active caption word, highlights",
+    "#0F0F0F": "Ink - backgrounds",
+    "#F6F6F2": "Paper - primary type on dark",
+    "#8A8A85": "Steel - secondary type, meta lines",
+    "#171717": "Lift - soft background glow, panels"
+  },
+  "fonts": {
+    "wordmark": "Inter Display Black (tracking -2%)",
+    "captions_and_taglines": "Inter ExtraBold, uppercase",
+    "meta": "Inter SemiBold, uppercase, tracking +12%",
+    "body": "Inter Regular / Medium"
+  },
+  "unified_handle": "allviralvideozz",
+  "handle_fallbacks": [],
+  "handle_note": "Claimed by the owner on TikTok, Instagram, YouTube and X. 15/15 characters, valid under X's [A-Za-z0-9_]{1,15}.",
+  "display_names": {
+    "tiktok": "All Viral Videozz",
+    "instagram": "All Viral Videozz",
+    "youtube": "All Viral Videozz",
+    "x": "All Viral Videozz"
+  },
+  "bios": {
+    "tiktok": "Moments worth a replay 🔁 Captioned podcast, stream & finance clips, new daily",
+    "instagram": "Moments worth a replay 🔁\nPodcasts · streams · finance · entertainment\nCaptioned clips daily. Independent page, clipped with permission",
+    "x": "Moments worth a replay 🔁 Captioned clips from podcasts, streams, finance and entertainment, posted daily. Independent page, clipped with permission.",
+    "youtube_description": "All Viral Videozz: moments worth a replay.\n\nShort, captioned vertical clips from podcasts, livestreams, finance talks and entertainment, posted daily. Each clip is trimmed to the moment and carries bold word-by-word captions, so you can follow along with the sound off.\n\nWhat you'll find here:\n- Podcast highlights and big ideas in under a minute\n- Stream moments worth watching twice\n- Money and finance talk in plain language\n- Entertainment moments from shows and creators that allow clipping\n\nAll Viral Videozz is an independent clip channel and is not run by the creators it features. Clips are made from footage we have permission to use, mostly through creators' clipping campaigns; paid campaign clips are marked #ad.\n\nFeatured creator? For a correction or a removal, use the contact link on this channel and we will review it.\n\nAlso on TikTok, Instagram and X as @allviralvideozz."
+  },
+  "youtube_keywords": [
+    "All Viral Videozz",
+    "allviralvideozz",
+    "podcast clips",
+    "podcast highlights",
+    "stream highlights",
+    "livestream clips",
+    "finance clips",
+    "finance shorts",
+    "entertainment clips",
+    "captioned clips",
+    "viral clips",
+    "best moments",
+    "shorts clips"
+  ],
+  "link_in_bio_suggestion": "One simple link hub (a free link-in-bio page, or a GitHub Pages site under the viralvideoz808-arch org) that lists the four All Viral Videozz profiles (@allviralvideozz on TikTok, Instagram, YouTube and X) plus a contact / takedown form. On YouTube, add that contact / takedown form as a channel link: it is the 'contact link' the channel description points featured creators to. Keep the login email viralvideoz808@gmail.com private: leave YouTube's business-email field empty or use a separate contact alias.",
+  "avatar": "avatar_1024.png",
+  "youtube_banner": "banner_youtube_2560x1440.png",
+  "x_header": "header_x_1500x500.png",
+  "alternates": [
+    "avatar_alt_inverted_1024.png",
+    "avatar_alt_white_1024.png"
+  ],
+  "previews": [
+    "preview_small.png",
+    "preview_circle_400.png"
+  ],
+  "char_counts": {
+    "bio_tiktok": 77,
+    "bio_instagram": 134,
+    "bio_x": 148,
+    "bio_youtube_description": 889,
+    "display_tiktok": 17,
+    "display_instagram": 17,
+    "display_youtube": 17,
+    "display_x": 17,
+    "youtube_keywords": 228
+  },
+  "char_limits": {
+    "bio_tiktok": 80,
+    "bio_instagram": 150,
+    "bio_x": 160,
+    "bio_youtube_description": 1000,
+    "display_tiktok": 30,
+    "display_instagram": 30,
+    "display_x": 50,
+    "display_youtube": 100,
+    "youtube_keywords": 500
+  }
+}

@@ -1,24 +1,24 @@
 {
-  "concept_name": "Loop 88",
-  "rationale": "The mark is a figure-eight replay loop with a play button: one continuous stroke that crosses itself, so it reads as both a bold 8 and a replay / infinity loop, the thing a good clip makes people do. One diagonal passes over the other with a cut gap, which gives the loop its depth at large sizes and simply resolves to a bold 8 at 32-48 px. A play triangle sits in the larger lower counter to say 'video' without any text. Signal yellow #FFE600 on near-black #0F0F0F is the same colour pair as the karaoke captions on every clip, so the avatar, the banners and the videos look like one product. The banner and header wordmark spell the display name, ALL VIRAL VIDEOZZ, so profile name, handle and artwork match on every platform. No creator names and no 'official' language: the copy says what the page posts, that it is independent, and how a featured creator can ask for a correction or removal.",
+  "concept_name": "VV Network",
+  "rationale": "The mark is a double V for Viral Videozz: two heavy, forward-leaning Vs, the first in off-white and the second in signal yellow, so it reads as one bold monogram at 32-48 px and as a two-beat 'viral, videozz' at full size. The banner and header wordmark spell the handle, allviralvideozz, split the same way (allviral in white, videozz in yellow), over the niche line (podcasts, streams, finance, entertainment) with a yellow progress bar and 'new clips every day'. Signal yellow #FFE600 on near-black is the same colour pair as the karaoke captions on every clip, so the avatar, the banners and the videos look like one product. No creator names and no 'official' language: the copy says what the page posts, that it is independent, and how a featured creator can ask for a correction or removal.",
   "palette": [
     "#FFE600",
     "#0F0F0F",
     "#F6F6F2",
     "#8A8A85",
-    "#171717"
+    "#2A2A29"
   ],
   "palette_roles": {
-    "#FFE600": "Signal Yellow - mark, active caption word, highlights",
+    "#FFE600": "Signal Yellow - second V, 'videozz', highlights, progress bar",
     "#0F0F0F": "Ink - backgrounds",
-    "#F6F6F2": "Paper - primary type on dark",
+    "#F6F6F2": "Paper - first V, 'allviral', primary type on dark",
     "#8A8A85": "Steel - secondary type, meta lines",
-    "#171717": "Lift - soft background glow, panels"
+    "#2A2A29": "Lift - soft background glow behind the avatar"
   },
   "fonts": {
-    "wordmark": "Inter Display Black (tracking -2%)",
-    "captions_and_taglines": "Inter ExtraBold, uppercase",
-    "meta": "Inter SemiBold, uppercase, tracking +12%",
+    "wordmark": "Inter Black (tracking -1%), lowercase",
+    "niche_line": "Inter Bold, uppercase",
+    "meta": "Inter SemiBold, uppercase, tracking +20%",
     "body": "Inter Regular / Medium"
   },
   "unified_handle": "allviralvideozz",

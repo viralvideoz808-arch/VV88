@@ -1,4 +1,4 @@
-# Profile update checklist — Loop 88
+# Profile update checklist — VV Network
 
 Profile picture (same on every platform): `brand/avatar_1024.png`
 Handle: `@allviralvideozz` — Claimed by the owner on TikTok, Instagram, YouTube and X. 15/15 characters, valid under X's [A-Za-z0-9_]{1,15}. Leave it as it is.
