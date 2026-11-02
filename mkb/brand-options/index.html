@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MKB Brand Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=JetBrains+Mono:wght@500;700&family=Manrope:wght@500;700;800&family=Space+Grotesk:wght@500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #060A08; --paper: #ECF5F1; --muted: #8FA89D; --line: rgba(111,227,191,.14); --jungle: #29AB87; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--paper); font: 500 16px/1.55 Manrope, system-ui, sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 48px); }
+  header.top { padding: 48px 0 28px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font: 700 12px/1 'JetBrains Mono', monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--jungle); }
+  h1 { font: 800 clamp(34px, 6vw, 72px)/.95 Syne, sans-serif; text-transform: uppercase; letter-spacing: -.02em; margin: 14px 0 16px; }
+  h2 { font: 800 clamp(26px, 4vw, 44px)/1 Syne, sans-serif; text-transform: uppercase; margin: 0; }
+  .lead { color: var(--muted); max-width: 70ch; margin: 0; }
+  section { padding: 56px 0; }
+  .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 26px; }
+  .pick { position: sticky; top: 0; z-index: 10; background: rgba(6,10,8,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .pick .wrap { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding-top: 12px; padding-bottom: 12px; }
+  .pill { display: inline-flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); font-weight: 800; font-size: 14px; }
+  .pill b { color: var(--jungle); }
+  .btn { appearance: none; border: 1px solid rgba(111,227,191,.3); background: transparent; color: var(--paper); padding: 10px 18px; border-radius: 999px; font: 800 13px Manrope; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+  .btn.primary { background: var(--jungle); color: #040605; border-color: var(--jungle); }
+
+  /* ---------- logo cards ---------- */
+  .logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+  .logo-card { position: relative; border-radius: 24px; border: 1px solid var(--line); background: #0A120E; overflow: hidden; cursor: pointer; transition: border-color .3s, transform .3s; display: flex; flex-direction: column; }
+  .logo-card:hover { transform: translateY(-3px); }
+  .logo-card.on { border-color: var(--jungle); box-shadow: 0 0 0 2px var(--jungle), 0 20px 50px -20px rgba(41,171,135,.6); }
+  .logo-card .num { position: absolute; top: 14px; left: 14px; font: 700 12px 'JetBrains Mono'; color: var(--muted); z-index: 1; }
+  .logo-card .tick { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; z-index: 1; }
+  .logo-card.on .tick { background: var(--jungle); border-color: var(--jungle); }
+  .logo-card.on .tick::after { content: ""; width: 10px; height: 6px; border: 2.5px solid #040605; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px,-1px); }
+  .stage { height: 220px; display: grid; place-items: center; background: radial-gradient(70% 70% at 50% 40%, rgba(41,171,135,.18), transparent 70%), #040605; }
+  .stage svg.mark { width: 150px; height: 150px; }
+  .lockups { display: grid; grid-template-columns: 1fr 1fr; }
+  .lockups > div { padding: 18px 10px; display: flex; align-items: center; justify-content: center; min-height: 92px; overflow: hidden; }
+  .lockups .lk .n { letter-spacing: .09em; }
+  .lockups .lk svg { width: 40px; height: 40px; }
+  .on-dark { background: #0F3D2E; }
+  .on-light { background: #ECF5F1; color: #040605; }
+  .sizes { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--line); }
+  .sizes .av { border-radius: 50%; overflow: hidden; flex-shrink: 0; display: grid; place-items: center; }
+  .sizes small { color: var(--muted); font-size: 11px; }
+  .info { padding: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .info h3 { margin: 0; font: 800 22px Syne; }
+  .info p { margin: 0; color: var(--muted); font-size: 14px; }
+  .info .best { font-size: 13px; color: var(--paper); }
+  .info .best b { color: var(--jungle); }
+
+  /* lockup typography per logo */
+  .lk { display: flex; align-items: center; gap: 10px; }
+  .lk svg { width: 44px; height: 44px; flex-shrink: 0; }
+  .lk .t { display: flex; flex-direction: column; line-height: 1; }
+  .lk .w { font-size: 26px; }
+  .lk .n { font-size: 7.5px; letter-spacing: .16em; margin-top: 5px; text-transform: uppercase; font-weight: 800; white-space: nowrap; }
+  .f1 .w { font-family: Syne; font-weight: 800; letter-spacing: .02em; }
+  .f1 .n { font-family: Manrope; }
+  .f2 .w { font-family: 'Space Grotesk'; font-weight: 700; letter-spacing: -.01em; }
+  .f2 .n { font-family: 'JetBrains Mono'; font-weight: 700; letter-spacing: .1em; }
+  .f3 .w { font-family: Fraunces; font-weight: 900; letter-spacing: .04em; }
+  .f3 .n { font-family: Manrope; }
+  .f4 .w { font-family: Manrope; font-weight: 800; letter-spacing: -.04em; text-transform: lowercase; font-size: 30px; }
+  .f4 .n { font-family: Manrope; font-weight: 700; text-transform: none; letter-spacing: .02em; font-size: 9px; }
+  .f5 .w { font-family: Syne; font-weight: 800; }
+  .f5 .n { font-family: 'JetBrains Mono'; font-weight: 700; }
+
+  /* mark colours come from the surrounding theme */
+  .mark .a { fill: var(--la, #29AB87); } .mark .b { fill: var(--lb, #C9F5E6); } .mark .c { fill: var(--lc, #040605); }
+  .mark .sa { stroke: var(--la, #29AB87); fill: none; } .mark .sb { stroke: var(--lb, #C9F5E6); fill: none; }
+  .mark .ta { fill: var(--la, #29AB87); } .mark .tb { fill: var(--lb, #C9F5E6); }
+  .on-light { --la: #1F7A5C; --lb: #0A2A1F; --lc: #ECF5F1; }
+  .on-dark { --la: #29AB87; --lb: #C9F5E6; --lc: #0F3D2E; }
+
+  /* ---------- theme cards ---------- */
+  .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+  .theme { position: relative; border-radius: var(--r); overflow: hidden; cursor: pointer; background: var(--bg); color: var(--text); border: 1px solid var(--line2); transition: transform .3s; display: flex; flex-direction: column; font-family: var(--ft); }
+  .theme:hover { transform: translateY(-3px); }
+  .theme.on { box-shadow: 0 0 0 3px var(--jungle), 0 20px 50px -20px rgba(41,171,135,.6); }
+  .theme .tick { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--line2); display: grid; place-items: center; }
+  .theme.on .tick { background: var(--jungle); border-color: var(--jungle); }
+  .theme.on .tick::after { content: ""; width: 10px; height: 6px; border: 2.5px solid #040605; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px,-1px); }
+  .theme .body { padding: 24px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .theme .tname { font: 700 12px 'JetBrains Mono'; letter-spacing: .14em; text-transform: uppercase; color: var(--acc); }
+  .theme .hl { font-family: var(--fd); font-weight: var(--fdw); font-size: 40px; line-height: .95; text-transform: var(--tt); letter-spacing: var(--ls); margin: 4px 0 0; color: var(--text); }
+  .theme .hl span { color: var(--acc); }
+  .theme p { margin: 0; color: var(--muted2); font-size: 14px; }
+  .theme .ui { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .theme .b1 { padding: 10px 16px; border-radius: var(--br); background: var(--acc); color: var(--onacc); font: 800 12px var(--ft); letter-spacing: .05em; text-transform: uppercase; }
+  .theme .b2 { padding: 10px 16px; border-radius: var(--br); border: 1px solid var(--line2); font: 800 12px var(--ft); letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+  .theme .chip { padding: 5px 10px; border-radius: 999px; background: var(--chip); color: var(--acc2); font: 700 11px 'JetBrains Mono'; }
+  .theme .mini { border-radius: calc(var(--r) * .6); background: var(--surf); border: 1px solid var(--line2); padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .theme .mini b { font-family: var(--fd); font-size: 20px; color: var(--stext); }
+  .theme .mini small { color: var(--stext); opacity: .7; font-size: 12px; display: block; }
+  .theme .up { color: var(--acc2); font: 700 13px 'JetBrains Mono'; }
+  .palette { display: flex; height: 54px; }
+  .palette i { flex: var(--w); background: var(--c); position: relative; }
+  .palette i span { position: absolute; left: 6px; bottom: 5px; font: 700 9px 'JetBrains Mono'; color: var(--lab); }
+  .fonts { font-size: 12px; color: var(--muted2); border-top: 1px solid var(--line2); padding-top: 12px; }
+  .fonts b { color: var(--text); }
+
+  /* ---------- combined preview ---------- */
+  .preview { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+  .pv { border-radius: 22px; overflow: hidden; border: 1px solid var(--line); }
+  .site { background: var(--bg); color: var(--text); font-family: var(--ft); }
+  .site nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line2); gap: 10px; }
+  .site nav .links { display: flex; gap: 14px; font: 800 11px var(--ft); letter-spacing: .06em; text-transform: uppercase; color: var(--muted2); }
+  .site .hero { padding: 40px 22px 36px; display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; align-items: center; }
+  .site .hero h3 { font-family: var(--fd); font-weight: var(--fdw); text-transform: var(--tt); letter-spacing: var(--ls); font-size: clamp(34px, 5vw, 58px); line-height: .92; margin: 0 0 14px; }
+  .site .hero h3 span { color: var(--acc); }
+  .site .hero p { color: var(--muted2); font-size: 14px; margin: 0 0 18px; }
+  .site .hero .bigmark svg { width: 100%; max-width: 220px; height: auto; display: block; margin: auto; }
+  .site .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 22px 24px; }
+  .site .cards div { background: var(--surf); color: var(--stext); border: 1px solid var(--line2); border-radius: calc(var(--r) * .6); padding: 14px; font-size: 13px; }
+  .site .cards b { display: block; font-family: var(--fd); font-size: 16px; margin-bottom: 4px; }
+  .socials { display: grid; gap: 18px; align-content: start; }
+  .xh { aspect-ratio: 3 / 1; position: relative; background: var(--bg); overflow: hidden; display: flex; align-items: center; padding: 0 6% 0 30%; }
+  .xh h4 { font-family: var(--fd); font-weight: var(--fdw); text-transform: var(--tt); letter-spacing: var(--ls); font-size: clamp(16px, 2.1vw, 28px); line-height: .95; margin: 0; color: var(--text); max-width: 40%; }
+  .xh h4 span { color: var(--acc); }
+  .xh .xm { position: absolute; right: 4%; top: 50%; transform: translateY(-50%); width: 28%; opacity: .95; }
+  .xh .av { position: absolute; left: 4%; bottom: -14%; width: 22%; aspect-ratio: 1; border-radius: 50%; border: 4px solid #000; overflow: hidden; }
+  .profile { display: flex; gap: 14px; align-items: center; padding: 16px; background: #000; }
+  .profile .av { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+  .profile b { display: block; font-size: 15px; }
+  .profile small { color: #8a8a8a; font-size: 12px; }
+  .cardpv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; background: #161a18; }
+  .bc { aspect-ratio: 1.75; border-radius: 10px; overflow: hidden; position: relative; font-family: var(--ft); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .bc.front { background: var(--bg); display: grid; place-items: center; }
+  .bc.back { background: var(--acc); color: var(--onacc); padding: 8% 8%; font-size: clamp(6px, .72vw, 9px); line-height: 1.55; font-weight: 700; }
+  .bc.back strong { display: block; font-family: var(--fd); font-weight: var(--fdw); font-size: 1.55em; line-height: 1; text-transform: var(--tt); margin-bottom: .7em; }
+  .avfill { width: 100%; height: 100%; display: grid; place-items: center; background: var(--avbg); }
+  .avfill svg { width: 66%; height: 66%; }
+  .say { margin-top: 26px; padding: 18px 20px; border-radius: 18px; border: 1px dashed rgba(111,227,191,.35); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .say code { font: 700 18px 'JetBrains Mono'; color: var(--jungle); }
+  .pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+  .pair { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); cursor: pointer; background: var(--bg); color: var(--text); font-family: var(--ft); transition: transform .3s; }
+  .pair:hover { transform: translateY(-3px); }
+  .pair.on { box-shadow: 0 0 0 3px var(--jungle); }
+  .pair .top { padding: 18px; display: flex; flex-direction: column; gap: 14px; min-height: 210px; }
+  .pair .top .lk .n { color: var(--acc); }
+  .pair .top h5 { margin: auto 0 0; font-family: var(--fd); font-weight: var(--fdw); text-transform: var(--tt); letter-spacing: var(--ls); font-size: 27px; line-height: .95; }
+  .pair .top h5 span { color: var(--acc); }
+  .pair .bar { padding: 10px 16px; background: var(--surf); color: var(--stext); font: 700 10.5px/1.5 'JetBrains Mono'; letter-spacing: .06em; text-transform: uppercase; display: flex; flex-direction: column; }
+  .pair .bar b { font-size: 12.5px; }
+  body.export .pick { position: static; }
+  @media (max-width: 900px) { .preview { grid-template-columns: 1fr; } .site .hero { grid-template-columns: 1fr; } .site .hero .bigmark { display: none; } .site nav .links { display: none; } }
+  @media (max-width: 420px) { .logos, .themes { grid-template-columns: 1fr; } .site .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="eyebrow">MKB · Moses Bright Kang'ara</span>
+  <h1>Choose your brand</h1>
+  <p class="lead">Five logo directions and five themes, all built on your colours: <b style="color:#29AB87">jungle green</b>, <b style="color:#6FB79F">dark green</b> and <b>black</b>. Pick one logo and one theme. The preview at the bottom shows them together on your website, profile picture, X header and business card. Whatever you choose gets applied across the website, logos and social kit.</p>
+</div></header>
+
+<div class="pick"><div class="wrap">
+  <span class="pill">Logo <b id="pick-l">1</b></span><span class="pill">Theme <b id="pick-t">A</b></span>
+  <span style="color:var(--muted);font-size:14px">Tap a card to select it</span>
+  <span style="flex:1"></span>
+  <a class="btn primary" href="#preview">See it together ↓</a>
+</div></div>
+
+<section id="logos"><div class="wrap">
+  <div class="head"><div><span class="eyebrow">Step 1</span><h2 style="margin-top:10px">Logo options</h2></div><p class="lead" style="max-width:52ch">Each card shows the mark, the logo on dark and light backgrounds, and how it reads as a profile picture at small sizes.</p></div>
+  <div class="logos" id="logo-grid"></div>
+</div></section>
+
+<section id="themes" style="padding-top:0"><div class="wrap">
+  <div class="head"><div><span class="eyebrow">Step 2</span><h2 style="margin-top:10px">Theme options</h2></div><p class="lead" style="max-width:52ch">A theme sets the colour balance, fonts and shapes for the website, posts and print. Each one uses your three brand colours.</p></div>
+  <div class="themes" id="theme-grid"></div>
+</div></section>
+
+<section id="pairs" style="padding-top:0"><div class="wrap">
+  <div class="head"><div><span class="eyebrow">Shortcut</span><h2 style="margin-top:10px">Suggested pairings</h2></div><p class="lead" style="max-width:52ch">Five ready-made combinations, each logo matched with the theme that suits it best. Tap one to load it into the preview. Any other mix works too.</p></div>
+  <div class="pairs" id="pair-grid"></div>
+</div></section>
+
+<section id="preview" style="padding-top:0"><div class="wrap">
+  <div class="head"><div><span class="eyebrow">Step 3</span><h2 style="margin-top:10px">Your combination</h2></div><p class="lead" id="combo-name"></p></div>
+  <div class="preview" id="pv"></div>
+  <div class="say"><span>Reply with: <code id="say">Logo 1 + Theme A</code></span><button class="btn primary" id="copy">Copy my choice</button></div>
+</div></section>
+
+<script>
+const NAME = "MOSES BRIGHT KANG'ARA";
+// ---------------- logo marks (120 × 120) ----------------
+const MARKS = {
+  1: () => `<path class="a" d="M26 92V48h13l21 23 21-23h13v44H81V70L60 92 39 70v22z"/><path class="b" d="M26 48c-6-3-11-9-12-18-1-6 1-12 4-16 0 9 4 15 9 19 4 3 8 6 12 15z"/><path class="b" d="M94 48c6-3 11-9 12-18 1-6-1-12-4-16 0 9-4 15-9 19-4 3-8 6-12 15z"/>`,
+  2: () => {
+    const c = [[21, 36, 62, 26, 104, 'a'], [40.5, 42, 24, 33, 74, 'b'], [60, 56, 24, 47, 90, 'o'], [79.5, 42, 24, 33, 74, 'b'], [99, 36, 62, 26, 104, 'a']];
+    return c.map(([x, y, h, w1, w2, k]) => `<line x1="${x}" x2="${x}" y1="${w1}" y2="${w2}" class="sa" stroke-width="3" stroke-linecap="round"/>` +
+      (k === 'o' ? `<rect x="${x - 7}" y="${y}" width="14" height="${h}" rx="3" class="c" /><rect x="${x - 7}" y="${y}" width="14" height="${h}" rx="3" class="sa" stroke-width="3"/>` : `<rect x="${x - 7}" y="${y}" width="14" height="${h}" rx="3" class="${k}"/>`)).join('');
+  },
+  3: () => `<path class="sa" stroke-width="4" stroke-linejoin="round" d="M60 6l47 27v54l-47 27-47-27V33z"/>
+    <g transform="translate(60 62) scale(1.16) translate(-60 -60)"><path class="b" d="M45 46C38 43 31 36 30 24c5 8 11 12 20 16z"/><path class="b" d="M75 46c7-3 14-10 15-22-5 8-11 12-20 16z"/>
+    <path class="a" d="M44 50l-13 2 12 7z"/><path class="a" d="M76 50l13 2-12 7z"/>
+    <path class="a" d="M42 42l18 3-13 22z"/><path class="a" style="opacity:.78" d="M60 45l18-3-5 25z"/>
+    <path class="a" style="opacity:.62" d="M60 45l-13 22 13 5z"/><path class="a" d="M60 45l13 22-13 5z"/>
+    <path class="b" d="M47 67l13 5-7 22z"/><path class="b" style="opacity:.8" d="M73 67l-13 5 7 22z"/><path class="b" style="opacity:.9" d="M60 72l-7 22h14z"/>
+    <path class="c" d="M47 55l7-3 1 5-7 1z"/><path class="c" d="M73 55l-7-3-1 5 7 1z"/>
+    <circle class="c" cx="56" cy="88" r="1.8"/><circle class="c" cx="64" cy="88" r="1.8"/></g>`,
+  4: () => `<path class="sa" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M22 96V38l38 40 30-37"/>
+    <path class="a" d="M104 20l-6 33-26-21z"/><circle class="b" cx="60" cy="78" r="7"/>`,
+  5: (uid) => `<circle cx="60" cy="60" r="57" class="a"/><circle cx="60" cy="60" r="55" class="c"/><circle cx="60" cy="60" r="40" class="sa" stroke-width="1.5"/>
+    <defs><path id="ring${uid}" d="M60 60m-47.5 0a47.5 47.5 0 1 1 95 0a47.5 47.5 0 1 1-95 0"/></defs>
+    <text style="font:700 7.1px 'JetBrains Mono';letter-spacing:2.05px" class="ta"><textPath href="#ring${uid}">${NAME} · BUILD · TRADE · SCALE ·</textPath></text>
+    <text x="60" y="66" text-anchor="middle" style="font:800 17px Syne;letter-spacing:.5px" class="tb">MKB</text>
+    <text x="60" y="80" text-anchor="middle" style="font:700 5.5px 'JetBrains Mono';letter-spacing:2px" class="ta">EST · 2026</text>
+    <path class="b" d="M47 46c-3-4-3-9 0-13 1 5 3 7 7 9z"/><path class="b" d="M73 46c3-4 3-9 0-13-1 5-3 7-7 9z"/>`,
+};
+let uidN = 0;
+const mark = (n, cls = '') => `<svg class="mark ${cls}" viewBox="0 0 120 120" aria-hidden="true">${MARKS[n](++uidN)}</svg>`;
+const LOGOS = [
+  { n: 1, name: 'Horned M', f: 'f1', word: 'MKB', idea: 'An M whose outer strokes rise into bull horns: building, markets and upward momentum in one shape. This is the logo on the site today.', best: 'Balanced across tech, trading and business. Bold and recognisable as an avatar.' },
+  { n: 2, name: 'Candle M', f: 'f2', word: 'MKB', idea: 'An M drawn as five candlesticks, like a price chart. The hollow centre candle is a bearish candle in a bullish pattern.', best: 'Trading-first. Instantly says "markets" to traders.' },
+  { n: 3, name: 'Bull Crest', f: 'f3', word: 'MKB', idea: 'Your low-poly 3D mascot as a front-facing emblem inside a hexagon. It looks like a seal or coat of arms.', best: 'Premium and memorable. Ties the logo directly to the animated bull on your website.' },
+  { n: 4, name: 'Growth Line', f: 'f4', word: 'mkb.', idea: 'A single chart line that writes the M and breaks upward into an arrow. Clean, modern and startup-like.', best: 'Business and partnerships. Reads well very small and on light backgrounds.' },
+  { n: 5, name: 'MKB Seal', f: 'f5', word: 'MKB', idea: 'A circular seal with your full name and "Build · Trade · Scale" around the ring and small horns over the monogram.', best: 'Personal authority. Perfect as a round profile picture, stamp or certificate seal.' },
+];
+const lockup = (L) => `<span class="lk ${L.f}">${mark(L.n)}<span class="t"><span class="w">${L.word}</span><span class="n">${L.n === 4 ? "Moses Bright Kang'ara" : NAME}</span></span></span>`;
+
+// ---------------- themes ----------------
+const THEMES = [
+  { k: 'A', name: 'Midnight Jungle', mood: 'Bold · modern · high-energy', desc: 'Black stage, jungle green energy, mint glows. The current website.',
+    v: { bg: '#040605', surf: '#0F3D2E', text: '#ECF5F1', muted2: '#8FA89D', acc: '#29AB87', acc2: '#6FE3BF', onacc: '#040605', chip: 'rgba(41,171,135,.14)', line2: 'rgba(111,227,191,.16)', r: '24px', br: '999px', fd: 'Syne', fdw: '800', tt: 'uppercase', ls: '-.02em', ft: 'Manrope', la: '#29AB87', lb: '#C9F5E6', lc: '#040605', avbg: 'radial-gradient(70% 70% at 50% 35%, #145a43, #0A2A1F 60%, #040605)' },
+    pal: [['#040605', 60, 'Black', '#8FA89D'], ['#0F3D2E', 22, 'Dark green', '#8FA89D'], ['#29AB87', 12, 'Jungle', '#040605'], ['#6FE3BF', 4, '', '#040605'], ['#ECF5F1', 2, '', '#040605']], fonts: 'Syne + Manrope' },
+  { k: 'B', name: 'Deep Forest', mood: 'Premium · calm · trustworthy', desc: 'Dark green leads, with cream type and a refined serif. Feels like private banking.',
+    v: { bg: '#0A2A1F', surf: '#0F3D2E', text: '#F3EEE3', muted2: '#A9BDB2', acc: '#29AB87', acc2: '#9EE6C9', onacc: '#04140E', chip: 'rgba(243,238,227,.08)', line2: 'rgba(243,238,227,.14)', r: '16px', br: '10px', fd: 'Fraunces', fdw: '900', tt: 'none', ls: '-.01em', ft: 'Manrope', la: '#29AB87', lb: '#F3EEE3', lc: '#0A2A1F', avbg: '#0A2A1F' },
+    pal: [['#0A2A1F', 55, 'Dark green', '#A9BDB2'], ['#040605', 15, 'Black', '#A9BDB2'], ['#29AB87', 15, 'Jungle', '#04140E'], ['#F3EEE3', 15, 'Cream', '#04140E']], fonts: 'Fraunces + Manrope' },
+  { k: 'C', name: 'Trading Terminal', mood: 'Technical · sharp · data-driven', desc: 'Pure black, electric jungle green, monospace details and square edges, like a trading terminal.',
+    v: { bg: '#000000', surf: '#07130E', text: '#D9FBEA', muted2: '#7FA594', acc: '#2BD69F', acc2: '#29AB87', onacc: '#000000', chip: 'rgba(43,214,159,.12)', line2: 'rgba(43,214,159,.22)', r: '6px', br: '4px', fd: 'Space Grotesk', fdw: '700', tt: 'uppercase', ls: '-.02em', ft: 'JetBrains Mono', la: '#2BD69F', lb: '#D9FBEA', lc: '#000000', avbg: '#000' },
+    pal: [['#000000', 62, 'Black', '#7FA594'], ['#07130E', 14, 'Dark green', '#7FA594'], ['#2BD69F', 16, 'Jungle (bright)', '#000'], ['#29AB87', 6, '', '#000'], ['#D9FBEA', 2, '', '#000']], fonts: 'Space Grotesk + JetBrains Mono' },
+  { k: 'D', name: 'Clean Paper', mood: 'Professional · clear · corporate', desc: 'Light background with dark green type and jungle green accents. Easy to print and comfortable for business partners.',
+    v: { bg: '#F4F8F6', surf: '#FFFFFF', text: '#0A2A1F', muted2: '#4A6158', acc: '#1F8A68', acc2: '#1F8A68', onacc: '#FFFFFF', chip: 'rgba(31,138,104,.1)', line2: 'rgba(10,42,31,.12)', r: '18px', br: '12px', fd: 'Manrope', fdw: '800', tt: 'none', ls: '-.03em', ft: 'Manrope', la: '#1F8A68', lb: '#0A2A1F', lc: '#F4F8F6', avbg: '#F4F8F6' },
+    pal: [['#F4F8F6', 58, 'Paper', '#4A6158'], ['#0A2A1F', 20, 'Dark green', '#9FC2B4'], ['#1F8A68', 14, 'Jungle', '#fff'], ['#040605', 8, 'Black', '#8FA89D']], fonts: 'Manrope (one family)' },
+  { k: 'E', name: 'Jungle Pop', mood: 'Loud · friendly · social-first', desc: 'Jungle green fills the screen with black type and dark green cards. Made to stand out in a social feed.',
+    v: { bg: '#29AB87', surf: '#0A2A1F', text: '#040605', muted2: '#0B3A2A', acc: '#040605', acc2: '#ECF5F1', onacc: '#29AB87', chip: 'rgba(4,6,5,.85)', line2: 'rgba(4,6,5,.25)', r: '28px', br: '999px', fd: 'Syne', fdw: '800', tt: 'uppercase', ls: '-.02em', ft: 'Manrope', la: '#040605', lb: '#ECF5F1', lc: '#29AB87', avbg: '#29AB87', stext: '#ECF5F1' },
+    pal: [['#29AB87', 55, 'Jungle', '#040605'], ['#040605', 25, 'Black', '#29AB87'], ['#0A2A1F', 15, 'Dark green', '#29AB87'], ['#ECF5F1', 5, '', '#040605']], fonts: 'Syne + Manrope' },
+];
+const vars = (v) => Object.entries({ '--bg': v.bg, '--surf': v.surf, '--text': v.text, '--muted2': v.muted2, '--acc': v.acc, '--acc2': v.acc2, '--onacc': v.onacc, '--chip': v.chip, '--line2': v.line2, '--r': v.r, '--br': v.br, '--fd': `'${v.fd}'`, '--fdw': v.fdw, '--tt': v.tt, '--ls': v.ls, '--ft': `'${v.ft}'`, '--la': v.la, '--lb': v.lb, '--lc': v.lc, '--avbg': v.avbg, '--stext': v.stext || v.text }).map(([k, x]) => `${k}:${x}`).join(';');
+
+// ---------------- state ----------------
+let pick = { l: 1, t: 'A' };
+try { pick = { ...pick, ...JSON.parse(localStorage.getItem('mkb.brandpick') || '{}') }; } catch (e) { /* storage blocked */ }
+const save = () => { try { localStorage.setItem('mkb.brandpick', JSON.stringify(pick)); } catch (e) { /* ignore */ } };
+
+function renderLogos() {
+  document.getElementById('logo-grid').innerHTML = LOGOS.map((L) => `
+    <article class="logo-card ${pick.l === L.n ? 'on' : ''}" data-l="${L.n}" tabindex="0" role="button" aria-pressed="${pick.l === L.n}">
+      <span class="num">0${L.n}</span><span class="tick"></span>
+      <div class="stage on-dark" style="background:radial-gradient(70% 70% at 50% 40%, rgba(41,171,135,.2), transparent 70%), #040605">${mark(L.n)}</div>
+      <div class="lockups"><div class="on-dark">${lockup(L)}</div><div class="on-light">${lockup(L)}</div></div>
+      <div class="sizes">
+        <span class="av" style="width:64px;height:64px;--la:#29AB87;--lb:#C9F5E6;--lc:#0A2A1F;background:radial-gradient(70% 70% at 50% 35%, #145a43, #0A2A1F 60%, #040605)"><svg class="mark" viewBox="0 0 120 120" style="width:${L.n === 5 ? 64 : 44}px;height:${L.n === 5 ? 64 : 44}px">${MARKS[L.n](++uidN)}</svg></span>
+        <span class="av" style="width:40px;height:40px;--la:#29AB87;--lb:#C9F5E6;--lc:#0A2A1F;background:#0A2A1F"><svg class="mark" viewBox="0 0 120 120" style="width:${L.n === 5 ? 40 : 28}px;height:${L.n === 5 ? 40 : 28}px">${MARKS[L.n](++uidN)}</svg></span>
+        <span class="av" style="width:24px;height:24px;--la:#29AB87;--lb:#C9F5E6;--lc:#0A2A1F;background:#0A2A1F"><svg class="mark" viewBox="0 0 120 120" style="width:${L.n === 5 ? 24 : 17}px;height:${L.n === 5 ? 24 : 17}px">${MARKS[L.n](++uidN)}</svg></span>
+        <span class="av" style="width:40px;height:40px;--la:#040605;--lb:#ECF5F1;--lc:#29AB87;background:#29AB87"><svg class="mark" viewBox="0 0 120 120" style="width:${L.n === 5 ? 40 : 28}px;height:${L.n === 5 ? 40 : 28}px">${MARKS[L.n](++uidN)}</svg></span>
+        <small>profile picture<br>at real sizes</small>
+      </div>
+      <div class="info"><h3>${L.name}</h3><p>${L.idea}</p><p class="best"><b>Best for:</b> ${L.best}</p></div>
+    </article>`).join('');
+}
+function renderThemes() {
+  document.getElementById('theme-grid').innerHTML = THEMES.map((T) => `
+    <article class="theme ${pick.t === T.k ? 'on' : ''}" data-t="${T.k}" style="${vars(T.v)}" tabindex="0" role="button" aria-pressed="${pick.t === T.k}">
+      <span class="tick"></span>
+      <div class="palette">${T.pal.map(([c, w, l, lab]) => `<i style="--c:${c};--w:${w};--lab:${lab}"><span>${l}</span></i>`).join('')}</div>
+      <div class="body">
+        <span class="tname">${T.k} · ${T.name}</span>
+        <div class="hl">Build. Trade.<br><span>Scale.</span></div>
+        <p>${T.desc}</p>
+        <div class="ui"><span class="b1">Start a project</span><span class="b2">Trading desk</span><span class="chip">● Live</span></div>
+        <div class="mini"><span><small>BTC / USD</small><b>$76,910</b></span><span class="up">▲ 1.24%</span></div>
+        <div class="fonts"><b>${T.mood}</b><br>Fonts: ${T.fonts}</div>
+      </div>
+    </article>`).join('');
+}
+function renderPreview() {
+  const L = LOGOS.find((x) => x.n === pick.l); const T = THEMES.find((x) => x.k === pick.t);
+  document.getElementById('combo-name').textContent = `Logo ${L.n} · ${L.name}  +  Theme ${T.k} · ${T.name}`;
+  document.getElementById('say').textContent = `Logo ${L.n} + Theme ${T.k}`;
+  document.getElementById('pick-l').textContent = `${L.n} · ${L.name}`;
+  document.getElementById('pick-t').textContent = `${T.k} · ${T.name}`;
+  const v = T.v;
+  const lockupThemed = `<span class="lk ${L.f}" style="color:${v.text}">${mark(L.n)}<span class="t"><span class="w">${L.word}</span><span class="n" style="color:${v.acc === v.text ? v.acc2 : v.acc}">${L.n === 4 ? "Moses Bright Kang'ara" : NAME}</span></span></span>`;
+  const avatar = `<div class="avfill">${L.n === 5 ? mark(5).replace('class="mark "', 'class="mark" style="width:96%;height:96%"') : mark(L.n)}</div>`;
+  document.getElementById('pv').setAttribute('style', vars(v));
+  document.getElementById('pv').innerHTML = `
+    <div class="pv site">
+      <nav>${lockupThemed}<span class="links"><span>Services</span><span>Trading</span><span>Academy</span><span>Connect</span></span><span class="b1" style="padding:8px 14px;border-radius:var(--br);background:var(--acc);color:var(--onacc);font:800 11px var(--ft);text-transform:uppercase;letter-spacing:.05em">Let's talk</span></nav>
+      <div class="hero"><div><h3>Build.<br>Trade.<br><span>Scale.</span></h3><p>I build websites &amp; apps that sell, trade Forex, Binary &amp; Crypto with discipline, and partner with people building something real.</p>
+        <span style="display:inline-block;padding:12px 20px;border-radius:var(--br);background:var(--acc);color:var(--onacc);font:800 12px var(--ft);text-transform:uppercase;letter-spacing:.05em">Start a project →</span></div>
+        <div class="bigmark">${mark(L.n)}</div></div>
+      <div class="cards"><div><b>Websites &amp; apps</b><span style="opacity:.7">Built to sell</span></div><div><b>Trading desk</b><span style="opacity:.7">Tools &amp; lessons</span></div><div><b>Partner with me</b><span style="opacity:.7">Pitch an idea</span></div></div>
+    </div>
+    <div class="socials">
+      <div class="pv"><div class="xh"><div class="av">${avatar}</div><h4>Build.<br>Trade.<br><span>Scale.</span></h4><div class="xm">${mark(L.n)}</div></div>
+        <div class="profile"><div class="av">${avatar}</div><div><b>Moses Bright Kang'ara</b><small>@mosesbright888 · Developer · Trader · Business Builder</small></div></div></div>
+      <div class="pv cardpv"><div class="bc front">${lockupThemed}</div>
+        <div class="bc back"><strong>Moses Bright<br>Kang'ara</strong>0710 910 301 · WhatsApp<br>mkbright888@gmail.com<br>IG &amp; Threads @mosesbrightkangara<br>X @mosesbright888</div></div>
+    </div>`;
+}
+const PAIRS = [[1, 'A'], [3, 'B'], [2, 'C'], [4, 'D'], [5, 'E']];
+function renderPairs() {
+  document.getElementById('pair-grid').innerHTML = PAIRS.map(([l, t]) => {
+    const L = LOGOS.find((x) => x.n === l); const T = THEMES.find((x) => x.k === t);
+    return `<article class="pair ${pick.l === l && pick.t === t ? 'on' : ''}" data-pair="${l},${t}" style="${vars(T.v)}" tabindex="0" role="button">
+      <div class="top">${lockup(L)}<h5>Build. Trade.<br><span>Scale.</span></h5></div>
+      <div class="bar"><b>Logo ${l} + Theme ${t}</b><span style="opacity:.75">${L.name} · ${T.name}</span></div></article>`;
+  }).join('');
+}
+function render() { renderLogos(); renderThemes(); renderPairs(); renderPreview(); }
+document.addEventListener('click', (e) => {
+  const l = e.target.closest('[data-l]'); const t = e.target.closest('[data-t]');
+  if (l) { pick.l = Number(l.dataset.l); save(); render(); }
+  if (t) { pick.t = t.dataset.t; save(); render(); }
+  const pr = e.target.closest('[data-pair]');
+  if (pr) { const [l2, t2] = pr.dataset.pair.split(','); pick = { l: Number(l2), t: t2 }; save(); render(); document.getElementById('preview').scrollIntoView({ behavior: 'smooth' }); }
+});
+document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-l],[data-t],[data-pair]')) { e.preventDefault(); e.target.click(); } });
+document.getElementById('copy').addEventListener('click', async () => {
+  const t = document.getElementById('say').textContent;
+  try { await navigator.clipboard.writeText(t); document.getElementById('copy').textContent = 'Copied!'; } catch (e) { prompt('Copy this:', t); }
+});
+const qs = new URLSearchParams(location.search);
+if (qs.get('l')) pick.l = Number(qs.get('l')); if (qs.get('t')) pick.t = qs.get('t');
+if (qs.has('export')) document.body.classList.add('export');
+render();
+</script>
+</body>
+</html>
