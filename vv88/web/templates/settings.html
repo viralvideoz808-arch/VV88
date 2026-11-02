@@ -45,9 +45,9 @@
     <div class="fgrid wide">
       <label class="field"><span>Backend</span>
         <select name="backend">
-          {% for b in backends %}<option value="{{ b }}" {{ "selected" if v.backend == b }}>{{ {"dry_run": "dry_run — write to data/outbox only", "postiz": "postiz — post through Postiz", "direct": "direct — official platform APIs"}[b] }}</option>{% endfor %}
+          {% for b in backends %}<option value="{{ b }}" {{ "selected" if v.backend == b }}>{{ backend_labels[b] }}</option>{% endfor %}
         </select>
-        <span class="hint">Link accounts on <a href="/connections">Connections</a> before leaving dry-run.</span>
+        <span class="hint">Used by every platform set to “same as above”. Link accounts on <a href="/connections">Connections</a> before leaving dry-run.</span>
       </label>
       <label class="field"><span>Posting slots (UTC)</span>
         <input type="text" name="slots_utc" value="{{ v.slots_utc }}" placeholder="02:00, 06:00, 12:00">
@@ -55,6 +55,8 @@
       </label>
     </div>
     <div class="fgrid wide">
+      <label class="check"><input type="checkbox" name="require_approval" {{ "checked" if v.require_approval }}>
+        Approve posts before they go out <span class="muted small">(Queue → To approve; required for TikTok via Zernio)</span></label>
       <label class="check"><input type="checkbox" name="disclose_paid_partnership" {{ "checked" if v.disclose_paid_partnership }}>
         Disclose paid partnerships</label>
       <label class="field"><span>Disclosure tag</span>
@@ -66,6 +68,11 @@
       <div class="plat-box">
         <label class="check">{{ ui.platform(p) }}
           <span class="row small" style="gap:6px"><input type="checkbox" name="{{ p }}_enabled" {{ "checked" if v[p ~ "_enabled"] }}> on</span></label>
+        <label class="field"><span>Posts via</span>
+          <select name="{{ p }}_backend">
+            <option value="" {{ "selected" if not v[p ~ "_backend"] }}>same as above</option>
+            {% for b in backends %}<option value="{{ b }}" {{ "selected" if v[p ~ "_backend"] == b }}>{{ b }}</option>{% endfor %}
+          </select></label>
         <label class="field"><span>Posts per day</span>
           <input type="number" name="{{ p }}_daily_cap" min="1" max="50" step="1" value="{{ v[p ~ '_daily_cap'] }}"></label>
         <label class="field"><span>Min. gap (minutes)</span>

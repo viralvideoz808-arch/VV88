@@ -126,8 +126,11 @@
         <td class="c-link{{ ' nil' if not (p.link or p.remote_id or p.error) }}">{% if p.link %}<a href="{{ p.link }}" rel="noopener noreferrer" target="_blank">Open post</a>{% elif p.remote_id %}<span class="mono small">{{ p.remote_id }}</span>{% elif not p.error %}<span class="muted">—</span>{% endif %}
           {% if p.error %}<div class="small" style="color:var(--err);overflow-wrap:anywhere">{{ p.error }}</div>{% endif %}</td>
         <td class="c-views num{{ ' nil' if p.views is none }}">{{ "{:,}".format(p.views) if p.views is not none else "—" }}</td>
-        <td class="c-act{{ ' nil' if p.status not in ('scheduled', 'failed') }}"><div class="acts">
-          {% if p.status == "scheduled" %}
+        <td class="c-act{{ ' nil' if p.status not in ('pending', 'scheduled', 'failed') }}"><div class="acts">
+          {% if p.lane %}
+            <a class="btn small primary" href="/queue?status={{ p.lane }}#post-{{ p.id }}">{{ "Approve" if p.lane == "approve" else "Share" }}</a>
+            {{ ui.action("/queue/" ~ p.id ~ "/cancel", "Skip", csrf_field, "small danger", "Skip this " ~ p.platform ~ " post?", {"back": "/clips/" ~ clip.id}) }}
+          {% elif p.status == "scheduled" %}
             {{ ui.action("/queue/" ~ p.id ~ "/publish-now", "Publish now", csrf_field, "small primary") }}
             {{ ui.action("/queue/" ~ p.id ~ "/cancel", "Cancel", csrf_field, "small danger", "Cancel this " ~ p.platform ~ " post?", {"back": "/clips/" ~ clip.id}) }}
           {% elif p.status == "failed" %}

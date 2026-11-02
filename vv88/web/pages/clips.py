@@ -116,7 +116,10 @@ def clip_page(request: Request, clip_id: str):
             content = json.loads(p["content"] or "{}")
         except ValueError:
             content = {}
-        posts.append({**dict(p), "caption": (content or {}).get("caption", ""),
+        share = ctx.settings.publishing.backend_for(p["platform"]) == "share"
+        lane = ("share" if share and p["status"] in ("pending", "scheduled")
+                else "approve" if p["status"] == "pending" else "")
+        posts.append({**dict(p), "lane": lane, "caption": (content or {}).get("caption", ""),
                       "post_title": (content or {}).get("title", ""),
                       "error": redact(p["error"] or ""),
                       "link": (p["url"] or "") if (p["url"] or "").startswith(("https://", "http://")) else ""})
@@ -192,5 +195,6 @@ def clip_schedule(request: Request, clip_id: str, form: FormData = Depends(form_
             store.db.execute("DELETE FROM posts WHERE clip_id=? AND platform=? AND status='skipped'", (clip.id, p))
     store.db.commit()
 
-    job_id = ctx.jobs.submit("schedule_clip", {"clip_id": clip.id, "platforms": picked, "source": "clips"})
+    job_id = ctx.jobs.submit("schedule_clip", {"clip_id": clip.id, "platforms": picked, "source": "clips",
+                                               "approved": True})
     return redirect(request, f"/jobs/{job_id}", f"Scheduling on {', '.join(picked)}.", "success")

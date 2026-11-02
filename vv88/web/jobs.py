@@ -98,7 +98,8 @@ def job_schedule_clip(settings: Settings, params: dict) -> dict:
     campaign = engine.store.campaign(clip.campaign_id)
     allowed = engine.platforms_for(campaign)  # never post a campaign's clip where the campaign doesn't pay
     platforms = [p for p in params.get("platforms") or allowed if p in allowed]
-    return {"scheduled": engine.schedule([clip], campaign, platforms)}
+    # Scheduled by hand from the clip's page (the owner watched it there): that counts as approval.
+    return {"scheduled": engine.schedule([clip], campaign, platforms, approved=bool(params.get("approved")))}
 
 
 def job_publish_due(settings: Settings, params: dict) -> dict:

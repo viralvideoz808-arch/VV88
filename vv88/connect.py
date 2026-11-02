@@ -533,6 +533,7 @@ KEY_TOOLS = {
     "youtube-key": ("YOUTUBE_API_KEY", "Google Cloud > APIs & Services > Credentials > API key "
                                        "(enable YouTube Data API v3)"),
     "postiz": ("POSTIZ_API_KEY", "Postiz > Settings > Public API"),
+    "zernio": ("ZERNIO_API_KEY", "zernio.com > Dashboard > API keys (first 2 accounts free, no card)"),
     "anthropic": ("ANTHROPIC_API_KEY", "console.anthropic.com > API keys"),
 }
 
@@ -569,6 +570,19 @@ def validate_key(tool: str, key: str, settings: Settings, http: requests.Session
             if platform and not it.get("disabled") and platform not in mapping and _SAFE_ID.match(iid):
                 mapping[platform] = iid
         return {"integrations": mapping, "names": [it.get("name") for it in items]}
+    if tool == "zernio":
+        from vv88.publishing.zernio import FROM_ZERNIO, list_accounts
+
+        accounts = list_accounts(settings.publishing.zernio.api_url, key, http)
+        found: dict[str, str] = {}
+        names: dict[str, str] = {}
+        for a in accounts:
+            platform = FROM_ZERNIO.get(str(a.get("platform") or "").lower())
+            aid = str(a.get("_id") or a.get("id") or "")
+            if platform and a.get("isActive", True) and platform not in found and _SAFE_ID.match(aid):
+                found[platform] = aid
+                names[platform] = str(a.get("username") or "")[:60]
+        return {"accounts": found, "usernames": names}
     if tool == "anthropic":
         check(http.get("https://api.anthropic.com/v1/models", headers={"x-api-key": key,
                                                                        "anthropic-version": "2023-06-01"},
@@ -596,6 +610,9 @@ def connect_key(tool: str, settings: Settings, env_path: str | Path = ".env", ke
     if tool == "postiz":
         for platform, iid in info.get("integrations", {}).items():
             values[f"POSTIZ_INTEGRATION_{platform.upper()}"] = iid
+    if tool == "zernio":
+        for platform, aid in info.get("accounts", {}).items():
+            values[f"ZERNIO_ACCOUNT_{platform.upper()}"] = aid
     update_env_file(values, env_path)
     return {"tool": tool, "saved": sorted(values), **{k: v for k, v in info.items() if k != "ok"}}
 
@@ -643,6 +660,8 @@ def link_status(settings: Settings, store: Store, now: float | None = None) -> l
     pz = settings.publishing.postiz
     channels = sorted(p for p, v in pz.integrations.items() if v)
     rows.append(LinkRow("postiz", bool(pz.api_key), ", ".join(channels)))
+    zn = settings.publishing.zernio
+    rows.append(LinkRow("zernio", bool(zn.api_key), ", ".join(sorted(p for p, v in zn.accounts.items() if v))))
     return rows
 
 

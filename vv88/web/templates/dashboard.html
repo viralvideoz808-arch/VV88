@@ -12,6 +12,14 @@
     platforms. Switch the backend on the <a href="/settings">Settings</a> page once accounts are linked.</div>
 {% endif %}
 
+{% if lanes.approve or lanes.share %}
+  <div class="flash info">Waiting for you:
+    {% if lanes.approve %}<a href="/queue?status=approve"><strong>{{ lanes.approve }}</strong> post{{ "s" if lanes.approve != 1 }} to approve</a>{% endif %}
+    {% if lanes.approve and lanes.share %} · {% endif %}
+    {% if lanes.share %}<a href="/queue?status=share"><strong>{{ lanes.share }}</strong> post{{ "s" if lanes.share != 1 }} to share from your phone</a>{% endif %}
+  </div>
+{% endif %}
+
 <div class="grid kpis">
   {{ ui.kpi("Campaigns", counts.campaigns) }}
   {{ ui.kpi("Clips rendered", counts.clips) }}

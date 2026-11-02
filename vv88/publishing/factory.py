@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 from vv88.config import Settings
-from vv88.publishing.base import DryRunPublisher, Publisher
+from vv88.publishing.base import DryRunPublisher, Publisher, PublishError
 from vv88.store import Store
 
 
 def make_publisher(platform: str, settings: Settings, store: Store) -> Publisher:
     pub = settings.publishing
-    if pub.backend == "dry_run":
+    backend = pub.backend_for(platform)
+    if backend == "dry_run":
         return DryRunPublisher(platform, settings.data_path / "outbox")
-    if pub.backend == "postiz":
+    if backend == "share":
+        raise PublishError(f"{platform} posts are shared by hand: use the Share tab on the Queue page")
+    if backend == "postiz":
         from vv88.publishing.postiz import PostizPublisher
 
         return PostizPublisher(platform, pub.postiz)
+    if backend == "zernio":
+        from vv88.publishing.zernio import ZernioPublisher
+
+        return ZernioPublisher(platform, pub.zernio)
     d = pub.direct
     if platform == "youtube":
         from vv88.publishing.youtube import YouTubePublisher

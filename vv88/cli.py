@@ -69,31 +69,38 @@ def cmd_doctor(settings: Settings, _args) -> int:
     line(not w.enabled or bool(w.token), "Whop via Apify", "enabled" if w.enabled else "disabled")
     line(True, "YouTube niche signal", "on" if settings.niche.youtube_api_key else "off (set YOUTUBE_API_KEY)")
 
-    print(f"Publishing (backend: {settings.publishing.backend}):")
-    enabled = settings.publishing.enabled_platforms()
-    line(bool(enabled) or settings.publishing.backend == "dry_run", "platforms enabled", ", ".join(enabled) or "none")
-    if settings.publishing.backend == "postiz":
-        pz = settings.publishing.postiz
-        line(bool(pz.api_key), "POSTIZ_API_KEY")
-        for p in enabled:
-            line(bool(pz.integrations.get(p)), f"postiz integration id for {p}")
-    if settings.publishing.backend == "direct":
-        d = settings.publishing.direct
-        need = {
-            "youtube": d.youtube_refresh_token,
-            "instagram": d.instagram_access_token,
-            "tiktok": d.tiktok_access_token or d.tiktok_refresh_token,
-            "x": d.x_access_token or d.x_refresh_token,
-        }
-        for p in enabled:
-            line(bool(need.get(p)), f"{p} credentials")
+    pub = settings.publishing
+    print(f"Publishing (backend: {pub.backend}; approval {'on' if pub.require_approval else 'off'}):")
+    enabled = pub.enabled_platforms()
+    line(bool(enabled) or pub.backend == "dry_run", "platforms enabled", ", ".join(enabled) or "none")
+    d = pub.direct
+    direct_need = {
+        "youtube": d.youtube_refresh_token,
+        "instagram": d.instagram_access_token,
+        "tiktok": d.tiktok_access_token or d.tiktok_refresh_token,
+        "x": d.x_access_token or d.x_refresh_token,
+    }
+    for p in enabled:
+        via = pub.backend_for(p)
+        if via == "postiz":
+            line(bool(pub.postiz.api_key) and bool(pub.postiz.integrations.get(p)), f"{p} via Postiz",
+                 "" if pub.postiz.api_key else "POSTIZ_API_KEY missing")
+        elif via == "zernio":
+            line(bool(pub.zernio.api_key) and bool(pub.zernio.accounts.get(p)), f"{p} via Zernio",
+                 "" if pub.zernio.api_key else "ZERNIO_API_KEY missing")
+            if p == "tiktok" and not pub.require_approval:
+                line(False, "tiktok via Zernio needs publishing.require_approval: true (TikTok's consent rule)")
+        elif via == "direct":
+            line(bool(direct_need.get(p)), f"{p} credentials")
+        else:
+            line(True, f"{p} via {via}", "you post it from the Queue page" if via == "share" else "data/outbox only")
     print(f"LLM re-ranking: {'on (' + settings.llm.model + ')' if settings.llm.enabled else 'off (free mode)'}")
     from vv88.connect import link_status
     from vv88.store import Store
 
     print("Linked accounts & tools (`vv88 connect <name>` to link):")
     store = Store(settings.data_path / "vv88.db")
-    in_use = set(settings.publishing.enabled_platforms()) if settings.publishing.backend == "direct" else set()
+    in_use = {p for p in settings.publishing.enabled_platforms() if settings.publishing.backend_for(p) == "direct"}
     for row in link_status(settings, store):
         mark = "ok" if row.linked and not row.warning else ("!!" if row.warning else "--")
         print(f"  [{mark}] {row.name}{(' - ' + row.detail) if row.detail else ''}"
@@ -162,6 +169,22 @@ def cmd_publish(settings: Settings, _args) -> int:
     for r in _engine(settings).publish_due():
         print(json.dumps(r))
     return 0
+
+
+def cmd_approve(settings: Settings, args) -> int:
+    engine = _engine(settings)
+    rows = engine.store.db.execute("SELECT * FROM posts WHERE status='pending' ORDER BY scheduled_at").fetchall()
+    if not args.ids and not args.all:
+        for r in rows:
+            content = json.loads(r["content"] or "{}") or {}
+            print(f"#{r['id']:<5} {r['platform']:<9} clip {r['clip_id']}  {str(content.get('caption', ''))[:70]!r}")
+        print(f"{len(rows)} post(s) waiting. Approve with `vv88 approve <id> ...` or `vv88 approve --all`; "
+              "or open the Queue page on the website to watch each clip first.")
+        return 0
+    ids = [r["id"] for r in rows] if args.all else args.ids
+    done = [i for i in ids if engine.approve(int(i))]
+    print(f"approved {len(done)} of {len(ids)}: {', '.join(f'#{i}' for i in done) or '-'}")
+    return 0 if len(done) == len(ids) else 1
 
 
 def cmd_metrics(settings: Settings, _args) -> int:
@@ -393,6 +416,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--i-have-rights", action="store_true",
                    help="confirm you own or have permission to clip this source")
     sub.add_parser("publish", help="publish posts whose slot has arrived")
+    p = sub.add_parser("approve", help="list posts waiting for approval, or approve them")
+    p.add_argument("ids", nargs="*", type=int, help="post ids to approve")
+    p.add_argument("--all", action="store_true", help="approve every waiting post")
     sub.add_parser("metrics", help="pull view counts for recent posts")
     sub.add_parser("report", help="what's working (style/length/hook) + earnings estimate")
     p = sub.add_parser("links", help="posted URLs per campaign, for payout submission")
@@ -402,7 +428,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--interval", type=float, default=30, help="minutes between cycles")
     p = sub.add_parser("connect", help="link accounts/tools once (OAuth on your computer, keys checked live)")
     p.add_argument("target", nargs="?", default=None,
-                   help="youtube | tiktok | instagram | x | apify | youtube-key | postiz | anthropic | all | status")
+                   help="youtube | tiktok | instagram | x | apify | youtube-key | postiz | zernio | anthropic | all | "
+                        "status")
     p.add_argument("--port", type=int, default=8788, help="local callback port (register "
                    "http://127.0.0.1:8788/callback/ as the redirect URI)")
     p.add_argument("--no-browser", action="store_true", help="print the sign-in link instead of opening it")
@@ -444,6 +471,7 @@ def main(argv: list[str] | None = None) -> int:
         "rank": cmd_rank,
         "clip": cmd_clip,
         "publish": cmd_publish,
+        "approve": cmd_approve,
         "metrics": cmd_metrics,
         "report": cmd_report,
         "links": cmd_links,

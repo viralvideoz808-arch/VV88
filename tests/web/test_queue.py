@@ -155,7 +155,7 @@ def test_cancel_back_link_is_restricted(client, csrf, demo_root):
 def test_cancel_rejects_non_scheduled(client, csrf, demo_root):
     pid = _post_id(demo_root, "posted")
     r = client.post(f"/queue/{pid}/cancel", data={"csrf": csrf("/queue")})
-    assert r.status_code == 200 and "Only scheduled posts can be cancelled" in _flash(r.text)
+    assert r.status_code == 200 and "scheduled posts can be cancelled" in _flash(r.text)
     assert _store(demo_root).post(pid)["status"] == "posted"
     r = client.post("/queue/nope/cancel", data={"csrf": csrf("/queue")})
     assert r.status_code == 200 and "doesn&#39;t exist" in _flash(r.text)

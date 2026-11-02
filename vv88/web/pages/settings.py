@@ -33,7 +33,10 @@ from vv88.web.core import context, flash, form_data, redirect, render, require_u
 
 router = APIRouter()
 
-BACKENDS = ("dry_run", "postiz", "direct")
+BACKENDS = ("dry_run", "zernio", "share", "postiz", "direct")
+BACKEND_LABELS = {"dry_run": "dry_run — write to data/outbox only", "zernio": "zernio — post through Zernio (free for 2 accounts)",
+                  "share": "share — you post from the phone's app with one tap", "postiz": "postiz — post through Postiz",
+                  "direct": "direct — official platform APIs"}
 WHISPER_MODELS = ("tiny", "base", "small", "medium", "large-v3")
 REFRAMES = ("auto", "face", "center", "blur")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
@@ -46,7 +49,8 @@ LANG_RE = re.compile(r"^[a-z]{2}$")
 REGION_RE = re.compile(r"^[A-Z]{2}$")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
-CHECKBOXES = ["disclose_paid_partnership", "llm_enabled", "whop_enabled", *(f"{p}_enabled" for p in PLATFORMS)]
+CHECKBOXES = ["require_approval", "disclose_paid_partnership", "llm_enabled", "whop_enabled",
+              *(f"{p}_enabled" for p in PLATFORMS)]
 _write_lock = threading.Lock()
 
 
@@ -69,6 +73,7 @@ def values_from_settings(s: Settings) -> dict:
     pub, an, ed = s.publishing, s.analysis, s.editing
     v: dict = {
         "backend": pub.backend,
+        "require_approval": pub.require_approval,
         "slots_utc": ", ".join(pub.slots_utc),
         "disclose_paid_partnership": pub.disclose_paid_partnership,
         "disclosure_tag": pub.disclosure_tag,
@@ -96,6 +101,7 @@ def values_from_settings(s: Settings) -> dict:
     for p in PLATFORMS:
         pc = pub.platforms.get(p)
         v[f"{p}_enabled"] = bool(pc and pc.enabled)
+        v[f"{p}_backend"] = (pc.backend if pc else None) or ""
         v[f"{p}_daily_cap"] = str(pc.daily_cap) if pc else "6"
         v[f"{p}_min_gap_minutes"] = str(pc.min_gap_minutes) if pc else "90"
         v[f"{p}_max_hashtags"] = str(pc.max_hashtags) if pc else "10"
@@ -155,8 +161,13 @@ def parse_values(v: dict) -> tuple[dict, list[str]]:
     platforms: dict = {}
     for p in PLATFORMS:
         name = PLATFORM_LABELS.get(p, p)
+        own = v.get(f"{p}_backend", "")
+        if own and own not in BACKENDS:
+            errors.append(f"{name} posting method: pick one of the listed options.")
+            own = ""
         platforms[p] = {
             "enabled": bool(v.get(f"{p}_enabled")),
+            "backend": own or None,  # blank = the main publishing backend
             "daily_cap": _int(v, f"{p}_daily_cap", f"{name} posts per day", 1, 50, errors),
             "min_gap_minutes": _int(v, f"{p}_min_gap_minutes", f"{name} minutes between posts", 0, 1440, errors),
             "max_hashtags": _int(v, f"{p}_max_hashtags", f"{name} max hashtags", 0, 30, errors),
@@ -234,7 +245,8 @@ def parse_values(v: dict) -> tuple[dict, list[str]]:
     backend = _choice(v, "backend", "Publishing backend", BACKENDS, errors)
 
     edited = {
-        "publishing": {"backend": backend, "slots_utc": slots, "disclose_paid_partnership": disclose,
+        "publishing": {"backend": backend, "require_approval": bool(v.get("require_approval")),
+                       "slots_utc": slots, "disclose_paid_partnership": disclose,
                        "disclosure_tag": tag, "platforms": platforms},
         "analysis": {"min_clip_seconds": lo, "max_clip_seconds": hi, "target_clip_seconds": target,
                      "clips_per_source": clips_per_source, "whisper_model": whisper, "language": language or None},
@@ -452,7 +464,7 @@ def _page(request: Request, ctx, values: dict | None = None, status_code: int = 
         request, "settings.html", title="Settings",
         v=values or values_from_settings(s), platforms=[(p, PLATFORM_LABELS.get(p, p)) for p in PLATFORMS],
         styles=[(name, st.description, st.split_screen) for name, st in STYLES.items()],
-        backends=BACKENDS, whisper_models=WHISPER_MODELS, reframes=REFRAMES, efforts=EFFORTS,
+        backends=BACKENDS, backend_labels=BACKEND_LABELS, whisper_models=WHISPER_MODELS, reframes=REFRAMES, efforts=EFFORTS,
         checks=checks, checks_ok=all(c["ok"] for c in checks if not c["optional"]),
         config_name=config_path(request).name, benchmark=_last_benchmark(ctx), running=_active_benchmark(ctx),
     )
@@ -485,7 +497,10 @@ def save_settings(request: Request, form: FormData = Depends(form_data)):
         flash(request, "Settings not saved. " + " ".join(errors[:5]), "error")
         return _page(request, ctx, values=values, status_code=400)
     msg = f"Saved {path.name}. The next job uses the new settings."
-    if edited["publishing"]["backend"] != "dry_run" and ctx.settings.publishing.backend == "dry_run":
+    live = [b for b in [edited["publishing"]["backend"], *(pc.get("backend") for pc in
+                                                            edited["publishing"]["platforms"].values())]
+            if b and b not in ("dry_run", "share")]
+    if live and all(ctx.settings.publishing.backend_for(p) in ("dry_run", "share") for p in PLATFORMS):
         msg += " Publishing is now live: check Connections first."
     return redirect(request, "/settings", msg, "success")
 

@@ -32,7 +32,7 @@ from vv88.optimizer import LENGTH_TARGETS, Optimizer
 from vv88.publishing.base import PublishError, redact
 from vv88.publishing.compose import compose_post
 from vv88.publishing.factory import make_metrics_reader, make_publisher
-from vv88.publishing.schedule import next_slot
+from vv88.publishing.schedule import approve_post, next_slot
 from vv88.sourcing import fetch_source
 from vv88.store import Store
 
@@ -192,8 +192,12 @@ class Engine:
         return out
 
     # ---- scheduling & publishing -----------------------------------------------------
-    def schedule(self, clips: list[RenderedClip], campaign: Campaign | None, platforms: list[str]) -> int:
+    def schedule(self, clips: list[RenderedClip], campaign: Campaign | None, platforms: list[str],
+                 approved: bool = False) -> int:
+        """Queue posts at the next free slots. Unless `approved` (a person picked this clip and platform
+        themselves), posts wait as 'pending' for approval when publishing.require_approval is on."""
         pub = self.s.publishing
+        status = "scheduled" if approved or not pub.require_approval else "pending"
         n = 0
         for clip in clips:
             for p in platforms:
@@ -206,24 +210,41 @@ class Engine:
                     log.info("%s queue is full for the next week; not scheduling %s", p, clip.id)
                     continue
                 content = compose_post(clip, campaign, p, pcfg, pub)
-                if self.store.schedule_post(clip.id, p, when, asdict(content)):
+                content.approved = approved
+                if self.store.schedule_post(clip.id, p, when, asdict(content), status=status):
                     n += 1
         return n
 
+    def approve(self, post_id: int, caption: str | None = None, title: str | None = None) -> bool:
+        return approve_post(self.store, self.s.publishing, post_id, caption=caption, title=title)
+
     def queue_depth(self, platform: str) -> int:
-        return len([t for t in self.store.post_times(platform, since=time.time()) if t >= time.time()])
+        """Posts still to go out: upcoming ones, plus every post waiting for approval (whatever its slot), so
+        unapproved posts hold back rendering instead of piling up."""
+        now = time.time()
+        upcoming = len([t for t in self.store.post_times(platform, since=now) if t >= now])
+        stale_pending = self.store.db.execute(
+            "SELECT COUNT(*) FROM posts WHERE platform=? AND status='pending' AND scheduled_at<?",
+            (platform, now)).fetchone()[0]
+        return upcoming + stale_pending
 
     def publish_due(self) -> list[dict]:
-        dry = self.s.publishing.backend == "dry_run"
-        # Dry runs write straight to the outbox; real backends wait for each slot.
+        pub_cfg = self.s.publishing
+        backends = {p: pub_cfg.backend_for(p) for p in pub_cfg.platforms}
         stale = self.store.release_stale_claims()
         if stale:
             log.warning("%d post(s) were interrupted mid-upload earlier; marked failed so you can check and retry",
                         stale)
-        rows = self.store.due_posts(now=1e18 if dry else None)
+        # Dry runs write straight to the outbox; real backends wait for each slot. Only approved ('scheduled')
+        # posts are ever listed here, and Share-lane platforms are posted by hand from the Queue page.
+        now = time.time()
+        rows = self.store.due_posts(now=1e18 if "dry_run" in backends.values() else None)
         publishers: dict = {}
         results = []
         for row in rows:
+            backend = backends.get(row["platform"], pub_cfg.backend)
+            if backend == "share" or (backend != "dry_run" and row["scheduled_at"] > now):
+                continue
             # Claim first: skips posts cancelled since the list was read, or taken by another publisher.
             if not self.store.claim_post(row["id"]):
                 continue
@@ -263,7 +284,7 @@ class Engine:
         n = 0
         for row in rows:
             remote = row["remote_id"] or ""
-            if remote.startswith(("dry:", "postiz:")):
+            if remote.startswith(("dry:", "postiz:", "zernio:")):
                 continue
             platform = row["platform"]
             if platform not in readers:

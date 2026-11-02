@@ -6,11 +6,12 @@ spacing and caps are enforced here rather than left to the platform to punish.
 
 from __future__ import annotations
 
+import json
 import random
 import time
 from datetime import datetime, timedelta, timezone
 
-from vv88.config import PlatformConfig
+from vv88.config import PlatformConfig, PublishingConfig
 
 
 def _slot_times(slots_utc: list[str], start: datetime, days: int) -> list[datetime]:
@@ -50,3 +51,31 @@ def next_slot(
             continue
         return t
     return None
+
+
+def approve_post(store, pub: PublishingConfig, post_id: int, caption: str | None = None,
+                 title: str | None = None) -> bool:
+    """Approve a pending post, optionally with edited copy; False if it isn't pending any more.
+
+    The post keeps its slot if that is still ahead. A slot that passed while it waited moves to the next
+    free one (daily cap and spacing apply), so approving a backlog never fires it all at once.
+    """
+    row = store.post(post_id)
+    if row is None or row["status"] != "pending":
+        return False
+    try:
+        content = json.loads(row["content"] or "{}") or {}
+    except ValueError:
+        content = {}
+    if caption is not None:
+        content["caption"] = caption
+    if title is not None:
+        content["title"] = title
+    content["approved"] = True
+    when = float(row["scheduled_at"])
+    now = time.time()
+    pcfg = pub.platforms.get(row["platform"])
+    if when < now + 120 and pcfg is not None:
+        existing = store.post_times(row["platform"], since=now - 86400, exclude_id=post_id)
+        when = next_slot(existing, pcfg, pub.slots_utc, jitter_minutes=pub.jitter_minutes) or now
+    return store.approve_post(post_id, when, content)

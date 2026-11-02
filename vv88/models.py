@@ -190,6 +190,7 @@ class PostContent:
     tags: list[str] = field(default_factory=list)
     paid_partnership: bool = False
     cover_ms: int = 0
+    approved: bool = False  # a person previewed and approved this exact post (TikTok's consent rule needs it)
 
 
 @dataclass

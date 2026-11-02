@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     clip_id TEXT NOT NULL,
     platform TEXT NOT NULL,
-    status TEXT NOT NULL,              -- scheduled | publishing | posted | failed | skipped
+    status TEXT NOT NULL,              -- pending (awaiting approval) | scheduled | publishing | posted | failed | skipped
     scheduled_at REAL NOT NULL,
     posted_at REAL,
     remote_id TEXT,
@@ -249,13 +249,36 @@ class Store:
         return [(r["start"], r["end"]) for r in rows]
 
     # ---- posts -----------------------------------------------------------
-    def schedule_post(self, clip_id: str, platform: str, when: float, content: dict) -> int | None:
+    def schedule_post(self, clip_id: str, platform: str, when: float, content: dict,
+                      status: str = "scheduled") -> int | None:
+        """Queue a post; status 'pending' holds it until approve_post (never published while pending)."""
+        if status not in ("scheduled", "pending"):
+            raise ValueError(f"bad initial post status {status!r}")
         cur = self.db.execute(
             "INSERT OR IGNORE INTO posts(clip_id, platform, status, scheduled_at, content) VALUES(?,?,?,?,?)",
-            (clip_id, platform, "scheduled", when, _dumps(content)),
+            (clip_id, platform, status, when, _dumps(content)),
         )
         self.db.commit()
         return cur.lastrowid if cur.rowcount else None
+
+    def approve_post(self, post_id: int, when: float, content: dict) -> bool:
+        """pending -> scheduled with the approved copy; False if it is no longer pending (skipped, shared...)."""
+        cur = self.db.execute("UPDATE posts SET status='scheduled', scheduled_at=?, content=? "
+                              "WHERE id=? AND status='pending'", (when, _dumps(content), post_id))
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def mark_shared(self, post_id: int, url: str = "", remote_id: str = "") -> bool:
+        """The owner posted it by hand (Share lane): pending/scheduled -> posted. Never touches an upload."""
+        cur = self.db.execute("UPDATE posts SET status='posted', url=?, remote_id=?, error='', posted_at=? "
+                              "WHERE id=? AND status IN ('pending','scheduled')",
+                              (url, remote_id, time.time(), post_id))
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def pending_count(self, platform: str) -> int:
+        return self.db.execute("SELECT COUNT(*) FROM posts WHERE platform=? AND status='pending'",
+                               (platform,)).fetchone()[0]
 
     def due_posts(self, now: float | None = None) -> list[sqlite3.Row]:
         now = time.time() if now is None else now
@@ -301,13 +324,13 @@ class Store:
                         "WHERE id=? AND status='publishing'", (when, post_id))
         self.db.commit()
 
-    def post_times(self, platform: str, since: float) -> list[float]:
-        """Scheduled or posted times for a platform (used for caps and spacing)."""
+    def post_times(self, platform: str, since: float, exclude_id: int | None = None) -> list[float]:
+        """Pending, scheduled or posted times for a platform (used for caps and spacing)."""
         rows = self.db.execute(
             "SELECT COALESCE(posted_at, scheduled_at) AS t FROM posts "
-            "WHERE platform=? AND status IN ('scheduled','publishing','posted') "
-            "AND COALESCE(posted_at, scheduled_at)>=?",
-            (platform, since),
+            "WHERE platform=? AND status IN ('pending','scheduled','publishing','posted') "
+            "AND COALESCE(posted_at, scheduled_at)>=? AND id IS NOT ?",
+            (platform, since, exclude_id),
         ).fetchall()
         return sorted(r["t"] for r in rows)
 
@@ -373,12 +396,17 @@ class Store:
             "campaigns": q("SELECT COUNT(*) FROM campaigns").fetchone()[0],
             "sources": q("SELECT COUNT(*) FROM sources").fetchone()[0],
             "clips": q("SELECT COUNT(*) FROM clips").fetchone()[0],
+            "pending": q("SELECT COUNT(*) FROM posts WHERE status='pending'").fetchone()[0],
             "scheduled": q("SELECT COUNT(*) FROM posts WHERE status IN ('scheduled','publishing')").fetchone()[0],
             "posted": q("SELECT COUNT(*) FROM posts WHERE status='posted'").fetchone()[0],
             "failed": q("SELECT COUNT(*) FROM posts WHERE status='failed'").fetchone()[0],
             "views": q("SELECT COALESCE(SUM(v),0) FROM (SELECT (SELECT views FROM metrics m WHERE m.post_id=p.id "
                        "ORDER BY fetched_at DESC LIMIT 1) AS v FROM posts p WHERE status='posted')").fetchone()[0],
         }
+
+    def status_counts(self) -> list[sqlite3.Row]:
+        """(platform, status, n) for every post: the web splits these into Approve / Share / Scheduled."""
+        return self.db.execute("SELECT platform, status, COUNT(*) AS n FROM posts GROUP BY platform, status").fetchall()
 
     def clips_list(self, limit: int = 100, campaign_id: str | None = None) -> list[RenderedClip]:
         if campaign_id:
@@ -404,8 +432,9 @@ class Store:
         return self.db.execute("SELECT * FROM posts WHERE id=?", (post_id,)).fetchone()
 
     def cancel_post(self, post_id: int) -> bool:
-        """Skip a scheduled post; False if it was already claimed for publishing (or isn't scheduled)."""
-        cur = self.db.execute("UPDATE posts SET status='skipped' WHERE id=? AND status='scheduled'", (post_id,))
+        """Skip a pending or scheduled post; False if it was already claimed for publishing (or is done)."""
+        cur = self.db.execute("UPDATE posts SET status='skipped' WHERE id=? AND status IN ('pending','scheduled')",
+                              (post_id,))
         self.db.commit()
         return cur.rowcount == 1
 

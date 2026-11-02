@@ -19,6 +19,9 @@ def dashboard(request: Request):
     ctx = context(request)
     store = ctx.store
     counts = store.counts()
+    from vv88.web.pages.queue import lane_counts
+
+    lanes = lane_counts(ctx)
     upcoming = [p for p in store.posts_list(status="scheduled", limit=200) if p["scheduled_at"]]
     upcoming.sort(key=lambda p: p["scheduled_at"])
     campaigns = sorted(store.campaigns(), key=lambda c: store.campaign_scores().get(c.id, 0.0), reverse=True)
@@ -33,6 +36,7 @@ def dashboard(request: Request):
         "dashboard.html",
         title="Dashboard",
         counts=counts,
+        lanes=lanes,
         upcoming=upcoming[:6],
         campaigns=campaigns[:5],
         scores=scores,

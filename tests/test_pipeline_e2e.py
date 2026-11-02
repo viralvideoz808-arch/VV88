@@ -44,9 +44,14 @@ def test_run_cycle_dry_run(engine):
     summary = engine.run_cycle()
     assert summary["campaigns"][0]["id"] == "money-pod"
     assert summary["rendered"] == 2
-    # 2 clips x 3 campaign platforms
-    assert summary["scheduled"] == 6 and summary["published"] == 6
+    # 2 clips x 3 campaign platforms, all waiting for approval: nothing is published before that.
+    assert summary["scheduled"] == 6 and summary["published"] == 0
     outbox = engine.s.data_path / "outbox"
+    assert not outbox.exists()
+    pending = [r["id"] for r in engine.store.db.execute("SELECT id FROM posts WHERE status='pending'")]
+    assert len(pending) == 6
+    assert all(engine.approve(i) for i in pending)
+    assert sum(1 for r in engine.publish_due() if r["ok"]) == 6
     tiktok_posts = list((outbox / "tiktok").glob("*.json"))
     assert len(tiktok_posts) == 2
     post = json.loads(tiktok_posts[0].read_text())

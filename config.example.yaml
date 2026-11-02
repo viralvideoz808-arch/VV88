@@ -46,15 +46,22 @@ editing:
   crf: 20
 
 publishing:
-  backend: dry_run                   # dry_run (writes data/outbox) | postiz | direct
+  # dry_run (writes data/outbox) | zernio | share | postiz | direct. A platform can override it below.
+  # Free setup (docs/POSTING.md): tiktok + instagram -> zernio, youtube + x -> share.
+  backend: dry_run
+  require_approval: true             # new posts wait on Queue -> To approve until you approve them
   disclose_paid_partnership: true    # FTC + platform rules: paid clipping = paid promotion
   disclosure_tag: "#ad"
   slots_utc: ["02:00", "06:00", "12:00", "16:00", "21:00"]
-  platforms:
+  platforms:                         # add backend: zernio / share / ... to override per platform
     tiktok:    {enabled: true, daily_cap: 5, min_gap_minutes: 90}
     youtube:   {enabled: true, daily_cap: 8, min_gap_minutes: 60}
     instagram: {enabled: true, daily_cap: 8, min_gap_minutes: 60}
     x:         {enabled: true, daily_cap: 8, min_gap_minutes: 45}
+  # zernio:
+  #   Account ids are saved to .env (ZERNIO_ACCOUNT_*) when you add the Zernio key on the Connections page
+  #   or run `vv88 connect zernio`. Only set them here to override that:
+  #   accounts: {tiktok: "<id>", instagram: "<id>"}
   # postiz:
   #   Channel ids are saved to .env (POSTIZ_INTEGRATION_*) when you add the Postiz key on the
   #   Connections page or run `vv88 connect postiz`. Only set them here to override that:

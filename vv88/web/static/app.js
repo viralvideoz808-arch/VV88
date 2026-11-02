@@ -34,6 +34,58 @@
     });
   });
 
+  // <button data-share-src="/media?path=…" data-share-name="x.mp4" data-share-caption="#cap" data-share-title="#t"
+  // data-share-status="#msg">: copy the caption, then hand the video to the phone's share sheet (TikTok,
+  // Instagram, YouTube, X apps). Needs Chrome on Android over http://127.0.0.1 or localhost (a secure context).
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-share-src]");
+    if (!btn) return;
+    e.preventDefault();
+    const pick = function (attr) { const sel = btn.getAttribute(attr); return sel ? document.querySelector(sel) : null; };
+    const status = pick("data-share-status");
+    const say = function (msg) { if (status) status.textContent = msg; };
+    const capEl = pick("data-share-caption");
+    const titleEl = pick("data-share-title");
+    const caption = capEl ? capEl.value : "";
+    if (caption && navigator.clipboard) navigator.clipboard.writeText(caption).catch(function () {});
+    if (!navigator.share || !navigator.canShare) {
+      say("This browser can't share videos to apps. Open the website in Chrome on the phone, or tap Download and share the file from your gallery.");
+      return;
+    }
+    const share = function (file) {
+      if (!navigator.canShare({ files: [file] })) {
+        say("This phone can't share this video from the browser. Tap Download, then share it from your gallery.");
+        return;
+      }
+      const data = { files: [file], text: caption };
+      if (titleEl && titleEl.value) data.title = titleEl.value;
+      navigator.share(data).then(function () {
+        say("Shared. Paste the caption in the app if it's empty (it's copied), post, then tap Mark posted.");
+      }, function (err) {
+        if (err && err.name === "AbortError") say("Share cancelled.");
+        else if (err && err.name === "NotAllowedError") { btn.textContent = "Tap again to share"; say("Video ready: tap the button again."); }
+        else say("Couldn't share: " + (err && err.message ? err.message : "unknown error") + ". Tap Download instead.");
+      });
+    };
+    if (btn._vv88File) { share(btn._vv88File); return; }
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Preparing…";
+    fetch(btn.getAttribute("data-share-src"), { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); })
+      .then(function (blob) {
+        btn._vv88File = new File([blob], btn.getAttribute("data-share-name") || "clip.mp4", { type: "video/mp4" });
+        btn.disabled = false;
+        btn.textContent = label;
+        share(btn._vv88File);  // the tap still counts if loading was quick; otherwise "Tap again"
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = label;
+        say("Couldn't load the video (" + err.message + "). Tap Download instead.");
+      });
+  });
+
   // <pre data-poll="/jobs/12/log.json">: live job log; reloads the page when the job finishes.
   const pollEl = document.querySelector("[data-poll]");
   if (pollEl) {

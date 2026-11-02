@@ -147,8 +147,15 @@ class EditingConfig(_Model):
     face_model: str | None = None  # optional YuNet .onnx path
 
 
+# How a platform's posts go out: dry_run writes data/outbox; postiz / zernio post through that service; direct
+# uses the platform's own API with your developer app; share leaves the post on the Queue page's Share tab, where
+# one tap hands the video to the platform's phone app.
+Backend = Literal["dry_run", "postiz", "direct", "zernio", "share"]
+
+
 class PlatformConfig(_Model):
     enabled: bool = False
+    backend: Backend | None = None  # None = publishing.backend
     daily_cap: int = 6
     min_gap_minutes: int = 90
     max_hashtags: int = 10
@@ -183,6 +190,30 @@ class PostizConfig(_Model):
         return out
 
 
+class ZernioConfig(_Model):
+    api_url: str = "${ZERNIO_API_URL:-https://zernio.com/api/v1}"
+    api_key: str = "${ZERNIO_API_KEY}"
+    # Zernio account ids per platform; saving the key on the Connections page (or `vv88 connect zernio`) fills
+    # these in .env automatically.
+    accounts: dict[str, str] = Field(
+        default_factory=lambda: {
+            "tiktok": "${ZERNIO_ACCOUNT_TIKTOK}",
+            "youtube": "${ZERNIO_ACCOUNT_YOUTUBE}",
+            "instagram": "${ZERNIO_ACCOUNT_INSTAGRAM}",
+            "x": "${ZERNIO_ACCOUNT_X}",
+        }
+    )
+
+    @field_validator("accounts", mode="after")
+    @classmethod
+    def _env_fallback(cls, v: dict[str, str]) -> dict[str, str]:
+        out = dict(v)
+        for p in ("tiktok", "youtube", "instagram", "x"):
+            if not out.get(p):
+                out[p] = os.environ.get(f"ZERNIO_ACCOUNT_{p.upper()}", "")
+        return out
+
+
 class DirectAPIConfig(_Model):
     youtube_client_id: str = "${YOUTUBE_CLIENT_ID}"
     youtube_client_secret: str = "${YOUTUBE_CLIENT_SECRET}"
@@ -214,7 +245,10 @@ class DirectAPIConfig(_Model):
 
 
 class PublishingConfig(_Model):
-    backend: Literal["dry_run", "postiz", "direct"] = "dry_run"
+    backend: Backend = "dry_run"
+    # New posts wait on the Queue page's Approve tab until you approve them (clips you schedule yourself from a
+    # clip's page count as approved). TikTok requires this for posts made through Zernio.
+    require_approval: bool = True
     disclose_paid_partnership: bool = True
     disclosure_tag: str = "#ad"
     # Posting slots in UTC. Defaults lean on the top median-view slots in the Opus Clip
@@ -230,10 +264,15 @@ class PublishingConfig(_Model):
         }
     )
     postiz: PostizConfig = Field(default_factory=PostizConfig)
+    zernio: ZernioConfig = Field(default_factory=ZernioConfig)
     direct: DirectAPIConfig = Field(default_factory=DirectAPIConfig)
 
     def enabled_platforms(self) -> list[str]:
         return [p for p, c in self.platforms.items() if c.enabled]
+
+    def backend_for(self, platform: str) -> str:
+        pc = self.platforms.get(platform)
+        return (pc.backend if pc is not None and pc.backend else None) or self.backend
 
 
 class OptimizerConfig(_Model):

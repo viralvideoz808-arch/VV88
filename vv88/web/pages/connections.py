@@ -23,7 +23,8 @@ router = APIRouter()
 SOCIAL = ("youtube", "tiktok", "instagram", "x")
 LABELS = {"youtube": "YouTube", "tiktok": "TikTok", "instagram": "Instagram", "x": "X",
           "apify": "Apify (Whop discovery)", "youtube-key": "YouTube API key (niche signal)",
-          "postiz": "Postiz", "anthropic": "Anthropic (Claude re-ranker)"}
+          "postiz": "Postiz", "zernio": "Zernio (free: TikTok + Instagram)",
+          "anthropic": "Anthropic (Claude re-ranker)"}
 
 # Developer-app credentials, grouped by the platform whose sign-in needs them.
 # (env name, label, required for the browser sign-in?)
@@ -108,6 +109,8 @@ def connections_page(request: Request):
         rows=rows, labels=LABELS, social=social, groups=groups, tools=tools,
         redirect_uri=oauth_redirect_uri(request), backend=s.publishing.backend,
         linked_social=linked_social, postiz_set=_tool_set(s, "postiz", by_name),
+        zernio_set=_tool_set(s, "zernio", by_name),
+        share_names=", ".join(LABELS[p] for p in SOCIAL if s.publishing.backend_for(p) == "share"),
     )
 
 
@@ -169,6 +172,19 @@ def save_key(request: Request, tool: str, form: FormData = Depends(form_data)):
             kind = "warning"
         if ctx.settings.publishing.backend != "postiz":
             msg += " To post through Postiz, set the publishing backend to “postiz” on the Settings page."
+    elif tool == "zernio":
+        found = info.get("accounts") or {}
+        names = info.get("usernames") or {}
+        if found:
+            msg += " Accounts found: " + ", ".join(
+                f"{LABELS.get(p, p)}{(' @' + names[p]) if names.get(p) else ''}" for p in sorted(found)) + "."
+        else:
+            msg += " No accounts connected in Zernio yet: connect TikTok and Instagram there, then save the key again."
+            kind = "warning"
+        via = [p for p in found if ctx.settings.publishing.backend_for(p) != "zernio"]
+        if via:
+            msg += (" To post them through Zernio, set " + ", ".join(LABELS.get(p, p) for p in sorted(via))
+                    + " to “zernio” under Platforms on the Settings page.")
     elif info.get("account"):
         msg += f" Account: {str(info['account'])[:60]}."
     return redirect(request, "/connections", msg, kind)

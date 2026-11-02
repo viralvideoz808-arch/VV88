@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% import "_macros.html" as ui %}
 {% block actions %}
-  {{ ui.action("/queue/publish-due", "Publish due now", csrf_field, "primary",
+  {% if status == "approve" and counts.approve %}
+    {{ ui.action("/queue/approve-all", "Approve all " ~ counts.approve, csrf_field, "primary",
+                 "Approve all " ~ counts.approve ~ " waiting posts with their current captions?") }}
+  {% endif %}
+  {{ ui.action("/queue/publish-due", "Publish due now", csrf_field, "ghost" if status in ("approve", "share") else "primary",
                "Dry-run mode writes every scheduled post to the outbox now. Continue?" if backend == "dry_run" else "") }}
 {% endblock %}
 {% block content %}
@@ -20,6 +24,22 @@
   .qlink { max-width: 200px; overflow-wrap: anywhere; }
   .table th.num, .table td.num { text-align: right; }
   .acts { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; }
+  .pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; }
+  .pcards > .card + .card { margin-top: 0; }
+  .pcard { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: start; }
+  .pcard video, .pcard .novideo { width: 150px; aspect-ratio: 9 / 16; background: #000; border-radius: 10px; display: block; }
+  .pcard .novideo { display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }
+  .pcard textarea, .pcard input[type=text], .pcard input[type=url] { width: 100%; }
+  .pcard .pmeta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 6px; }
+  .pcard .pbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .pcard .pmark { display: flex; gap: 6px; margin-top: 10px; }
+  .pcard .pmark input { flex: 1 1 auto; min-width: 0; }
+  .share-status { min-height: 1.2em; margin: 6px 0 0; }
+  .lane-intro { margin: 0 0 12px; }
+  @media (max-width: 560px) {
+    .pcard { grid-template-columns: 1fr; }
+    .pcard video, .pcard .novideo { width: min(100%, 260px); justify-self: center; }
+  }
   @media (max-width: 760px) {
     .qtable thead { display: none; }
     .qtable, .qtable tbody { display: block; width: 100%; }
@@ -48,6 +68,8 @@
 {% endif %}
 
 <div class="grid kpis">
+  {% if counts.approve or require_approval %}{{ ui.kpi("To approve", counts.approve, "waiting for you" if counts.approve else "") }}{% endif %}
+  {% if counts.share or shared %}{{ ui.kpi("To share", counts.share, "post from your phone" if counts.share else "") }}{% endif %}
   {{ ui.kpi("Scheduled", counts.scheduled, (due ~ " due now") if due else "") }}
   {{ ui.kpi("Posted", counts.posted) }}
   {{ ui.kpi("Failed", counts.failed, "needs a retry" if counts.failed else "") }}
@@ -57,10 +79,77 @@
 <nav class="qtabs" aria-label="Filter posts by status">
   {% for t in tabs %}
     <a class="btn small {{ 'primary' if t == status else 'ghost' }}" href="/queue?status={{ t }}"
-       {% if t == status %}aria-current="page"{% endif %}>{{ t|capitalize }} <span class="n">{{ counts[t] }}</span></a>
+       {% if t == status %}aria-current="page"{% endif %}>{{ {"approve": "To approve", "share": "To share"}.get(t, t|capitalize) }} <span class="n">{{ counts[t] }}</span></a>
   {% endfor %}
 </nav>
 
+{% if status in ("approve", "share") %}
+  {% set names = {"tiktok": "TikTok", "youtube": "YouTube", "instagram": "Instagram", "x": "X"} %}
+  {% if status == "approve" %}
+    <p class="muted lane-intro">Watch each clip, fix the caption if you like, then <strong>Approve</strong>. Approved posts go out
+      by themselves at their time{% if backend == "dry_run" %} (dry-run mode: written to <code>data/outbox/</code>){% endif %}.
+      <strong>Skip</strong> drops a post.</p>
+  {% else %}
+    <p class="muted lane-intro">{{ shared_names }} {{ "is" if shared|length == 1 else "are" }} set to Share.
+      Tap <strong>Share</strong>, pick the app, paste the caption (it is copied for you) and post. Then tap <strong>Mark posted</strong>.
+      The time shown is the best slot to post.</p>
+  {% endif %}
+  {% if posts %}
+  <div class="pcards">
+  {% for p in posts %}
+    <article class="card pcard" id="post-{{ p.id }}">
+      {% if p.media %}<video src="{{ p.media }}" preload="metadata" controls playsinline></video>
+      {% else %}<div class="novideo">Video file missing. Skip this post.</div>{% endif %}
+      <div>
+        <div class="pmeta">{{ ui.platform(p.platform) }}
+          <span class="muted small">{{ fmt_time(p.scheduled_at) }} · {{ fmt_ago(p.scheduled_at) }}{% if p.due %} · {{ "post now" if status == "share" else "slot passed: moves to the next free slot" }}{% endif %}</span></div>
+        {% if p.clip_exists %}<a class="qhook" href="/clips/{{ p.clip_id }}">{{ p.hook or p.clip_id }}</a>
+        {% else %}<span class="muted mono small">{{ p.clip_id }} (clip removed)</span>{% endif %}
+        {% if status == "approve" %}
+          <form method="post" action="/queue/{{ p.id }}/approve" style="margin-top:10px">
+            {{ csrf_field() }}
+            {% if p.platform == "youtube" %}
+              <label class="field"><span>Title</span><input type="text" name="title" value="{{ p.post_title }}" maxlength="100" data-maxlen="100"></label>
+            {% endif %}
+            <label class="field"><span>Caption</span><textarea name="caption" rows="5" data-maxlen="{{ p.limit }}">{{ p.caption }}</textarea></label>
+            <div class="pbtns"><button class="btn primary">Approve</button></div>
+          </form>
+          <div class="pbtns">{{ ui.action("/queue/" ~ p.id ~ "/cancel", "Skip", csrf_field, "small danger", "Skip this " ~ names.get(p.platform, p.platform) ~ " post?", {"back": "/queue?status=approve"}) }}</div>
+        {% else %}
+          <div style="margin-top:10px">
+            {% if p.platform == "youtube" and p.post_title %}
+              <label class="field"><span>Title</span><input type="text" id="title-{{ p.id }}" value="{{ p.post_title }}" maxlength="100" data-maxlen="100"></label>
+            {% endif %}
+            <label class="field"><span>Caption</span><textarea id="cap-{{ p.id }}" rows="5" data-maxlen="{{ p.limit }}">{{ p.caption }}</textarea></label>
+          </div>
+          <div class="pbtns">
+            {% if p.media and p.shareable %}
+              <button type="button" class="btn primary" data-share-src="{{ p.media }}" data-share-name="{{ p.clip_id }}.mp4"
+                      data-share-caption="#cap-{{ p.id }}" data-share-title="#title-{{ p.id }}" data-share-status="#share-status-{{ p.id }}">Share to {{ names.get(p.platform, p.platform) }}</button>
+            {% endif %}
+            <button type="button" class="btn" data-copy-target="#cap-{{ p.id }}">Copy caption</button>
+            {% if p.media %}<a class="btn ghost" href="{{ p.media }}" download="{{ p.clip_id }}.mp4">Download</a>{% endif %}
+          </div>
+          <p class="small muted share-status" id="share-status-{{ p.id }}" aria-live="polite">{% if p.media and not p.shareable %}This video is over 50 MB, too big to share from the browser: tap Download, then share it from your gallery.{% endif %}</p>
+          <form method="post" action="/queue/{{ p.id }}/mark-posted" class="pmark">
+            {{ csrf_field() }}
+            <input type="hidden" name="back" value="/queue?status=share">
+            <input type="url" name="url" placeholder="Link to the post (optional)" maxlength="500" inputmode="url" aria-label="Link to the post (optional)">
+            <button class="btn small">Mark posted</button>
+          </form>
+          <div class="pbtns">{{ ui.action("/queue/" ~ p.id ~ "/cancel", "Skip", csrf_field, "small danger", "Skip this " ~ names.get(p.platform, p.platform) ~ " post?", {"back": "/queue?status=share"}) }}</div>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+  </div>
+  {% if more %}<p class="muted small">Showing {{ posts|length }} posts; {{ more }} more are waiting.</p>{% endif %}
+  {% elif status == "approve" %}
+    <div class="card">{{ ui.empty("Nothing to approve. New clips from the autopilot or the Clip studio wait here until you approve them.") }}</div>
+  {% else %}
+    <div class="card">{{ ui.empty("Nothing to share right now." if shared else "No platform is set to Share. Pick Share for a platform in Settings to post it from your phone's apps.") }}</div>
+  {% endif %}
+{% else %}
 <div class="card">
   {% if posts %}
   {% set has_errors = posts|selectattr("error")|list %}
@@ -88,8 +177,10 @@
         <td class="c-link qlink{{ ' nil' if not (p.link or p.remote_id) }}">{% if p.link %}<a class="nowrap" href="{{ p.link }}" rel="noopener noreferrer" target="_blank">Open post</a>{% elif p.remote_id %}<span class="mono small">{{ p.remote_id }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
         <td class="c-views num{{ ' nil' if p.views is none }}">{{ "{:,}".format(p.views) if p.views is not none else "—" }}</td>
         {% if has_errors %}<td class="c-err{{ ' nil' if not p.error }}">{% if p.error %}<div class="qerr">{{ p.error }}</div>{% endif %}</td>{% endif %}
-        <td class="c-act{{ ' nil' if p.status not in ('scheduled', 'failed') }}"><div class="acts">
-          {% if p.status == "scheduled" %}
+        <td class="c-act{{ ' nil' if p.status not in ('pending', 'scheduled', 'failed') }}"><div class="acts">
+          {% if p.lane %}
+            <a class="btn small primary" href="/queue?status={{ p.lane }}#post-{{ p.id }}">{{ "Approve" if p.lane == "approve" else "Share" }}</a>
+          {% elif p.status == "scheduled" %}
             {{ ui.action("/queue/" ~ p.id ~ "/publish-now", "Publish now", csrf_field, "small primary") }}
             {{ ui.action("/queue/" ~ p.id ~ "/cancel", "Cancel", csrf_field, "small danger", "Cancel this " ~ p.platform ~ " post? It won't be published.", {"back": "/queue?status=" ~ status}) }}
           {% elif p.status == "failed" %}
@@ -113,4 +204,5 @@
     {{ ui.empty("The queue is empty. Render clips in the Clip studio and schedule them from the Clips page.") }}
   {% endif %}
 </div>
+{% endif %}
 {% endblock %}
