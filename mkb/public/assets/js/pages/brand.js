@@ -7,19 +7,19 @@ splitLines($('.page-hero .split'));
 
 $('#essence').innerHTML = [
   ['Essence', 'Build. Trade. Scale.'], ['Promise', 'Technology that works and knowledge that\'s honest.'],
-  ['Personality', 'Disciplined · Bold · Honest · Generous'], ['Audience', 'Business owners, new traders and founders with ideas.'],
+  ['Personality', 'Disciplined · Sharp · Honest · Generous'], ['Audience', 'Business owners, new traders and founders with ideas.'],
 ].map(([k, v], i) => `<div class="card" data-reveal style="--d:${i * 80}"><span class="eyebrow eyebrow--plain">${k}</span><p class="h4" style="margin:14px 0 0;color:var(--paper);font-family:var(--f-display);font-size:1.25rem">${esc(v)}</p></div>`).join('');
 
 // ---- Colours ----
 const COLOURS = [
-  ['MKB Black', '#040605', 'Backgrounds, the stage for everything'], ['Dark Green', '#0F3D2E', 'Surfaces, cards, depth'], ['Deep Green', '#0A2A1F', 'Gradients, badges'],
-  ['Jungle Green', '#29AB87', 'Primary: buttons, highlights, the bull'], ['Mint', '#6FE3BF', 'Glows, links, live data'], ['Paper', '#ECF5F1', 'Text and light backgrounds'],
+  ['Black', '#000000', 'The screen: backgrounds for everything'], ['Dark Green', '#07130E', 'Panels, cards, depth'], ['Forest', '#0B2219', 'Gradients, badges, hover states'],
+  ['Jungle Green · electric', '#2BD69F', 'Primary: buttons, the logo, live data'], ['Jungle Green · classic', '#14936B', 'Secondary accents, charts, print'], ['Mint', '#D9FBEA', 'Headlines and text on black'],
 ];
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const cmyk = ([r, g, b]) => { const k = 1 - Math.max(r, g, b) / 255; if (k >= 1) return [0, 0, 0, 100]; return [r, g, b].map((v) => Math.round(((1 - v / 255 - k) / (1 - k)) * 100)).concat(Math.round(k * 100)); };
 $('#swatches').innerHTML = COLOURS.map(([n, h, use], i) => {
   const [r, g, b] = rgb(h); const light = (r * 299 + g * 587 + b * 114) / 1000 > 140;
-  return `<button class="swatch" data-hex="${h}" data-reveal style="--d:${i * 60};background:${h};color:${light ? '#040605' : '#ECF5F1'}">
+  return `<button class="swatch" data-hex="${h}" data-reveal style="--d:${i * 60};background:${h};color:${light ? '#000000' : '#ECF5F1'}">
     <b>${n}</b><span class="mono">${h}</span><span class="mono">RGB ${r} ${g} ${b}</span><span class="mono">CMYK ${cmyk([r, g, b]).join(' ')}</span><small>${use}</small></button>`;
 }).join('');
 $$('.swatch').forEach((s) => s.addEventListener('click', async () => { await copyText(s.dataset.hex); toast(`${s.dataset.hex} copied`); }));
@@ -67,15 +67,15 @@ $('#kit-grid').innerHTML = KIT.map(([n, d, src, shape], i) => `<figure class="ki
 
 // ---- Email signature ----
 const abs = (p) => (location.protocol.startsWith('http') ? url(p) : p);
-const sigHTML = `<table cellpadding="0" cellspacing="0" style="font-family:Arial,Helvetica,sans-serif;color:#0A2A1F"><tr>
+const sigHTML = `<table cellpadding="0" cellspacing="0" style="font-family:Arial,Helvetica,sans-serif;color:#07130E"><tr>
   <td style="padding-right:14px;vertical-align:top"><img src="${abs('assets/kit/mkb-mark-1024.png')}" width="64" height="64" alt="MKB" style="display:block;border-radius:14px"></td>
-  <td style="border-left:3px solid #29AB87;padding-left:14px;vertical-align:top">
-    <div style="font-size:16px;font-weight:bold;color:#040605">${esc(S.fullName)}</div>
-    <div style="font-size:12px;color:#1F7A5C;font-weight:bold;letter-spacing:1px;text-transform:uppercase">${esc(S.role)}</div>
-    <div style="font-size:13px;margin-top:6px">📞 <a href="tel:${esc(c.phone)}" style="color:#040605;text-decoration:none">${esc(c.phoneDisplay)}</a> &nbsp;·&nbsp; 💬 <a href="https://wa.me/${esc(c.whatsapp)}" style="color:#040605;text-decoration:none">WhatsApp</a></div>
-    <div style="font-size:13px">✉️ <a href="mailto:${esc(c.email)}" style="color:#040605;text-decoration:none">${esc(c.email)}</a></div>
-    <div style="font-size:12px;margin-top:6px"><a href="https://www.instagram.com/${esc(c.instagram)}/" style="color:#29AB87">Instagram</a> · <a href="https://x.com/${esc(c.x)}" style="color:#29AB87">X</a> · <a href="https://www.threads.net/@${esc(c.threads)}" style="color:#29AB87">Threads</a>${location.protocol.startsWith('http') ? ` · <a href="${esc(location.origin)}" style="color:#29AB87">${esc(site)}</a>` : ''}</div>
-    <div style="font-size:11px;color:#5B7068;margin-top:6px;letter-spacing:2px">BUILD · TRADE · SCALE</div>
+  <td style="border-left:3px solid #14936B;padding-left:14px;vertical-align:top">
+    <div style="font-size:16px;font-weight:bold;color:#000000">${esc(S.fullName)}</div>
+    <div style="font-size:12px;color:#14936B;font-weight:bold;letter-spacing:1px;text-transform:uppercase">${esc(S.role)}</div>
+    <div style="font-size:13px;margin-top:6px">📞 <a href="tel:${esc(c.phone)}" style="color:#000000;text-decoration:none">${esc(c.phoneDisplay)}</a> &nbsp;·&nbsp; 💬 <a href="https://wa.me/${esc(c.whatsapp)}" style="color:#000000;text-decoration:none">WhatsApp</a></div>
+    <div style="font-size:13px">✉️ <a href="mailto:${esc(c.email)}" style="color:#000000;text-decoration:none">${esc(c.email)}</a></div>
+    <div style="font-size:12px;margin-top:6px"><a href="https://www.instagram.com/${esc(c.instagram)}/" style="color:#14936B">Instagram</a> · <a href="https://x.com/${esc(c.x)}" style="color:#14936B">X</a> · <a href="https://www.threads.net/@${esc(c.threads)}" style="color:#14936B">Threads</a>${location.protocol.startsWith('http') ? ` · <a href="${esc(location.origin)}" style="color:#14936B">${esc(site)}</a>` : ''}</div>
+    <div style="font-size:11px;color:#4E6B5F;margin-top:6px;letter-spacing:2px">BUILD · TRADE · SCALE</div>
   </td></tr></table>`;
 $('#sig').innerHTML = sigHTML;
 $('#copy-sig').addEventListener('click', async () => {

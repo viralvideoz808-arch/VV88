@@ -65,7 +65,7 @@ const COLLECTIONS = {
     label: 'Projects', path: 'projects', prefix: 'pj', icon: 'briefcase', group: 'Build',
     blurb: 'Your portfolio. Projects marked "featured" appear on the homepage.',
     title: (x) => x.title, sub: (x) => `${x.category} · ${x.year || ''} · ${x.status || ''}${x.featured ? ' · featured' : ''}`,
-    defaults: () => ({ category: 'Web', year: String(new Date().getFullYear()), status: 'Live', stack: [], results: [], featured: false, accent: '#29AB87' }),
+    defaults: () => ({ category: 'Web', year: String(new Date().getFullYear()), status: 'Live', stack: [], results: [], featured: false, accent: '#2BD69F' }),
     fields: [
       { k: 'title', label: 'Project name', type: 'text', required: true },
       { k: 'category', label: 'Category', type: 'select', options: ['Web', 'App', 'Trading', 'Automation', 'Brand'], custom: true },
@@ -191,7 +191,7 @@ function fieldHTML(f, v) {
     case 'markdown': return `<div class="field full">${label}<div class="md-edit"><textarea class="textarea mono" id="${id}" data-f="${f.k}" style="min-height:300px;font-size:.85rem">${esc(v || '')}</textarea><div class="md-preview prose"></div></div></div>`;
     case 'number': return `<div class="field">${label}<input class="input" type="number" step="any" id="${id}" data-f="${f.k}" value="${esc(v ?? '')}"></div>`;
     case 'date': return `<div class="field">${label}<input class="input" type="date" id="${id}" data-f="${f.k}" value="${esc(v || '')}"></div>`;
-    case 'color': return `<div class="field">${label}<input class="input" type="color" id="${id}" data-f="${f.k}" value="${esc(/^#[0-9a-f]{6}$/i.test(v || '') ? v : '#29AB87')}" style="padding:4px;height:50px"></div>`;
+    case 'color': return `<div class="field">${label}<input class="input" type="color" id="${id}" data-f="${f.k}" value="${esc(/^#[0-9a-f]{6}$/i.test(v || '') ? v : '#2BD69F')}" style="padding:4px;height:50px"></div>`;
     case 'bool': return `<div class="field"><span class="label">&nbsp;</span><label class="switch"><input type="checkbox" id="${id}" data-f="${f.k}" ${v ? 'checked' : ''}>${esc(f.label)}</label></div>`;
     case 'list': return `<div class="field full">${label}<textarea class="textarea" id="${id}" data-f="${f.k}" style="min-height:120px">${esc((v || []).join('\n'))}</textarea></div>`;
     case 'tags': return `<div class="field full">${label}<input class="input" id="${id}" data-f="${f.k}" value="${esc((v || []).join(', '))}"></div>`;

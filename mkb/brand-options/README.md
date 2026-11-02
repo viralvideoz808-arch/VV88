@@ -1,6 +1,6 @@
 # MKB brand options
 
-Pick **one logo** and **one theme**. The choice will be applied to the website, logos and social kit.
+**Chosen: Logo 2 (Candle M) + Theme C (Trading Terminal)**, now applied to the website, logos, social kit and brand book. This folder keeps the full set of options for reference.
 
 Open `index.html` in a browser for the interactive version (tap to select, live preview), or see the images:
 

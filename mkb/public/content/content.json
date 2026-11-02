@@ -143,9 +143,9 @@
       "id": "pj-mkb", "title": "MKB Brand Platform", "category": "Web", "year": "2026", "status": "Live",
       "summary": "This website: a personal brand platform with a 3D cursor-tracking mascot, trading toolkit, academy, packages and a partnership panel — all managed from a private admin dashboard.",
       "problem": "One brand had to present three very different offers — IT services, trading education and business partnerships — without feeling scattered.",
-      "solution": "A single visual system (the MKB Bull, jungle green on black) with dedicated spaces for each offer, live market data, working calculators and a content manager so new skills and courses go live without touching code.",
+      "solution": "A single visual system (a candlestick \"M\" logo and the MKB Bull mascot, electric jungle green on a black trading-terminal theme) with dedicated spaces for each offer, live market data, working calculators and a content manager so new skills and courses go live without touching code.",
       "results": ["Low-poly 3D mascot rendered on canvas — no WebGL needed", "7 working trading tools", "Admin dashboard for skills, packages, courses and proposals", "Direct-to-DM contact on WhatsApp, Instagram, X, Threads and email"],
-      "stack": ["JavaScript", "Canvas 3D", "Node.js", "CSS"], "link": "index.html", "repo": "", "image": "", "featured": true, "accent": "#29AB87"
+      "stack": ["JavaScript", "Canvas 3D", "Node.js", "CSS"], "link": "index.html", "repo": "", "image": "", "featured": true, "accent": "#2BD69F"
     },
     {
       "id": "pj-vv88", "title": "VV88 — Automated Clipping Engine", "category": "Automation", "year": "2026", "status": "Built",
@@ -153,7 +153,7 @@
       "problem": "Clipping campaigns pay per view, but finding good campaigns, editing clips and posting on schedule by hand doesn't scale.",
       "solution": "A pipeline that ranks campaigns by expected pay per clip, transcribes footage with Whisper, scores highlights, renders 9:16 clips with FFmpeg in four caption styles, and posts on a schedule while an optimizer learns which styles win.",
       "results": ["≈1× real-time rendering on 4 vCPUs — about 3,300 clips/day at $0 editing cost", "Four viral caption styles with word-by-word timing", "Thompson-sampling optimizer with a 7-day half-life"],
-      "stack": ["Python", "FFmpeg", "Whisper", "Automation"], "link": "", "repo": "", "image": "", "featured": true, "accent": "#6FE3BF"
+      "stack": ["Python", "FFmpeg", "Whisper", "Automation"], "link": "", "repo": "", "image": "", "featured": true, "accent": "#8EF5D2"
     },
     {
       "id": "pj-pumpscan", "title": "PumpScan — 25-Agent Token Scanner", "category": "Trading", "year": "2026", "status": "Built",
@@ -161,7 +161,7 @@
       "problem": "New token launches move in seconds, and most are traps. Manual screening is too slow and too emotional.",
       "solution": "Independent agents score volume, buy/sell flow, holder concentration, insider networks and metadata. A demo account applies real on-chain fees, slippage and latency, so paper results match what a real wallet would get.",
       "results": ["25 agents voting every 2 seconds", "Rules tuned on 555 recorded coins with out-of-sample checks", "Runs fully in the browser on free static hosting"],
-      "stack": ["JavaScript", "Python", "Solana", "WebSockets"], "link": "", "repo": "", "image": "", "featured": true, "accent": "#1F7A5C"
+      "stack": ["JavaScript", "Python", "Solana", "WebSockets"], "link": "", "repo": "", "image": "", "featured": true, "accent": "#29AB87"
     },
     {
       "id": "pj-toolkit", "title": "MKB Trader Toolkit", "category": "Trading", "year": "2026", "status": "Live",
@@ -169,7 +169,7 @@
       "problem": "Most new traders lose money because they size positions by feel and never do the maths on their strategy.",
       "solution": "Simple, fast tools that answer the questions every trader should ask before clicking buy — with live FX and crypto prices filled in.",
       "results": ["7 tools, free to use", "Live crypto prices and daily FX reference rates", "Works on any phone"],
-      "stack": ["JavaScript", "APIs", "UX"], "link": "trading.html#toolkit", "repo": "", "image": "", "featured": true, "accent": "#29AB87"
+      "stack": ["JavaScript", "APIs", "UX"], "link": "trading.html#toolkit", "repo": "", "image": "", "featured": true, "accent": "#2BD69F"
     }
   ],
   "packages": [

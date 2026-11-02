@@ -46,7 +46,7 @@ const NOSTRIL = { c: [-23, 126, 84], rx: 11, ry: 6.5 };
 
 const MATERIALS = {
   crown: [22, 92, 70], head: [27, 110, 84], brow: [18, 80, 62], socket: [14, 58, 45],
-  muzzle: [44, 172, 135], jaw: [20, 86, 66], ear: [22, 95, 73],
+  muzzle: [40, 190, 146], jaw: [20, 86, 66], ear: [22, 95, 73],
 };
 
 function buildModel() {
@@ -161,9 +161,9 @@ export function mountBull(canvas, opts = {}) {
     const d = Math.max(0, n[0] * light[0] + n[1] * light[1] + n[2] * light[2]);
     const rim = Math.max(0, n[0] * rimDir[0] + n[1] * rimDir[1] + n[2] * rimDir[2]);
     const k = (0.38 + 0.78 * d) * extra;
-    const r = Math.min(255, base[0] * k + 111 * rim * rim * 0.55);
-    const g = Math.min(255, base[1] * k + 227 * rim * rim * 0.55);
-    const b = Math.min(255, base[2] * k + 191 * rim * rim * 0.55);
+    const r = Math.min(255, base[0] * k + 43 * rim * rim * 0.6);
+    const g = Math.min(255, base[1] * k + 214 * rim * rim * 0.6);
+    const b = Math.min(255, base[2] * k + 159 * rim * rim * 0.6);
     return `rgb(${r | 0},${g | 0},${b | 0})`;
   }
 
@@ -236,7 +236,7 @@ export function mountBull(canvas, opts = {}) {
     // iris follows the gaze (the head already turned; eyes add the last bit)
     const ix = clamp(state.gaze.x * 0.5, -0.45, 0.45), iy = clamp(state.gaze.y * 0.38, -0.3, 0.36);
     const ig = ctx.createRadialGradient(ix - 0.15, iy - 0.15, 0.05, ix, iy, 0.62);
-    ig.addColorStop(0, '#9DF2D4'); ig.addColorStop(0.45, '#29AB87'); ig.addColorStop(1, '#0B3D2E');
+    ig.addColorStop(0, '#B8FBE4'); ig.addColorStop(0.45, '#2BD69F'); ig.addColorStop(1, '#0B3D2E');
     ctx.beginPath(); ctx.ellipse(ix, iy, 0.6, 0.62, 0, 0, TAU); ctx.fillStyle = ig; ctx.fill();
     ctx.beginPath(); ctx.ellipse(ix, iy, 0.28, 0.3, 0, 0, TAU); ctx.fillStyle = '#020806'; ctx.fill();
     ctx.beginPath(); ctx.ellipse(ix - 0.2, iy - 0.22, 0.12, 0.1, 0, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
@@ -267,7 +267,7 @@ export function mountBull(canvas, opts = {}) {
     const mid = xf.proj(xf.rot([72 * side, -44 - 8 * mood, 40]));
     ctx.beginPath(); ctx.moveTo(outer[0], outer[1]); ctx.quadraticCurveTo(mid[0], mid[1], inner[0], inner[1]);
     ctx.strokeStyle = '#072519'; ctx.lineCap = 'round'; ctx.lineWidth = 9 * state.scale; ctx.stroke();
-    ctx.strokeStyle = 'rgba(111,227,191,0.25)'; ctx.lineWidth = 1.4 * state.scale; ctx.stroke();
+    ctx.strokeStyle = 'rgba(43,214,159,0.25)'; ctx.lineWidth = 1.4 * state.scale; ctx.stroke();
   }
 
   function drawNostril(xf, side) {
@@ -334,7 +334,7 @@ export function mountBull(canvas, opts = {}) {
 
     // Aura
     const g = ctx.createRadialGradient(state.cx, state.cy - 30 * state.scale, 10, state.cx, state.cy - 30 * state.scale, 260 * state.scale);
-    g.addColorStop(0, 'rgba(41,171,135,0.30)'); g.addColorStop(0.55, 'rgba(41,171,135,0.07)'); g.addColorStop(1, 'rgba(41,171,135,0)');
+    g.addColorStop(0, 'rgba(43,214,159,0.30)'); g.addColorStop(0.55, 'rgba(43,214,159,0.07)'); g.addColorStop(1, 'rgba(43,214,159,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
     // Horns and ears sit behind the head.
@@ -350,11 +350,11 @@ export function mountBull(canvas, opts = {}) {
       const pts = NECK.map((p) => xf.proj(xf.rot(p)));
       const top = Math.min(...pts.map((p) => p[1])), bot = Math.max(...pts.map((p) => p[1]));
       const ng = ctx.createLinearGradient(0, top, 0, bot);
-      ng.addColorStop(0, 'rgb(14,58,44)'); ng.addColorStop(0.55, 'rgba(10,42,31,0.85)'); ng.addColorStop(1, 'rgba(5,8,6,0)');
+      ng.addColorStop(0, 'rgb(14,58,44)'); ng.addColorStop(0.55, 'rgba(10,42,31,0.85)'); ng.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
       ctx.closePath(); ctx.fillStyle = ng; ctx.fill();
-      ctx.strokeStyle = 'rgba(111,227,191,0.10)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.strokeStyle = 'rgba(43,214,159,0.10)'; ctx.lineWidth = 1; ctx.stroke();
     }
     // Back layer: far horn first, then ears, near horn.
     const nearSide = state.head.yaw > 0 ? 1 : -1;
@@ -389,7 +389,7 @@ export function mountBull(canvas, opts = {}) {
       if (d.f.m === 'brow') lidColor = col;
     }
     // Digital wireframe sheen over the mesh
-    ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(111,227,191,0.13)';
+    ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(43,214,159,0.13)';
     for (const d of draw) {
       ctx.beginPath(); ctx.moveTo(d.pts[0][0], d.pts[0][1]); ctx.lineTo(d.pts[1][0], d.pts[1][1]); ctx.lineTo(d.pts[2][0], d.pts[2][1]); ctx.closePath(); ctx.stroke();
     }

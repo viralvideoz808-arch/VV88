@@ -22,8 +22,8 @@ export function wireCurrency(root, onChange) {
 function coverArt(p) {
   const words = String(p.title || '').split(/[\s—-]+/).filter(Boolean);
   const glyph = (words[0] || 'MKB').slice(0, 8);
-  const accent = /^#[0-9a-f]{3,8}$/i.test(p.accent || '') ? p.accent : '#29AB87';
-  return `<div class="cover-art" style="background:radial-gradient(120% 90% at 80% 10%, ${accent}33, transparent 60%), linear-gradient(160deg, #0F3D2E, #050806)">
+  const accent = /^#[0-9a-f]{3,8}$/i.test(p.accent || '') ? p.accent : '#2BD69F';
+  return `<div class="cover-art" style="background:radial-gradient(120% 90% at 80% 10%, ${accent}33, transparent 60%), linear-gradient(160deg, #0B2219, #000000)">
     <div class="cover-art__grid"></div>
     <div class="cover-art__orb" style="background:${accent};right:-15%;top:-25%"></div>
     <canvas data-art="${esc(p.category)}" data-seed="${esc(p.id)}"></canvas>

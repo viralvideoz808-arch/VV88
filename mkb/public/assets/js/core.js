@@ -529,7 +529,7 @@ function preloader() {
   if (!document.body.hasAttribute('data-preloader') || SS.get('mkb.loaded') || prefersReduced()) return Promise.resolve();
   SS.set('mkb.loaded', '1');
   const el = html(`<div class="preloader" aria-hidden="true"><div class="preloader__inner">
-    <svg viewBox="0 0 120 120"><path d="M26 92V48h13l21 23 21-23h13v44H81V70L60 92 39 70v22z"/><path d="M26 48c-6-3-11-9-12-18-1-6 1-12 4-16 0 9 4 15 9 19 4 3 8 6 12 15z"/><path d="M94 48c6-3 11-9 12-18 1-6-1-12-4-16 0 9-4 15-9 19-4 3-8 6-12 15z"/></svg>
+    <svg viewBox="0 0 120 120"><line x1="21" x2="21" y1="26" y2="104"/><line x1="40.5" x2="40.5" y1="33" y2="74"/><line x1="60" x2="60" y1="47" y2="90"/><line x1="79.5" x2="79.5" y1="33" y2="74"/><line x1="99" x2="99" y1="26" y2="104"/><rect class="fill" x="14" y="36" width="14" height="62" rx="3"/><rect class="fill" x="33.5" y="42" width="14" height="24" rx="3"/><rect x="53" y="56" width="14" height="24" rx="3"/><rect class="fill" x="72.5" y="42" width="14" height="24" rx="3"/><rect class="fill" x="92" y="36" width="14" height="62" rx="3"/></svg>
     <div class="preloader__count">000</div></div></div>`);
   document.body.appendChild(el);
   const count = $('.preloader__count', el);

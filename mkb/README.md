@@ -2,6 +2,8 @@
 
 **Build. Trade. Scale.** This folder holds the brand identity and website for MKB: IT services, the trading desk, the academy, packages, a partnership/proposal panel and a private admin dashboard.
 
+**Brand:** the **Candle M** logo with the **Trading Terminal** theme (black, dark green and electric jungle green; Space Grotesk + JetBrains Mono; square edges). The other options considered are in `brand-options/`.
+
 ```
 mkb/
 ├── public/                 ← the website (works on any host)
@@ -100,10 +102,10 @@ The site ships with real details (your contacts, your existing projects VV88 and
 
 ## Brand kit
 
-- Logos: `public/assets/brand/` (SVG: badge mark, horizontal and stacked lockups, light/dark/one-colour versions, favicon).
+- Logos: `public/assets/brand/` (SVG: Candle M badge mark, horizontal and stacked lockups, light/dark/one-colour versions, favicon).
 - Social and print: `public/assets/kit/` (profile picture 1080², X header 1500×500, Instagram post 1080×1350, story/status 1080×1920, business card front and back, transparent PNG logos) and `public/assets/img/og-image.png` for link previews.
 - Guidelines: open `/brand.html`, or read [BRAND.md](BRAND.md).
-- Regenerate the logos: `python tools/gen_brand.py --syne Syne-800.ttf --manrope Manrope-800.ttf --manrope600 Manrope-600.ttf` (Google Fonts TTFs and `pip install fonttools`).
+- Regenerate the logos: `python tools/gen_brand.py --grotesk SpaceGrotesk-700.ttf --mono JetBrainsMono-700.ttf` (Google Fonts TTFs and `pip install fonttools`).
 - Regenerate the social kit: serve `mkb/` (`python3 -m http.server 8799`) and run `node tools/export-kit.js` (needs Playwright).
 
 ## Security notes

@@ -1,45 +1,54 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Manrope:wght@600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
+  /* Brand kit templates: Candle M logo, Trading Terminal theme. */
   * { box-sizing: border-box; margin: 0; }
   body { background: transparent; }
-  #art { position: relative; overflow: hidden; font-family: Manrope, sans-serif; color: #ECF5F1; }
-  .bg { background: radial-gradient(70% 70% at 70% 30%, rgba(41,171,135,.28), transparent 60%), radial-gradient(60% 60% at 0% 100%, rgba(15,61,46,.9), transparent 70%), #040605; }
-  .grid::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(111,227,191,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(111,227,191,.07) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse at 60% 40%, #000, transparent 75%); }
-  .display { font-family: Syne, sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; line-height: .9; }
-  .mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
-  .jungle { color: #29AB87; }
-  canvas.bull { position: absolute; }
-  .pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 999px; border: 1.5px solid rgba(111,227,191,.35); background: rgba(12,26,20,.6); font-weight: 800; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; background: #29AB87; box-shadow: 0 0 0 5px rgba(41,171,135,.2); }
+  #art { position: relative; overflow: hidden; font-family: 'JetBrains Mono', monospace; color: #D9FBEA; }
+  .bg { background: radial-gradient(60% 70% at 72% 30%, rgba(43,214,159,.20), transparent 60%), radial-gradient(55% 60% at 0% 100%, rgba(11,34,25,.95), transparent 70%), #000; }
+  .grid::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(43,214,159,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(43,214,159,.09) 1px, transparent 1px); background-size: 48px 48px; mask-image: radial-gradient(ellipse at 60% 40%, #000, transparent 78%); }
+  .display { font-family: 'Space Grotesk', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: -0.045em; line-height: .86; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .jungle { color: #2BD69F; }
+  canvas { position: absolute; }
+  .pill { display: inline-flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 4px; border: 1.5px solid rgba(43,214,159,.4); background: rgba(7,19,14,.7); font-weight: 700; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #2BD69F; box-shadow: 0 0 0 5px rgba(43,214,159,.2); }
+  .tick { position: absolute; font: 600 18px 'JetBrains Mono'; color: rgba(127,165,148,.75); letter-spacing: .08em; }
 </style></head>
 <body>
 <div id="art"></div>
 <script type="module">
 import { mountBull } from '../public/assets/js/bull.js';
-const M = 'M26 92V48h13l21 23 21-23h13v44H81V70L60 92 39 70v22z', HL = 'M26 48c-6-3-11-9-12-18-1-6 1-12 4-16 0 9 4 15 9 19 4 3 8 6 12 15z', HR = 'M94 48c6-3 11-9 12-18 1-6-1-12-4-16 0 9-4 15-9 19-4 3-8 6-12 15z';
-const mark = (size, mono) => `<svg width="${size}" height="${size}" viewBox="0 0 120 120"><defs><linearGradient id="km" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1F8A68"/><stop offset="1" stop-color="#4FD1A8"/></linearGradient><linearGradient id="kh" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#29AB87"/><stop offset="1" stop-color="#C9F5E6"/></linearGradient></defs><path d="${M}" fill="${mono || 'url(#km)'}"/><path d="${HL}" fill="${mono || 'url(#kh)'}"/><path d="${HR}" fill="${mono || 'url(#kh)'}"/></svg>`;
+import { candles } from '../public/assets/js/fx.js';
+const C = [[21, 36, 62, 26, 104, 'a'], [40.5, 42, 24, 33, 74, 'b'], [60, 56, 24, 47, 90, 'o'], [79.5, 42, 24, 33, 74, 'b'], [99, 36, 62, 26, 104, 'a']];
+const shapes = (a = '#2BD69F', b = '#D9FBEA') => C.map(([cx, y, h, wt, wb, r]) => `<path d="M${cx} ${wt}V${y}M${cx} ${y + h}V${wb}" stroke="${a}" stroke-width="3" stroke-linecap="round"/>` +
+  (r === 'o' ? `<rect x="${cx - 5.5}" y="${y + 1.5}" width="11" height="${h - 3}" rx="2" fill="none" stroke="${a}" stroke-width="3"/>` : `<rect x="${cx - 7}" y="${y}" width="14" height="${h}" rx="3" fill="${r === 'a' ? a : b}"/>`)).join('');
+const mark = (size, a, b) => `<svg width="${size}" height="${size}" viewBox="0 0 120 120">${shapes(a, b)}</svg>`;
+const ticker = (top, left) => `<div class="tick" style="top:${top}px;left:${left}px">BTC/USD 76,952 <span style="color:#2BD69F">▲</span> · EUR/USD 1.1216 · XAU/USD</div>`;
 const ITEMS = {
-  profile: [1080, 1080, () => `<div class="bg" style="position:absolute;inset:0;background:radial-gradient(60% 60% at 50% 40%, #145a43, #0A2A1F 55%, #040605)"></div><div style="position:absolute;inset:0;display:grid;place-items:center">${mark(700)}</div>`],
-  xheader: [1500, 500, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas class="bull" data-bull="-0.8,0,0.9" style="right:10px;top:-30px;width:540px;height:580px"></canvas>
-    <div style="position:absolute;left:390px;top:70px"><div class="mono jungle" style="font-size:19px">Moses Bright Kang'ara · MKB</div><div class="display" style="font-size:72px;margin-top:16px">Build.<br>Trade.<br><span class="jungle">Scale.</span></div><div style="margin-top:22px;font-size:22px;color:#8FA89D;font-weight:700">Websites &amp; apps · Forex · Binary · Crypto · Partnerships</div></div>`],
-  igpost: [1080, 1350, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas class="bull" data-bull="0.1,0.25,0.95" style="left:120px;top:400px;width:840px;height:900px"></canvas>
-    <div style="position:absolute;left:80px;top:90px;right:80px"><div class="pill" style="font-size:24px"><span class="dot"></span>Now live</div><div class="display" style="font-size:118px;margin-top:34px">Build.<br>Trade. <span class="jungle">Scale.</span></div></div>
-    <div style="position:absolute;left:80px;right:80px;bottom:70px;display:flex;justify-content:space-between;align-items:end"><div style="font-size:30px;font-weight:800">Websites &amp; apps · Trading tools<br><span style="color:#8FA89D">Courses · Partnerships</span></div><div class="mono jungle" style="font-size:22px;text-align:right">Link in bio<br>@mosesbrightkangara</div></div>`],
-  story: [1080, 1920, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas class="bull" data-bull="0,0.35,0.95" style="left:40px;top:640px;width:1000px;height:1080px"></canvas>
-    <div style="position:absolute;left:90px;right:90px;top:170px">${mark(120)}<div class="display" style="font-size:150px;margin-top:40px">Build.<br>Trade.<br><span class="jungle">Scale.</span></div></div>
-    <div style="position:absolute;left:90px;right:90px;bottom:150px;text-align:center"><div class="pill" style="font-size:34px;padding:22px 40px;background:#29AB87;color:#040605;border-color:#29AB87">DM me “BUILD” to start</div></div>`],
-  cardfront: [1050, 600, () => `<div class="bg grid" style="position:absolute;inset:0"></div><div style="position:absolute;inset:0;display:grid;place-items:center"><img src="../public/assets/brand/mkb-logo-horizontal.svg" style="width:640px"></div><div class="mono" style="position:absolute;bottom:46px;left:0;right:0;text-align:center;color:#8FA89D;font-size:18px">Build · Trade · Scale</div>`],
-  cardback: [1050, 600, () => `<div style="position:absolute;inset:0;background:linear-gradient(135deg,#29AB87,#1F7A5C 55%,#0F3D2E)"></div><div style="position:absolute;right:-120px;bottom:-170px;opacity:.12">${mark(620, '#040605')}</div>
-    <div style="position:absolute;left:70px;top:70px;color:#040605"><div class="display" style="font-size:56px;line-height:1">Moses Bright<br>Kang'ara</div><div class="mono" style="font-size:17px;margin-top:16px">Developer · Trader · Business Builder</div>
-    <div style="margin-top:44px;font-size:24px;font-weight:800;line-height:1.75">0710 910 301 · WhatsApp &amp; calls<br>mkbright888@gmail.com<br><span style="font-weight:700">IG &amp; Threads @mosesbrightkangara · X @mosesbright888</span></div></div>`],
-  og: [1200, 630, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas class="bull" data-bull="-0.6,0,0.85" style="right:-10px;top:-20px;width:600px;height:680px"></canvas>
-    <div style="position:absolute;left:80px;top:90px"><img src="../public/assets/brand/mkb-logo-horizontal.svg" style="height:84px"><div class="display" style="font-size:96px;margin-top:56px">Build. Trade.<br><span class="jungle">Scale.</span></div><div style="margin-top:26px;font-size:26px;color:#8FA89D;font-weight:700">Websites &amp; apps · Trading desk · Academy</div></div>`],
-  icon: [512, 512, () => `<div style="position:absolute;inset:0;background:radial-gradient(70% 70% at 50% 35%, #145a43, #0A2A1F 60%, #040605)"></div><div style="position:absolute;inset:0;display:grid;place-items:center">${mark(360)}</div>`],
+  profile: [1080, 1080, () => `<div class="bg grid" style="position:absolute;inset:0;background:radial-gradient(55% 55% at 50% 45%, rgba(43,214,159,.24), transparent 70%), #000"></div><div style="position:absolute;inset:0;display:grid;place-items:center">${mark(720)}</div>`],
+  xheader: [1500, 500, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas data-candles style="left:0;right:0;bottom:0;width:1500px;height:200px;opacity:.35"></canvas>
+    <div style="position:absolute;right:90px;top:50%;transform:translateY(-50%)">${mark(330)}</div>
+    <div style="position:absolute;left:380px;top:66px"><div class="mono jungle" style="font-size:18px">Moses Bright Kang'ara · MKB</div><div class="display" style="font-size:96px;margin-top:18px">Build.<br>Trade.<br><span class="jungle">Scale.</span></div></div>
+    <div class="mono" style="position:absolute;left:380px;bottom:34px;font-size:16px;color:#7FA594;letter-spacing:.06em">Websites &amp; apps · Forex · Binary · Crypto · Partnerships</div>`],
+  igpost: [1080, 1350, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas data-bull="0.1,0.25,0.95" style="left:150px;top:470px;width:780px;height:840px"></canvas>
+    <div style="position:absolute;left:80px;top:80px;right:80px;display:flex;justify-content:space-between;align-items:center"><div class="pill mono" style="font-size:20px"><span class="dot"></span>Now live</div>${mark(110)}</div>
+    <div class="display" style="position:absolute;left:80px;top:200px;font-size:132px">Build. Trade.<br><span class="jungle">Scale.</span></div>
+    <div style="position:absolute;left:80px;right:80px;bottom:64px;display:flex;justify-content:space-between;align-items:end"><div style="font-size:26px;font-weight:700;line-height:1.5">Websites &amp; apps · Trading tools<br><span style="color:#7FA594">Courses · Partnerships</span></div><div class="mono jungle" style="font-size:20px;text-align:right">Link in bio<br>@mosesbrightkangara</div></div>`],
+  story: [1080, 1920, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas data-bull="0,0.35,0.95" style="left:60px;top:760px;width:960px;height:1040px"></canvas>
+    <div style="position:absolute;left:90px;right:90px;top:150px">${mark(150)}<div class="display" style="font-size:176px;margin-top:40px">Build.<br>Trade.<br><span class="jungle">Scale.</span></div></div>
+    <div style="position:absolute;left:90px;right:90px;bottom:140px;text-align:center"><div class="pill mono" style="font-size:30px;padding:24px 40px;background:#2BD69F;color:#000;border-color:#2BD69F;letter-spacing:.06em">DM me "BUILD" to start</div></div>`],
+  cardfront: [1050, 600, () => `<div class="bg grid" style="position:absolute;inset:0"></div><div style="position:absolute;inset:0;display:grid;place-items:center"><img src="../public/assets/brand/mkb-logo-horizontal.svg" style="width:620px"></div><div class="mono" style="position:absolute;bottom:44px;left:0;right:0;text-align:center;color:#7FA594;font-size:17px;letter-spacing:.3em">Build · Trade · Scale</div>`],
+  cardback: [1050, 600, () => `<div style="position:absolute;inset:0;background:#2BD69F"></div><div style="position:absolute;right:-40px;bottom:-60px;opacity:.13">${mark(560, '#000', '#000')}</div>
+    <div style="position:absolute;left:70px;top:66px;color:#000"><div class="display" style="font-size:66px;line-height:.92">Moses Bright<br>Kang'ara</div><div class="mono" style="font-size:16px;margin-top:18px">Developer · Trader · Business Builder</div>
+    <div style="margin-top:40px;font-size:22px;font-weight:700;line-height:1.8">0710 910 301 · WhatsApp &amp; calls<br>mkbright888@gmail.com<br><span style="font-weight:600">IG &amp; Threads @mosesbrightkangara · X @mosesbright888</span></div></div>`],
+  og: [1200, 630, () => `<div class="bg grid" style="position:absolute;inset:0"></div><canvas data-bull="-0.6,0,0.85" style="right:0;top:-10px;width:580px;height:660px"></canvas>
+    <div style="position:absolute;left:80px;top:62px"><img src="../public/assets/brand/mkb-logo-horizontal.svg" style="height:80px"><div class="display" style="font-size:96px;margin-top:44px">Build.<br>Trade.<br><span class="jungle">Scale.</span></div><div class="mono" style="margin-top:26px;font-size:19px;color:#7FA594;letter-spacing:.04em">Websites &amp; apps · Trading desk · Academy</div></div>`],
+  icon: [512, 512, () => `<div style="position:absolute;inset:0;background:radial-gradient(60% 60% at 50% 40%, rgba(43,214,159,.22), transparent 70%), #000"></div><div style="position:absolute;inset:0;display:grid;place-items:center">${mark(400)}</div>`],
   mark1024: [1024, 1024, () => `<img src="../public/assets/brand/mkb-mark.svg" style="width:1024px;height:1024px">`],
-  logoh: [2400, 596, () => `<img src="../public/assets/brand/mkb-logo-horizontal.svg" style="width:2400px">`],
-  logohl: [2400, 596, () => `<img src="../public/assets/brand/mkb-logo-horizontal-light.svg" style="width:2400px">`],
+  logoh: [2400, 900, () => `<img src="../public/assets/brand/mkb-logo-horizontal.svg" style="width:2400px">`],
+  logohl: [2400, 900, () => `<img src="../public/assets/brand/mkb-logo-horizontal-light.svg" style="width:2400px">`],
 };
 const key = new URLSearchParams(location.search).get('item');
 const [w, h, render] = ITEMS[key];
@@ -47,13 +56,14 @@ const art = document.getElementById('art');
 art.style.width = w + 'px'; art.style.height = h + 'px';
 art.innerHTML = render();
 await document.fonts.ready;
-await Promise.all([...art.querySelectorAll('img')].map((i) => i.complete ? 0 : new Promise((r) => { i.onload = r; i.onerror = r; })));
+await Promise.all([...art.querySelectorAll('img')].map((i) => (i.complete ? 0 : new Promise((r) => { i.onload = r; i.onerror = r; }))));
 for (const cv of art.querySelectorAll('canvas[data-bull]')) {
   const [x, y, mood] = cv.dataset.bull.split(',').map(Number);
   const b = mountBull(cv, { zoom: 0.95 }); b.setTarget(x, y, mood);
   await new Promise((r) => setTimeout(r, 120)); b.snap();
 }
-await new Promise((r) => setTimeout(r, 300));
+for (const cv of art.querySelectorAll('canvas[data-candles]')) candles(cv, { seed: 'kit', bars: 70, grid: false, volume: false });
+await new Promise((r) => setTimeout(r, 900));
 document.body.dataset.ready = '1';
 </script>
 </body></html>

@@ -79,7 +79,7 @@ const syms = T.watchlist?.tvSymbols?.length ? T.watchlist.tvSymbols : [{ label: 
 let currentSym = syms[0].symbol;
 const loadChart = () => tvWidget($('#tv-chart'), 'embed-widget-advanced-chart.js', {
   autosize: true, symbol: currentSym, interval: '60', timezone: 'Africa/Nairobi', theme: 'dark', style: '1', locale: 'en',
-  backgroundColor: 'rgba(6, 10, 8, 1)', gridColor: 'rgba(111, 227, 191, 0.06)', allow_symbol_change: true, calendar: false, hide_volume: false, support_host: 'https://www.tradingview.com',
+  backgroundColor: 'rgba(0,0,0, 1)', gridColor: 'rgba(43,214,159, 0.06)', allow_symbol_change: true, calendar: false, hide_volume: false, support_host: 'https://www.tradingview.com',
 });
 $('#tv-symbols').innerHTML = syms.map((s, i) => `<button class="filter ${i === 0 ? 'is-active' : ''}" data-sym="${esc(s.symbol)}">${esc(s.label)}</button>`).join('');
 $$('#tv-symbols [data-sym]').forEach((b) => b.addEventListener('click', () => { currentSym = b.dataset.sym; $$('#tv-symbols .filter').forEach((x) => x.classList.toggle('is-active', x === b)); loadChart(); }));
@@ -281,7 +281,7 @@ const TOOLS = {
       $('#cp-out').innerHTML = `
         <div class="result result--hero"><span>Balance after ${m} months</span><b>${kes(b)}</b><small class="mono">≈ ${usd(b / usdKes, 0)}</small></div>
         <div class="result-grid">${result('You put in', kes(invested))}${result('Growth', kes(b - invested), b - invested < 0 ? 'is-bad' : '')}${result('Yearly equivalent', pct(Math.pow(1 + r, 12) - 1, 1))}</div>`;
-      drawLines($('#cp-chart'), [{ data: series, color: '#29AB87', fill: true }, { data: dep, color: 'rgba(143,168,157,0.7)', dash: true }]);
+      drawLines($('#cp-chart'), [{ data: series, color: '#2BD69F', fill: true }, { data: dep, color: 'rgba(127,165,148,0.7)', dash: true }]);
     },
   },
   drawdown: {
@@ -355,13 +355,13 @@ function drawPaths(cv, paths, start) {
   const { ctx, w, h } = chartCtx(cv); if (!w) return;
   const all = paths.flat(); const mn = Math.min(...all, 0), mx = Math.max(...all, start * 1.2);
   const X = (i) => 8 + (i / 100) * (w - 16); const Y = (v) => h - 12 - ((v - mn) / (mx - mn || 1)) * (h - 24);
-  ctx.strokeStyle = 'rgba(111,227,191,0.25)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(0, Y(start)); ctx.lineTo(w, Y(start)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(43,214,159,0.25)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(0, Y(start)); ctx.lineTo(w, Y(start)); ctx.stroke(); ctx.setLineDash([]);
   for (const p of paths) {
     const end = p[p.length - 1];
-    ctx.strokeStyle = end >= start ? 'rgba(41,171,135,0.45)' : 'rgba(255,122,112,0.32)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = end >= start ? 'rgba(43,214,159,0.45)' : 'rgba(255,122,112,0.32)'; ctx.lineWidth = 1;
     ctx.beginPath(); p.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
   }
-  ctx.fillStyle = 'rgba(143,168,157,0.8)'; ctx.font = '500 10px JetBrains Mono, monospace'; ctx.fillText('start', 10, Y(start) - 6); ctx.fillText('40 simulated runs · 100 trades', 10, 14);
+  ctx.fillStyle = 'rgba(127,165,148,0.8)'; ctx.font = '500 10px JetBrains Mono, monospace'; ctx.fillText('start', 10, Y(start) - 6); ctx.fillText('40 simulated runs · 100 trades', 10, 14);
 }
 function drawLines(cv, series) {
   const { ctx, w, h } = chartCtx(cv); if (!w) return;
@@ -370,9 +370,9 @@ function drawLines(cv, series) {
   for (const s of series) {
     ctx.beginPath(); s.data.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))));
     ctx.setLineDash(s.dash ? [4, 4] : []); ctx.strokeStyle = s.color; ctx.lineWidth = s.dash ? 1.2 : 2; ctx.stroke(); ctx.setLineDash([]);
-    if (s.fill) { ctx.lineTo(X(n), h); ctx.lineTo(X(0), h); ctx.closePath(); const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(41,171,135,0.35)'); g.addColorStop(1, 'rgba(41,171,135,0)'); ctx.fillStyle = g; ctx.fill(); }
+    if (s.fill) { ctx.lineTo(X(n), h); ctx.lineTo(X(0), h); ctx.closePath(); const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(43,214,159,0.35)'); g.addColorStop(1, 'rgba(43,214,159,0)'); ctx.fillStyle = g; ctx.fill(); }
   }
-  ctx.fillStyle = 'rgba(143,168,157,0.8)'; ctx.font = '500 10px JetBrains Mono, monospace'; ctx.fillText('— balance   - - money put in', 10, 14);
+  ctx.fillStyle = 'rgba(127,165,148,0.8)'; ctx.font = '500 10px JetBrains Mono, monospace'; ctx.fillText('— balance   - - money put in', 10, 14);
 }
 
 const toolKeys = Object.keys(TOOLS);
