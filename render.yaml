@@ -1,0 +1,22 @@
+# Render Blueprint for pumpscan (the 25-agent pump.fun scanner in ./pumpscan).
+# Render: New > Blueprint > pick this repo and branch. It asks for PUMPSCAN_PASSWORD once.
+services:
+  - type: web
+    name: pumpscan
+    runtime: docker
+    rootDir: pumpscan
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # "starter" keeps it running 24/7. The free plan sleeps after 15 idle minutes, which stops the scan.
+    plan: starter
+    healthCheckPath: /healthz
+    # Keeps the signal history and track record across restarts and redeploys.
+    disk:
+      name: pumpscan-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PUMPSCAN_PASSWORD
+        sync: false
+      - key: PUMPSCAN_PUMPPORTAL_API_KEY
+        sync: false
