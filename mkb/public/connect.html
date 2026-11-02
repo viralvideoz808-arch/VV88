@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connect — Ask, Partner or Pitch · MKB</title>
+<meta name="description" content="Ask Moses Bright Kang'ara anything about business, propose a partnership, pitch a business idea or hire MKB. Messages go straight to WhatsApp, Instagram, X, Threads or email.">
+<meta name="theme-color" content="#060A08">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Connect — Ask, Partner or Pitch · MKB">
+<meta property="og:description" content="Ask Moses Bright Kang'ara anything about business, propose a partnership, pitch a business idea or hire MKB. Messages go straight to WhatsApp, Instagram, X, Threads or email.">
+<meta property="og:image" content="assets/img/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@mosesbright888">
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/main.css">
+<script type="module" src="assets/js/pages/connect.js"></script>
+</head>
+<body data-page="connect">
+<main id="main">
+  <section class="page-hero">
+    <div class="page-hero__art" aria-hidden="true"><canvas data-fx="network"></canvas></div>
+    <div class="container">
+      <span class="eyebrow">Connect</span>
+      <h1 class="h1 split">Let's talk<br><span class="accent">business.</span></h1>
+      <p class="lead">Ask anything, propose a partnership, pitch an idea or hire me. Your message lands straight in my DMs on the app you choose — and you get a reference code to track it.</p>
+      <div class="row" style="margin-top:28px;gap:8px">
+        <a class="chip" href="#propose" data-intent-link="question">Ask anything</a><a class="chip" href="#propose" data-intent-link="partnership">Partnership offer</a><a class="chip" href="#propose" data-intent-link="idea">Pitch an idea</a><a class="chip" href="#propose" data-intent-link="hire">Hire me</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="propose" style="padding-top:10px">
+    <div class="container">
+      <div class="panel" id="panel">
+        <aside class="panel__rail">
+          <ol class="steps" id="steps">
+            <li data-step="1" class="is-current"><span>01</span>What brings you here</li>
+            <li data-step="2"><span>02</span>The details</li>
+            <li data-step="3"><span>03</span>About you</li>
+            <li data-step="4"><span>04</span>Review &amp; send</li>
+          </ol>
+          <div class="panel__preview">
+            <span class="eyebrow eyebrow--plain" style="font-size:.66rem">Live preview</span>
+            <pre id="preview" class="mono"></pre>
+          </div>
+        </aside>
+        <div class="panel__body" id="panel-body" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="channels" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Direct line</span><h2 class="h2">Prefer to<br><span class="accent">just DM?</span></h2></div><p id="response-time">Tap a platform — it opens a chat with me straight away.</p></div>
+      <div class="dm-grid" id="dm-grid"></div>
+    </div>
+  </section>
+
+  <section class="section" id="track" style="padding-top:0">
+    <div class="container grid grid-2" style="gap:clamp(28px,5vw,80px);align-items:start">
+      <div>
+        <span class="eyebrow">Track a proposal</span>
+        <h2 class="h2" style="margin:18px 0">Where's my<br><span class="accent">proposal?</span></h2>
+        <p class="muted">Enter the reference code you got when you sent your message (it looks like <span class="kbd">MKB-7Q2K9P</span>).</p>
+      </div>
+      <div class="card">
+        <form id="track-form" class="row" style="flex-wrap:nowrap">
+          <label class="sr-only" for="track-ref">Reference code</label>
+          <input class="input mono" id="track-ref" placeholder="MKB-XXXXXX" maxlength="12" autocomplete="off" style="text-transform:uppercase">
+          <button class="btn btn--primary" type="submit">Track</button>
+        </form>
+        <div id="track-out" style="margin-top:18px"></div>
+        <div id="track-history" style="margin-top:18px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="qa" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Answered</span><h2 class="h2">Questions<br><span class="accent">&amp; answers</span></h2></div>
+        <div class="row" style="gap:10px"><label class="sr-only" for="qa-search">Search answers</label><input class="input" id="qa-search" placeholder="Search answers…" style="min-width:240px"><div class="filters" id="qa-filters"></div></div></div>
+      <div class="acc" id="qa-list"></div>
+      <div class="row" style="margin-top:24px"><a class="btn" href="#propose" data-intent-link="question">Ask your own question</a></div>
+    </div>
+  </section>
+
+  <section class="section" id="verify" style="padding-top:0">
+    <div class="container">
+      <div class="verify card">
+        <div>
+          <span class="eyebrow">Stay safe</span>
+          <h2 class="h2" style="margin:18px 0">Verify it's<br><span class="accent">really me</span></h2>
+          <p class="muted">Scammers copy traders' names and photos. These are my only official accounts. I never ask anyone to send money for "account management", I don't trade on anyone's behalf, and payments go only to the details shown on this website.</p>
+        </div>
+        <ul class="verify__list" id="verify-list"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+<noscript><p style="padding:24px;text-align:center">This page works best with JavaScript on. Reach Moses on WhatsApp: <a href="https://wa.me/254710910301">0710 910 301</a> or email <a href="mailto:mkbright888@gmail.com">mkbright888@gmail.com</a>.</p></noscript>
+</body>
+</html>

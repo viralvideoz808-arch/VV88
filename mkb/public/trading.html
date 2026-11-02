@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trading Desk — Forex, Binary & Crypto Tools · MKB</title>
+<meta name="description" content="Free trading tools by MKB: position size, risk-reward, binary expectancy, compounding, drawdown and crypto DCA calculators, live markets, session clock and lessons.">
+<meta name="theme-color" content="#060A08">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Trading Desk — Forex, Binary & Crypto Tools · MKB">
+<meta property="og:description" content="Free trading tools by MKB: position size, risk-reward, binary expectancy, compounding, drawdown and crypto DCA calculators, live markets, session clock and lessons.">
+<meta property="og:image" content="assets/img/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@mosesbright888">
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/main.css">
+<script type="module" src="assets/js/pages/trading.js"></script>
+</head>
+<body data-page="trading">
+<main id="main">
+  <section class="page-hero trade-hero">
+    <canvas class="trade-hero__bg" data-fx="candles" aria-hidden="true"></canvas>
+    <div class="container">
+      <span class="eyebrow">Trading desk</span>
+      <h1 class="h1 split">Forex. Binary.<br><span class="accent">Crypto.</span></h1>
+      <p class="lead" id="trade-intro"></p>
+      <div class="page-hero__actions">
+        <a class="btn btn--primary btn--lg" href="#toolkit" data-magnetic>Open the toolkit <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="arrow"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn--lg" href="#library">Free lessons</a>
+      </div>
+      <div class="row trade-hero__jump">
+        <a class="chip" href="#markets">Markets</a><a class="chip" href="#chart">Live chart</a><a class="chip" href="#sessions">Session clock</a><a class="chip" href="#creations">Creations</a><a class="chip" href="#calendar">Economic calendar</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="ticker" id="ticker" aria-label="Live crypto prices"><div class="ticker__track"><span class="ticker__item muted">Loading live prices…</span></div></div>
+
+  <section class="section" id="markets">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">My markets</span><h2 class="h2">Three markets,<br><span class="accent">one rulebook</span></h2></div>
+        <div class="seg" role="tablist" aria-label="Markets" id="market-tabs"></div></div>
+      <div class="market" id="market-panel" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="section" id="chart" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Live chart</span><h2 class="h2">Read the<br><span class="accent">market</span></h2></div><div class="filters" id="tv-symbols"></div></div>
+      <div class="tv-wrap card" id="tv-chart"><div class="tv-placeholder"><span class="mono muted">Chart loads when you scroll here…</span></div></div>
+      <p class="muted" style="font-size:.78rem;margin-top:10px">Charts by TradingView. Times shown in Nairobi time (EAT).</p>
+    </div>
+  </section>
+
+  <section class="section" id="sessions" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Session clock</span><h2 class="h2">Who's trading<br><span class="accent">right now?</span></h2></div><p>The four major forex sessions in Nairobi time. The London–New York overlap is usually the most active window of the day.</p></div>
+      <div class="sessions card" id="session-clock"></div>
+    </div>
+  </section>
+
+  <section class="section" id="toolkit" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Trader toolkit</span><h2 class="h2">Do the maths<br><span class="accent">before the trade</span></h2></div><p>The calculators I use myself. Free, no sign-up, and they work on your phone.</p></div>
+      <div class="tool-tabs" role="tablist" aria-label="Tools" id="tool-tabs"></div>
+      <div id="tool-panel" class="tool card"></div>
+    </div>
+  </section>
+
+  <section class="section" id="creations" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Creations</span><h2 class="h2">Things I built<br><span class="accent">for traders</span></h2></div><p>Scanners, tools and templates from my own trading. Need one built around your strategy? <a class="link-arrow" href="packages.html#trade">Custom indicators &amp; bots</a></p></div>
+      <div class="grid grid-3" id="creation-grid"></div>
+    </div>
+  </section>
+
+  <section class="section" id="library" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Knowledge library</span><h2 class="h2">Lessons I<br><span class="accent">paid for</span></h2></div><div class="filters" id="lesson-filters" role="tablist" aria-label="Lesson topics"></div></div>
+      <div class="grid grid-3" id="lesson-grid"></div>
+    </div>
+  </section>
+
+  <section class="section" id="calendar" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Economic calendar</span><h2 class="h2">News that<br><span class="accent">moves price</span></h2></div><p>High-impact releases (interest rates, inflation, jobs) can move markets fast. Check this before every session.</p></div>
+      <div class="tv-wrap tv-wrap--cal card" id="tv-calendar"><div class="tv-placeholder"><span class="mono muted">Calendar loads when you scroll here…</span></div></div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="notice" style="margin-bottom:24px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>
+        <span><b>Risk warning.</b> Trading forex, binary options and crypto carries a high risk of losing money, and leverage makes losses bigger. Most retail traders lose money. Everything on this page is education, not financial advice. Only trade with money you can afford to lose, use brokers licensed by a recognised regulator (in Kenya, the Capital Markets Authority), and never send money to anyone promising guaranteed returns.</span>
+      </div>
+      <div class="cta-band" data-reveal="scale">
+        <img class="cta-band__art" src="assets/brand/mkb-mark-black.svg" alt="">
+        <span class="eyebrow" style="color:var(--black)">Mentorship</span>
+        <h2 class="h2" style="margin-top:18px">Trade with a plan, not a feeling.</h2>
+        <p>One-on-one sessions, monthly mentorship and structured courses that put risk management first.</p>
+        <div class="row"><a class="btn btn--dark btn--lg" href="packages.html#trade">Mentorship packages</a><a class="btn btn--lg" href="academy.html">Trading courses</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+<noscript><p style="padding:24px;text-align:center">This page works best with JavaScript on. Reach Moses on WhatsApp: <a href="https://wa.me/254710910301">0710 910 301</a> or email <a href="mailto:mkbright888@gmail.com">mkbright888@gmail.com</a>.</p></noscript>
+</body>
+</html>

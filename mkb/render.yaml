@@ -1,0 +1,27 @@
+# Render Blueprint for the MKB website (live admin + inbox).
+# Render → New → Blueprint → pick this repo → set "Blueprint file path" to mkb/render.yaml.
+# It asks for MKB_ADMIN_PASSWORD once (use 12+ characters).
+services:
+  - type: web
+    name: mkb-website
+    runtime: docker
+    rootDir: mkb
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # A persistent disk needs a paid instance. On the free plan the site works,
+    # but admin edits and the inbox reset whenever the service redeploys or restarts.
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: mkb-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: MKB_ADMIN_PASSWORD
+        sync: false
+      - key: MKB_NOTIFY_WEBHOOK
+        sync: false
+      - key: MKB_TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: MKB_TELEGRAM_CHAT_ID
+        sync: false

@@ -1,0 +1,350 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-02T00:00:00.000Z",
+  "settings": {
+    "brandName": "MKB",
+    "fullName": "Moses Bright Kang'ara",
+    "tagline": "Build. Trade. Scale.",
+    "role": "Developer · Trader · Business Builder",
+    "location": "Kenya",
+    "portrait": "",
+    "launchedAt": "2026-11-02",
+    "availability": "open",
+    "availabilityNote": "Booking new website & app projects",
+    "announcement": {
+      "enabled": true,
+      "text": "Academy enrolment is open — Forex Foundations & Web Development: Zero to Launch",
+      "link": "academy.html"
+    },
+    "currency": { "base": "KES", "usdRate": 129, "showUsdToggle": true },
+    "payments": {
+      "mpesaType": "",
+      "mpesaNumber": "",
+      "mpesaName": "Moses Bright Kang'ara",
+      "paystackPublicKey": "",
+      "note": "Pay only to the M-Pesa details shown on this website. Always confirm on WhatsApp before paying."
+    },
+    "contact": {
+      "email": "mkbright888@gmail.com",
+      "whatsapp": "254710910301",
+      "phone": "+254710910301",
+      "phoneDisplay": "0710 910 301",
+      "instagram": "mosesbrightkangara",
+      "x": "mosesbright888",
+      "xUserId": "2117344406655164416",
+      "threads": "mosesbrightkangara"
+    },
+    "forms": { "endpoint": "" },
+    "responseTime": "Replies within 24 hours",
+    "seo": {
+      "description": "MKB — Moses Bright Kang'ara. Websites and apps that sell, trading tools and education for Forex, Binary and Crypto, and partnerships that grow businesses.",
+      "siteUrl": ""
+    }
+  },
+  "about": {
+    "headline": "I build products, read markets and back good ideas.",
+    "intro": "I'm Moses Bright Kang'ara — a Kenyan developer, trader and entrepreneur. MKB is where those three sides of my work meet.",
+    "bio": [
+      "I build websites and apps for businesses that want results, not just a pretty page. Every project starts with one question: what should this product make easier, faster or more profitable for you?",
+      "I trade Forex, Binary and Crypto markets with a risk-first approach. Everything I've learned — the tools I've built, the rules I follow and the mistakes I've paid for — is on the Trading Desk, free to use.",
+      "And I partner with people. If you have a business idea, a partnership offer or a question about building something, the door is open. Bring the idea; let's see how far it can go."
+    ],
+    "mission": "Help people and businesses grow with technology that works and knowledge that's honest.",
+    "vision": "A recognised African brand where builders, traders and founders come to learn, launch and partner.",
+    "values": [
+      { "title": "Build to perform", "text": "Fast, secure, mobile-first products measured by what they do for the business." },
+      { "title": "Risk before reward", "text": "In trading and in business, protecting the downside is what keeps you in the game." },
+      { "title": "Honest by default", "text": "Clear prices, real results and no promises of easy money. Ever." },
+      { "title": "Grow together", "text": "The best deals leave both sides better off. I look for partners, not just clients." }
+    ],
+    "timeline": [
+      { "label": "Chapter 01", "title": "Code", "text": "Started building for the web — learning by shipping real projects, one bug at a time." },
+      { "label": "Chapter 02", "title": "Charts", "text": "Entered the markets. Learned the hard way that risk management beats prediction." },
+      { "label": "Chapter 03", "title": "Automation", "text": "Combined both worlds: scanners, calculators and automation tools for traders and creators." },
+      { "label": "Now", "title": "MKB", "text": "One brand for building, trading and partnering — and an academy to pass it on." }
+    ]
+  },
+  "skills": [
+    { "id": "sk-web", "name": "Web Development", "category": "Development", "level": "Advanced", "note": "HTML, CSS, JavaScript — fast, responsive sites", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-react", "name": "React & Next.js", "category": "Development", "level": "Advanced", "note": "Modern web apps and dashboards", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-node", "name": "Node.js & APIs", "category": "Development", "level": "Advanced", "note": "Back-ends, REST APIs, integrations", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-python", "name": "Python & Automation", "category": "Development", "level": "Advanced", "note": "Bots, scanners, data pipelines", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-mobile", "name": "Mobile Apps", "category": "Development", "level": "Intermediate", "note": "Android & iOS with Flutter / React Native", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-db", "name": "Databases", "category": "Development", "level": "Advanced", "note": "PostgreSQL, MySQL, SQLite, Firebase", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-mpesa", "name": "M-Pesa & Payments", "category": "Development", "level": "Intermediate", "note": "Daraja, Paystack and card checkouts", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-uiux", "name": "UI / UX Design", "category": "Design", "level": "Intermediate", "note": "Interfaces people enjoy using", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-brand", "name": "Brand Identity", "category": "Design", "level": "Intermediate", "note": "Logos, brand kits, social templates", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-seo", "name": "SEO & Performance", "category": "Development", "level": "Intermediate", "note": "Speed, Core Web Vitals, search visibility", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-fx", "name": "Forex Technical Analysis", "category": "Trading", "level": "Advanced", "note": "Price action, market structure, key levels", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-risk", "name": "Risk Management", "category": "Trading", "level": "Expert", "note": "Position sizing, drawdown control, journaling", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-crypto", "name": "Crypto & On-chain Analysis", "category": "Trading", "level": "Advanced", "note": "Spot markets, token launches, on-chain flow", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-binary", "name": "Binary Options", "category": "Trading", "level": "Intermediate", "note": "Payout math, expectancy, strict discipline", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-algo", "name": "Trading Automation", "category": "Trading", "level": "Advanced", "note": "Scanners, alerts, signal engines", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-psych", "name": "Trading Psychology", "category": "Trading", "level": "Advanced", "note": "Rules over feelings", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-bizdev", "name": "Business Development", "category": "Business", "level": "Advanced", "note": "Turning ideas into offers that sell", "featured": true, "addedAt": "2026-11-02" },
+    { "id": "sk-partner", "name": "Partnerships & Negotiation", "category": "Business", "level": "Advanced", "note": "Deals where both sides win", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-marketing", "name": "Digital Marketing", "category": "Business", "level": "Intermediate", "note": "Social media, funnels, content strategy", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-video", "name": "Content & Video Automation", "category": "Business", "level": "Advanced", "note": "Short-form clipping and posting pipelines", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-git", "name": "Git & Deployment", "category": "Tools", "level": "Advanced", "note": "GitHub, Vercel, Render, Docker", "featured": false, "addedAt": "2026-11-02" },
+    { "id": "sk-ai", "name": "AI-assisted Development", "category": "Tools", "level": "Advanced", "note": "Shipping faster with AI coding tools", "featured": true, "addedAt": "2026-11-02" }
+  ],
+  "services": [
+    {
+      "id": "sv-websites", "icon": "globe", "title": "Business Websites",
+      "summary": "Fast, mobile-first websites that turn visitors into customers — with WhatsApp, maps and contact built in.",
+      "deliverables": ["Responsive design for every screen", "WhatsApp chat & click-to-call", "Contact & booking forms", "Search engine setup (SEO)", "Google Analytics", "Domain, hosting & email setup"],
+      "stack": ["HTML/CSS/JS", "Next.js", "Vercel"], "startingPrice": 25000, "timeline": "1–2 weeks", "featured": true
+    },
+    {
+      "id": "sv-ecommerce", "icon": "cart", "title": "E-commerce Stores",
+      "summary": "Online shops that take M-Pesa and card payments, track orders and make restocking easy.",
+      "deliverables": ["Product catalogue & search", "M-Pesa (Daraja) & card checkout", "Order notifications by SMS / WhatsApp / email", "Delivery zones & fees", "Admin dashboard", "Sales reports"],
+      "stack": ["Next.js", "Node.js", "PostgreSQL", "M-Pesa Daraja"], "startingPrice": 60000, "timeline": "3–5 weeks", "featured": true
+    },
+    {
+      "id": "sv-webapps", "icon": "grid", "title": "Web Apps & Systems",
+      "summary": "Custom systems for the way you work: bookings, school & SACCO portals, inventory, CRM and dashboards.",
+      "deliverables": ["Requirements & workflow mapping", "User accounts & roles", "Dashboards and reports", "Payments & integrations", "Data backups", "Training for your team"],
+      "stack": ["React", "Node.js", "Python", "PostgreSQL"], "startingPrice": 80000, "timeline": "4–8 weeks", "featured": true
+    },
+    {
+      "id": "sv-mobile", "icon": "phone", "title": "Mobile Apps",
+      "summary": "Android and iOS apps your customers actually keep — designed, built and published to the stores.",
+      "deliverables": ["UI/UX design & prototype", "Android & iOS builds", "Push notifications", "Admin panel & API", "Play Store / App Store publishing", "Launch support"],
+      "stack": ["Flutter", "React Native", "Firebase"], "startingPrice": 120000, "timeline": "6–10 weeks", "featured": true
+    },
+    {
+      "id": "sv-trading", "icon": "chart", "title": "Trading Tools & Bots",
+      "summary": "Indicators, scanners, alerts and calculators built around your strategy — tested before they touch real money.",
+      "deliverables": ["Custom indicators (TradingView / MT4 / MT5)", "Market scanners & alerts", "Telegram / WhatsApp signal bots", "Risk & position-size tools", "Backtest reports", "Documentation"],
+      "stack": ["Python", "Pine Script", "MQL5", "JavaScript"], "startingPrice": 30000, "timeline": "1–4 weeks", "featured": false
+    },
+    {
+      "id": "sv-automation", "icon": "bolt", "title": "Automation & AI",
+      "summary": "Workflows that run while you sleep: content pipelines, chatbots, data entry and reporting.",
+      "deliverables": ["Process audit", "Chatbots for WhatsApp & web", "Content & social media pipelines", "Spreadsheet & CRM automation", "AI integrations", "Monitoring"],
+      "stack": ["Python", "Node.js", "APIs", "AI"], "startingPrice": 20000, "timeline": "1–3 weeks", "featured": false
+    },
+    {
+      "id": "sv-brand", "icon": "pen", "title": "Brand Identity & UI",
+      "summary": "Logos, colour systems and social kits that make a business look as serious as it is.",
+      "deliverables": ["Logo & mark", "Colour & type system", "Brand guidelines", "Social media kit", "Business cards", "Website UI design"],
+      "stack": ["Figma", "SVG", "Canva"], "startingPrice": 15000, "timeline": "1–2 weeks", "featured": false
+    },
+    {
+      "id": "sv-care", "icon": "shield", "title": "Care & Maintenance",
+      "summary": "Hosting, security updates, backups and small changes every month, so your site never goes stale.",
+      "deliverables": ["Managed hosting", "Security & software updates", "Daily backups", "Uptime monitoring", "Monthly content changes", "Priority support"],
+      "stack": ["Vercel", "Render", "Cloudflare"], "startingPrice": 3500, "priceUnit": "/month", "timeline": "Ongoing", "featured": false
+    }
+  ],
+  "projects": [
+    {
+      "id": "pj-mkb", "title": "MKB Brand Platform", "category": "Web", "year": "2026", "status": "Live",
+      "summary": "This website: a personal brand platform with a 3D cursor-tracking mascot, trading toolkit, academy, packages and a partnership panel — all managed from a private admin dashboard.",
+      "problem": "One brand had to present three very different offers — IT services, trading education and business partnerships — without feeling scattered.",
+      "solution": "A single visual system (the MKB Bull, jungle green on black) with dedicated spaces for each offer, live market data, working calculators and a content manager so new skills and courses go live without touching code.",
+      "results": ["Low-poly 3D mascot rendered on canvas — no WebGL needed", "7 working trading tools", "Admin dashboard for skills, packages, courses and proposals", "Direct-to-DM contact on WhatsApp, Instagram, X, Threads and email"],
+      "stack": ["JavaScript", "Canvas 3D", "Node.js", "CSS"], "link": "index.html", "repo": "", "image": "", "featured": true, "accent": "#29AB87"
+    },
+    {
+      "id": "pj-vv88", "title": "VV88 — Automated Clipping Engine", "category": "Automation", "year": "2026", "status": "Built",
+      "summary": "Finds the best-paying clipping campaigns, cuts the strongest moments into vertical clips with animated captions, and schedules them to TikTok, YouTube Shorts, Instagram Reels and X.",
+      "problem": "Clipping campaigns pay per view, but finding good campaigns, editing clips and posting on schedule by hand doesn't scale.",
+      "solution": "A pipeline that ranks campaigns by expected pay per clip, transcribes footage with Whisper, scores highlights, renders 9:16 clips with FFmpeg in four caption styles, and posts on a schedule while an optimizer learns which styles win.",
+      "results": ["≈1× real-time rendering on 4 vCPUs — about 3,300 clips/day at $0 editing cost", "Four viral caption styles with word-by-word timing", "Thompson-sampling optimizer with a 7-day half-life"],
+      "stack": ["Python", "FFmpeg", "Whisper", "Automation"], "link": "", "repo": "", "image": "", "featured": true, "accent": "#6FE3BF"
+    },
+    {
+      "id": "pj-pumpscan", "title": "PumpScan — 25-Agent Token Scanner", "category": "Trading", "year": "2026", "status": "Built",
+      "summary": "A council of 25 analysis agents that scans every new pump.fun launch, re-votes every 2 seconds and only speaks when there's consensus — with a $10 demo account that fills against live on-chain state.",
+      "problem": "New token launches move in seconds, and most are traps. Manual screening is too slow and too emotional.",
+      "solution": "Independent agents score volume, buy/sell flow, holder concentration, insider networks and metadata. A demo account applies real on-chain fees, slippage and latency, so paper results match what a real wallet would get.",
+      "results": ["25 agents voting every 2 seconds", "Rules tuned on 555 recorded coins with out-of-sample checks", "Runs fully in the browser on free static hosting"],
+      "stack": ["JavaScript", "Python", "Solana", "WebSockets"], "link": "", "repo": "", "image": "", "featured": true, "accent": "#1F7A5C"
+    },
+    {
+      "id": "pj-toolkit", "title": "MKB Trader Toolkit", "category": "Trading", "year": "2026", "status": "Live",
+      "summary": "Free calculators for position sizing, risk-to-reward, binary expectancy, compounding, drawdown recovery and crypto averaging — plus a live session clock.",
+      "problem": "Most new traders lose money because they size positions by feel and never do the maths on their strategy.",
+      "solution": "Simple, fast tools that answer the questions every trader should ask before clicking buy — with live FX and crypto prices filled in.",
+      "results": ["7 tools, free to use", "Live crypto prices and daily FX reference rates", "Works on any phone"],
+      "stack": ["JavaScript", "APIs", "UX"], "link": "trading.html#toolkit", "repo": "", "image": "", "featured": true, "accent": "#29AB87"
+    }
+  ],
+  "packages": [
+    { "id": "pk-starter", "group": "Build", "name": "Starter Site", "price": 25000, "unit": "one-off", "summary": "A sharp online presence for a new or small business.", "features": ["Up to 5 pages", "Mobile-first design", "WhatsApp & call buttons", "Contact form", "Basic SEO setup", "1 month free support"], "highlight": false },
+    { "id": "pk-pro", "group": "Build", "name": "Business Pro", "price": 55000, "unit": "one-off", "summary": "A complete website that brings in leads and that you can update yourself.", "features": ["Up to 12 pages", "Blog / content manager", "Bookings or quote requests", "Analytics & speed optimisation", "Brand polish (logo refresh, colours)", "3 months free support"], "highlight": true },
+    { "id": "pk-commerce", "group": "Build", "name": "Commerce", "price": 95000, "unit": "one-off", "summary": "An online store that takes M-Pesa and card payments.", "features": ["Unlimited products", "M-Pesa + card checkout", "Order alerts by SMS / WhatsApp", "Inventory & delivery zones", "Admin training", "3 months free support"], "highlight": false },
+    { "id": "pk-app", "group": "Build", "name": "App Launch", "price": 180000, "unit": "from", "summary": "Android + iOS app with an admin dashboard, published to the stores.", "features": ["UI/UX design & prototype", "Android & iOS builds", "Admin dashboard & API", "Push notifications", "Store publishing", "Launch support"], "highlight": false },
+    { "id": "pk-session", "group": "Trade", "name": "Strategy Session", "price": 3500, "unit": "/session", "summary": "60 minutes, one-on-one: your strategy, your risk, your questions.", "features": ["Strategy & journal review", "Personal risk plan", "Broker & platform guidance", "Recording of the call", "Follow-up notes"], "highlight": false },
+    { "id": "pk-mentor", "group": "Trade", "name": "Monthly Mentorship", "price": 12000, "unit": "/month", "summary": "Weekly guidance while you build consistent habits.", "features": ["4 live sessions a month", "Weekly trade & journal reviews", "Private WhatsApp support", "Access to all MKB tools & templates", "Risk accountability check-ins"], "highlight": true },
+    { "id": "pk-mentor-pro", "group": "Trade", "name": "Pro Mentorship · 3 months", "price": 30000, "unit": "one-off", "summary": "A structured 12-week programme from foundations to a written trading plan.", "features": ["12 weeks of sessions", "Forex Foundations course included", "Personal trading plan", "Backtesting assignments", "Graduation review"], "highlight": false },
+    { "id": "pk-tool", "group": "Trade", "name": "Custom Indicator / Bot", "price": 15000, "unit": "from", "summary": "Your strategy turned into an indicator, scanner or alert bot.", "features": ["TradingView, MT4/MT5 or Python", "Alerts to Telegram / WhatsApp", "Backtest report", "Source code & guide", "2 revisions"], "highlight": false },
+    { "id": "pk-consult", "group": "Grow", "name": "Business Consultation", "price": 5000, "unit": "/session", "summary": "Pressure-test an idea, an offer or a growth plan.", "features": ["60-minute strategy call", "Offer & pricing review", "Digital growth plan", "Tool & tech recommendations", "Written action steps"], "highlight": false },
+    { "id": "pk-brandkit", "group": "Grow", "name": "Brand Launch Kit", "price": 35000, "unit": "one-off", "summary": "Everything a new brand needs to look established on day one.", "features": ["Logo & mark", "Colours, fonts & guidelines", "Social media kit", "Business card design", "One-page launch website"], "highlight": true },
+    { "id": "pk-partner", "group": "Grow", "name": "Growth Partnership", "price": 0, "unit": "custom", "summary": "Tech + strategy in exchange for a revenue share or equity, for the right idea.", "features": ["Product build & launch", "Ongoing growth support", "Revenue share or equity terms", "Quarterly reviews", "Written agreement"], "highlight": false }
+  ],
+  "courses": [
+    {
+      "id": "cr-web", "title": "Web Development: Zero to Launch", "category": "IT", "level": "Beginner", "duration": "8 weeks", "price": 8500, "status": "enrolling",
+      "summary": "Go from zero to building and launching real business websites — and learn how to get paid for them.",
+      "outcomes": ["Build responsive sites with HTML, CSS and JavaScript", "Use Git and deploy to the internet for free", "Build a full business website as your portfolio piece", "Price, quote and deliver your first client project"],
+      "modules": [
+        { "title": "How the web works", "lessons": ["Browsers, servers and domains", "Your developer setup", "Your first web page"] },
+        { "title": "HTML & CSS foundations", "lessons": ["Semantic HTML", "Layouts with Flexbox and Grid", "Responsive, mobile-first design"] },
+        { "title": "JavaScript essentials", "lessons": ["Variables, functions and events", "Working with the DOM", "Fetching data from APIs"] },
+        { "title": "Ship it", "lessons": ["Git and GitHub", "Deploying to Vercel", "Domains and email"] },
+        { "title": "Capstone: a real business site", "lessons": ["Planning with a client brief", "Building the site", "Launch checklist"] },
+        { "title": "Getting paid", "lessons": ["Pricing your work in Kenya", "Proposals and contracts", "Taking payments with M-Pesa"] }
+      ]
+    },
+    {
+      "id": "cr-forex", "title": "Forex Foundations & Risk Management", "category": "Trading", "level": "Beginner", "duration": "6 weeks", "price": 7500, "status": "enrolling",
+      "summary": "Learn how the forex market really works and the risk rules that keep beginners in the game.",
+      "outcomes": ["Understand pips, lots, leverage and margin", "Choose a regulated broker", "Read price action and market structure", "Size every position with a fixed risk", "Write and follow a trading plan"],
+      "modules": [
+        { "title": "Market basics", "lessons": ["Currency pairs and quotes", "Pips, lots and leverage", "Trading sessions"] },
+        { "title": "Brokers & safety", "lessons": ["Regulation and the CMA", "Account types and spreads", "Spotting scams"] },
+        { "title": "Reading the chart", "lessons": ["Candlesticks", "Support and resistance", "Market structure"] },
+        { "title": "Risk management", "lessons": ["The 1% rule", "Position sizing", "Risk-to-reward and win rate"] },
+        { "title": "Your trading plan", "lessons": ["Entry and exit rules", "Journaling", "Reviewing your trades"] },
+        { "title": "Psychology", "lessons": ["Handling losses", "Avoiding revenge trading", "Building consistency"] }
+      ]
+    },
+    {
+      "id": "cr-crypto", "title": "Crypto: Safe Investing & Trading", "category": "Trading", "level": "Beginner", "duration": "4 weeks", "price": 6000, "status": "enrolling",
+      "summary": "Buy, store and trade crypto safely — and learn to spot the scams before they spot you.",
+      "outcomes": ["Set up and secure a wallet", "Use exchanges and P2P safely", "Understand spot vs futures", "Research a token before buying", "Avoid the most common scams"],
+      "modules": [
+        { "title": "Foundations", "lessons": ["What blockchains do", "Bitcoin, Ethereum and Solana", "Stablecoins"] },
+        { "title": "Security first", "lessons": ["Wallets and seed phrases", "Hardware wallets", "Phishing and fake support"] },
+        { "title": "Buying and trading", "lessons": ["Exchanges and P2P with M-Pesa", "Spot vs futures", "Fees and slippage"] },
+        { "title": "Research", "lessons": ["Reading a token page", "On-chain basics", "Red flags and rug pulls"] }
+      ]
+    },
+    {
+      "id": "cr-binary", "title": "Binary Options: The Math, the Risk, the Truth", "category": "Trading", "level": "Beginner", "duration": "2 weeks", "price": 3000, "status": "enrolling",
+      "summary": "Before you risk a shilling: the payout maths, the broker landscape and the discipline binary options demand.",
+      "outcomes": ["Calculate your breakeven win rate", "Measure expectancy honestly", "Recognise unregulated brokers", "Set hard daily loss limits"],
+      "modules": [
+        { "title": "How binaries work", "lessons": ["Contracts, expiry and payout", "Why the house has an edge"] },
+        { "title": "The maths", "lessons": ["Breakeven win rate", "Expectancy and variance", "Bankroll and loss limits"] },
+        { "title": "Staying safe", "lessons": ["Regulation and broker red flags", "Signal-group scams", "When to walk away"] }
+      ]
+    },
+    {
+      "id": "cr-algo", "title": "Trading Automation with Python", "category": "IT", "level": "Advanced", "duration": "6 weeks", "price": 15000, "status": "coming-soon",
+      "summary": "Build scanners, alerts and bots — and learn to backtest without fooling yourself.",
+      "outcomes": ["Pull market data from APIs", "Backtest a strategy honestly", "Build a scanner with alerts", "Deploy a bot safely"],
+      "modules": [
+        { "title": "Python for traders", "lessons": ["Data with pandas", "Market data APIs"] },
+        { "title": "Backtesting", "lessons": ["Costs, slippage and fees", "Overfitting and out-of-sample tests"] },
+        { "title": "Scanners & alerts", "lessons": ["Real-time data", "Telegram and WhatsApp alerts"] },
+        { "title": "Execution", "lessons": ["Exchange APIs", "Paper trading first", "Monitoring and kill switches"] }
+      ]
+    },
+    {
+      "id": "cr-mobile", "title": "Build Mobile Apps with Flutter", "category": "IT", "level": "Intermediate", "duration": "10 weeks", "price": 12000, "status": "coming-soon",
+      "summary": "Design, build and publish Android and iOS apps from one codebase.",
+      "outcomes": ["Build cross-platform apps with Flutter", "Connect to Firebase and APIs", "Add M-Pesa payments", "Publish to the Play Store"],
+      "modules": [
+        { "title": "Dart & Flutter basics", "lessons": ["Widgets and layouts", "State management"] },
+        { "title": "Real features", "lessons": ["Auth and databases", "Payments", "Notifications"] },
+        { "title": "Publishing", "lessons": ["Testing", "Play Store and App Store"] }
+      ]
+    },
+    {
+      "id": "cr-brand", "title": "Personal Brand & Business Growth", "category": "Business", "level": "All levels", "duration": "4 weeks", "price": 5000, "status": "coming-soon",
+      "summary": "Turn your skills into a brand and your brand into income.",
+      "outcomes": ["Define your offer and audience", "Build a brand that looks credible", "Create content that brings leads", "Price and package your skills"],
+      "modules": [
+        { "title": "Positioning", "lessons": ["Your offer", "Your audience"] },
+        { "title": "Identity", "lessons": ["Name, logo and colours", "Your website"] },
+        { "title": "Growth", "lessons": ["Content systems", "Partnerships", "Pricing and packages"] }
+      ]
+    }
+  ],
+  "trading": {
+    "intro": "Everything I've built and learned in the markets: tools I use, rules I follow and lessons I paid for. Free to use. Not financial advice.",
+    "markets": [
+      { "key": "forex", "title": "Forex", "tagline": "Price action with rules.", "summary": "Major pairs and gold, traded around the London and New York sessions. Clear levels, defined risk on every trade and a journal for everything.", "focus": ["EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY"], "approach": ["Market structure & key levels", "Session-based timing", "Fixed % risk per trade", "Minimum 1:2 reward-to-risk"] },
+      { "key": "binary", "title": "Binary", "tagline": "The maths decides.", "summary": "Fixed-payout contracts where your win rate must beat the payout's breakeven point. I teach the numbers first — most people who skip them lose.", "focus": ["Payout maths", "Expectancy", "Daily loss limits", "Broker safety"], "approach": ["Know your breakeven win rate", "Track every trade", "Hard daily stop", "Avoid signal-group hype"] },
+      { "key": "crypto", "title": "Crypto", "tagline": "Security first, then opportunity.", "summary": "Spot positions in majors, on-chain flow for new launches and automated scanning — with wallet security treated as rule number one.", "focus": ["BTC", "ETH", "SOL", "New launches"], "approach": ["Self-custody & security", "On-chain flow analysis", "Scanner-assisted entries", "Position limits on risky tokens"] }
+    ],
+    "creations": [
+      { "id": "cr1", "title": "PumpScan", "type": "Scanner", "platform": "Browser · Python", "summary": "25 agents that vote on every new pump.fun launch, with a $10 demo account that trades on live on-chain prices.", "link": "work.html#pj-pumpscan", "price": "Private", "status": "Built" },
+      { "id": "cr2", "title": "Position Size Calculator", "type": "Tool", "platform": "Web", "summary": "Exact lot size for any pair from your balance, risk % and stop — with live FX conversion.", "link": "#tool-position", "price": "Free", "status": "Live" },
+      { "id": "cr3", "title": "Binary Expectancy Calculator", "type": "Tool", "platform": "Web", "summary": "Shows your breakeven win rate and expected profit per trade for any payout.", "link": "#tool-binary", "price": "Free", "status": "Live" },
+      { "id": "cr4", "title": "Trading Journal Template", "type": "Template", "platform": "Excel · Google Sheets", "summary": "The columns I track on every trade, ready to open in Excel or Google Sheets.", "link": "#download-journal", "price": "Free", "status": "Live" },
+      { "id": "cr5", "title": "Pre-Trade Checklist", "type": "Template", "platform": "Printable", "summary": "Ten questions to answer before every entry. Print it and keep it next to your screen.", "link": "#download-checklist", "price": "Free", "status": "Live" },
+      { "id": "cr6", "title": "Session Clock", "type": "Tool", "platform": "Web", "summary": "Which markets are open right now, in Nairobi time, with session overlaps highlighted.", "link": "#sessions", "price": "Free", "status": "Live" }
+    ],
+    "lessons": [
+      {
+        "id": "ls-basics", "title": "Pips, lots & leverage: forex in 6 minutes", "market": "Forex", "level": "Beginner", "minutes": 6,
+        "summary": "The three words every forex trader must understand before placing a trade.",
+        "body": "## Pips\nA **pip** is the standard unit of price movement. For most pairs it is the fourth decimal place: EUR/USD moving from 1.0850 to 1.0851 is one pip. For yen pairs like USD/JPY it is the second decimal place (157.20 → 157.21).\n\n## Lots\nA **lot** is your position size.\n- Standard lot = 100,000 units of the base currency\n- Mini lot = 10,000 units (0.10)\n- Micro lot = 1,000 units (0.01)\n\nOn EUR/USD, one pip on a standard lot is worth about **$10**, on a mini lot about $1, and on a micro lot about $0.10.\n\n## Leverage\nLeverage lets you control a large position with a small deposit (margin). With 1:100 leverage, $1,000 of margin controls $100,000. Leverage does not change how much a pip is worth — it changes how big a position you *can* open. That is exactly why it is dangerous: it makes oversized positions easy.\n\n## The takeaway\nDecide how much you are willing to lose first, then work out the lot size. Use the Position Size Calculator on this page for every trade."
+      },
+      {
+        "id": "ls-1pct", "title": "The 1% rule: position sizing that keeps you alive", "market": "General", "level": "Beginner", "minutes": 5,
+        "summary": "Why professionals risk a small, fixed share of their account on every trade.",
+        "body": "## The rule\nRisk no more than **1–2% of your account** on any single trade. On a $500 account, 1% is $5. That is the most you lose if your stop loss is hit.\n\n## Why it works\nEvery strategy has losing streaks. Ten losses in a row at 1% risk leaves you with about 90% of your account. Ten losses at 10% risk leaves about 35%, and you now need a +187% gain just to get back to where you started.\n\n## How to size a trade\n- Decide your risk in money: balance × risk %\n- Measure your stop loss in pips\n- Lot size = risk ÷ (stop in pips × pip value per lot)\n\nExample: $1,000 balance, 1% risk = $10. Stop = 20 pips on EUR/USD ($10 per pip per standard lot). Lot size = 10 ÷ (20 × 10) = **0.05 lots**.\n\n## The takeaway\nYour stop loss decides where you are wrong; your position size decides how much being wrong costs. Never move the stop to fit a bigger lot."
+      },
+      {
+        "id": "ls-candles", "title": "Reading candlesticks without the mysticism", "market": "General", "level": "Beginner", "minutes": 5,
+        "summary": "What a candle actually tells you — and what it doesn't.",
+        "body": "## Anatomy\nEach candle shows four prices for its time period: **open, high, low, close**. The body runs from open to close; the wicks show the high and low.\n\n## What candles tell you\n- A long body means one side controlled the period\n- A long wick means price went somewhere and was rejected\n- Small bodies with wicks on both sides mean indecision\n\n## What they don't tell you\nA single candle pattern is not a signal by itself. A hammer in the middle of nowhere means little; a hammer at a major support level after a sell-off, on a higher timeframe, means more.\n\n## The takeaway\nRead candles in context: **where** they form (key levels), **when** (session, news) and on **which timeframe**. Location first, pattern second."
+      },
+      {
+        "id": "ls-structure", "title": "Market structure: highs, lows and breaks", "market": "Forex", "level": "Intermediate", "minutes": 7,
+        "summary": "The simplest way to read trend direction on any chart.",
+        "body": "## Uptrend, downtrend, range\n- **Uptrend:** higher highs and higher lows\n- **Downtrend:** lower highs and lower lows\n- **Range:** price bouncing between a ceiling and a floor\n\n## Break of structure\nIn an uptrend, a close below the last higher low is a warning that buyers are losing control. In a downtrend, a close above the last lower high is the warning for sellers.\n\n## Using it\n- Trade with the structure of the higher timeframe (for example 4H)\n- Time entries on the lower timeframe (for example 15M)\n- Put your stop beyond the swing point that would prove you wrong\n\n## The takeaway\nStructure gives you direction and a logical place for your stop. It doesn't predict the future — it tells you who is in control right now."
+      },
+      {
+        "id": "ls-binary", "title": "Binary options: your breakeven win rate", "market": "Binary", "level": "Beginner", "minutes": 4,
+        "summary": "One formula that shows why most binary traders lose.",
+        "body": "## The payout problem\nA typical binary option pays **80–90%** of your stake on a win and loses **100%** on a loss. Wins pay less than losses cost.\n\n## Breakeven win rate\nBreakeven = 1 ÷ (1 + payout)\n- 80% payout → 1 ÷ 1.80 = **55.6%**\n- 85% payout → 1 ÷ 1.85 = **54.1%**\n- 90% payout → 1 ÷ 1.90 = **52.6%**\n\nWinning half your trades is not enough; at an 85% payout, a 50% win rate loses about 7.5% of everything you stake over time.\n\n## Before you trade binaries\n- Check the broker is licensed by a real regulator — many binary brokers are not\n- Track at least 100 demo trades to measure your real win rate\n- Set a hard daily loss limit and stop when you hit it\n\n## The takeaway\nUse the Binary Expectancy Calculator on this page. If your tracked win rate doesn't beat breakeven, the honest answer is not to trade."
+      },
+      {
+        "id": "ls-security", "title": "Crypto security: seed phrases, wallets & scams", "market": "Crypto", "level": "Beginner", "minutes": 6,
+        "summary": "The rules that protect your coins from the most common attacks.",
+        "body": "## Your seed phrase is your money\nThe 12 or 24 words of a wallet's seed phrase **are** the wallet. Anyone who has them can take everything.\n- Write it on paper (or metal), never in a screenshot, email or cloud note\n- No real support agent, exchange or developer will ever ask for it\n\n## Wallet types\n- **Exchange account:** convenient, but the exchange holds your coins\n- **Software wallet:** you hold the keys on your phone or computer\n- **Hardware wallet:** keys stay on a device offline — the best for long-term savings\n\n## Common scams\n- Fake support accounts replying to your posts\n- \"Account managers\" who promise daily returns\n- Airdrop links that ask you to connect and sign\n- P2P buyers sending fake M-Pesa messages — always check your actual balance\n\n## The takeaway\nSlow down. Verify every address, every link and every person. In crypto, a mistake usually can't be reversed."
+      },
+      {
+        "id": "ls-broker", "title": "Choosing a broker: regulation first", "market": "Forex", "level": "Beginner", "minutes": 4,
+        "summary": "How to check a broker before you send it a shilling.",
+        "body": "## Check the licence\nIn Kenya, the **Capital Markets Authority (CMA)** licenses online forex brokers. Search the broker's name on the CMA's list of licensed market intermediaries. Other strong regulators include the FCA (UK) and ASIC (Australia).\n\n## Red flags\n- Bonuses that lock your withdrawals\n- Guaranteed returns or \"account management\"\n- Pressure to deposit more to unlock profits\n- Support only through WhatsApp or Telegram\n\n## Compare\n- Spreads and commissions on the pairs you trade\n- Deposit and withdrawal methods (M-Pesa, bank, card) and their fees\n- How long withdrawals actually take — test with a small amount first\n\n## The takeaway\nA good strategy at a bad broker is still a bad trade. Verify first, deposit small, withdraw once, then decide."
+      },
+      {
+        "id": "ls-drawdown", "title": "Drawdowns and the maths of recovery", "market": "General", "level": "Intermediate", "minutes": 4,
+        "summary": "Why losses hurt more than gains help.",
+        "body": "## The asymmetry\nTo recover from a loss you need a bigger percentage gain:\n- −10% needs +11.1%\n- −25% needs +33.3%\n- −50% needs +100%\n- −75% needs +300%\n\nThe formula: gain needed = loss ÷ (1 − loss).\n\n## What it means\nAvoiding big drawdowns matters more than chasing big wins. A strategy that makes 20% a year with a 10% worst drawdown is usually better than one that makes 60% with a 50% drawdown — because you can actually stick with it.\n\n## Practical limits\n- Daily loss limit: stop trading after −3%\n- Weekly limit: reduce size after −6%\n- Review everything after −10%\n\n## The takeaway\nProtect the account first. Use the Drawdown Recovery tool on this page to see what a loss really costs."
+      },
+      {
+        "id": "ls-psych", "title": "Trading psychology: rules over feelings", "market": "General", "level": "All levels", "minutes": 5,
+        "summary": "The habits that separate consistent traders from gamblers.",
+        "body": "## Feelings are information, not instructions\nFear, greed and boredom show up in every trader. The goal isn't to stop feeling them; it's to have rules that decide for you.\n\n## Rules that help\n- Write your plan before the session, not during it\n- One bad trade is allowed; revenge trading is not\n- Fixed risk per trade — no exceptions after a loss\n- Stop for the day after hitting your loss limit\n\n## Keep a journal\nRecord the setup, entry, stop, target, result **and how you felt**. After 50 trades, patterns appear that no indicator will show you.\n\n## The takeaway\nConsistency comes from process. Download the Trading Journal Template and Pre-Trade Checklist on this page and use them every day."
+      }
+    ],
+    "watchlist": {
+      "crypto": ["bitcoin", "ethereum", "solana", "binancecoin", "ripple", "tether"],
+      "tvSymbols": [
+        { "label": "EUR/USD", "symbol": "FX:EURUSD" },
+        { "label": "GBP/USD", "symbol": "FX:GBPUSD" },
+        { "label": "Gold", "symbol": "OANDA:XAUUSD" },
+        { "label": "USD/JPY", "symbol": "FX:USDJPY" },
+        { "label": "BTC/USDT", "symbol": "BINANCE:BTCUSDT" },
+        { "label": "ETH/USDT", "symbol": "BINANCE:ETHUSDT" }
+      ]
+    }
+  },
+  "qa": [
+    { "id": "qa1", "topic": "IT", "question": "Can you build a website for my small business that takes M-Pesa payments?", "answer": "Yes. The Commerce package covers online stores with M-Pesa and card checkout, and smaller sites can add a pay-with-M-Pesa button. Send me what you sell and roughly how many products, and I'll recommend the right setup.", "published": true },
+    { "id": "qa2", "topic": "Trading", "question": "Do you trade or manage money on behalf of clients?", "answer": "No. I teach, mentor and build tools. I don't hold or manage anyone's funds. If anyone claims to be me and offers account management, it's a scam — please report it using the official links on this site.", "published": true },
+    { "id": "qa3", "topic": "Business", "question": "How do partnership proposals work?", "answer": "Send your proposal through the Connect panel. You'll get a reference code you can use to check its status. I review every proposal, and if it's a fit we set up a call to talk terms.", "published": true },
+    { "id": "qa4", "topic": "Academy", "question": "I'm a complete beginner. Which course should I start with?", "answer": "For tech, start with Web Development: Zero to Launch. For markets, start with Forex Foundations & Risk Management — it teaches the risk rules every other strategy depends on.", "published": true },
+    { "id": "qa5", "topic": "IT", "question": "What do you need from me to start a website?", "answer": "Your business name, what you sell, three websites you like, your logo if you have one, and the main action you want visitors to take (call, buy, book or WhatsApp). I'll handle the rest.", "published": true }
+  ],
+  "testimonials": []
+}

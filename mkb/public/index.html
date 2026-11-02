@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MKB — Moses Bright Kang'ara · Build. Trade. Scale.</title>
+<meta name="description" content="MKB — Moses Bright Kang'ara. Websites and apps that sell, trading tools and education for Forex, Binary and Crypto, and partnerships that grow businesses.">
+<meta name="theme-color" content="#060A08">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MKB — Moses Bright Kang'ara">
+<meta property="og:description" content="Build. Trade. Scale. Websites & apps, trading tools & education, and business partnerships.">
+<meta property="og:image" content="assets/img/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@mosesbright888">
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/main.css">
+<script type="module" src="assets/js/pages/home.js"></script>
+</head>
+<body data-page="home" data-preloader>
+<main id="main">
+
+  <!-- HERO: the MKB Bull follows your cursor -->
+  <section class="hero">
+    <div class="container" style="display:flex;flex-direction:column;flex:1">
+      <div class="hero__grid">
+        <div class="hero__copy">
+          <span class="chip"><span class="dot pulse"></span><span data-bind="availabilityNote">Booking new website & app projects</span></span>
+          <h1 class="hero__title" aria-label="Build. Trade. Scale.">
+            <span class="line"><span>Build.</span></span>
+            <span class="line"><span>Trade.</span></span>
+            <span class="line"><span>Scale.</span></span>
+          </h1>
+          <p class="hero__lead">I'm <b>Moses Bright Kang'ara</b>. I build websites &amp; apps that sell, trade Forex, Binary &amp; Crypto with discipline, and partner with people building something real.</p>
+          <div class="hero__actions">
+            <a class="btn btn--primary btn--lg" href="connect.html" data-magnetic>Start a project <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="arrow"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a class="btn btn--lg" href="trading.html">Trading desk</a>
+          </div>
+        </div>
+
+        <div class="hero__stage" data-cursor="Snort">
+          <canvas id="bull" role="img" aria-label="The MKB Bull: a 3D low-poly bull that turns to follow your cursor"></canvas>
+        </div>
+
+        <aside class="hero__side" aria-label="Live markets and socials">
+          <div class="live-card glass">
+            <div class="row" style="justify-content:space-between;margin-bottom:4px"><span class="eyebrow" style="font-size:.66rem">Live markets</span><a class="link-arrow" style="font-size:.75rem" href="trading.html">Desk</a></div>
+            <div id="live-rows"><div class="live-card__row"><span class="muted">Loading prices…</span></div></div>
+          </div>
+          <div class="live-card glass">
+            <span class="eyebrow eyebrow--plain" style="font-size:.66rem">Follow the journey</span>
+            <div class="avatar-stack" id="hero-socials" style="margin-top:12px"></div>
+            <p class="muted" style="font-size:.78rem;margin:12px 0 0">DM me on any platform — I read every message.</p>
+          </div>
+        </aside>
+      </div>
+
+      <div class="hero__bottom">
+        <div class="hud" aria-live="off">
+          <div class="hud__row"><span>Gaze</span><span class="hud__bar"><i id="hud-gaze"></i></span><b id="hud-gaze-t">0° centre</b></div>
+          <div class="hud__row hud__mood"><span>Mood</span><span class="hud__bar"><i id="hud-mood"></i></span><b id="hud-mood-t">Bullish 60%</b></div>
+          <span style="font-size:.64rem;color:var(--faint)">Move up = bullish · down = bearish · click = snort</span>
+        </div>
+        <a class="spin-badge" href="#pillars" aria-label="Scroll to what I do">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><defs><path id="circ" d="M60 60m-46 0a46 46 0 1 1 92 0a46 46 0 1 1-92 0"/></defs><text><textPath href="#circ">Move your cursor · the MKB bull ·</textPath></text></svg>
+          <span class="center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span>
+        </a>
+        <div class="hero__cards">
+          <a class="mini-card" href="services.html" data-tilt><b>Websites &amp; apps</b><small>Built to sell, fast on every phone</small><canvas data-fx="code"></canvas><span class="go">GO</span></a>
+          <a class="mini-card" href="trading.html" data-tilt><b>Trading desk</b><small>Tools, lessons &amp; live markets</small><canvas data-fx="candles"></canvas><span class="go">GO</span></a>
+          <a class="mini-card" href="connect.html" data-tilt><b>Partner with me</b><small>Pitch an idea or a deal</small><canvas data-fx="network"></canvas><span class="go">GO</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="marquee" aria-hidden="true"><div class="marquee__track" id="skills-marquee"></div></div>
+
+  <!-- PILLARS -->
+  <section class="section" id="pillars">
+    <div class="container">
+      <div class="section-head">
+        <div><span class="eyebrow">What I do</span><h2 class="h2"><span class="split">Three disciplines.<br><span class="accent">One brand.</span></span></h2></div>
+        <p>Technology, markets and business all reward the same things: clear thinking, discipline and execution. MKB brings them together.</p>
+      </div>
+      <div class="pillars">
+        <a class="pillar is-active" href="services.html" data-reveal>
+          <canvas data-fx="code"></canvas>
+          <span class="pillar__num">01 / BUILD</span>
+          <h3 class="pillar__title">Build</h3>
+          <div class="pillar__body"><p>Business websites, online stores, web systems and mobile apps — fast, secure and designed to bring in customers. M-Pesa ready.</p><span class="link-arrow">IT services <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17L17 7M8 7h9v9"/></svg></span></div>
+        </a>
+        <a class="pillar" href="trading.html" data-reveal style="--d:100">
+          <canvas data-fx="candles"></canvas>
+          <span class="pillar__num">02 / TRADE</span>
+          <h3 class="pillar__title">Trade</h3>
+          <div class="pillar__body"><p>Forex, Binary and Crypto — the tools I've built, the rules I follow and the lessons I learned the hard way. Free calculators, live markets, honest education.</p><span class="link-arrow">Trading desk <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17L17 7M8 7h9v9"/></svg></span></div>
+        </a>
+        <a class="pillar" href="connect.html" data-reveal style="--d:200">
+          <canvas data-fx="network"></canvas>
+          <span class="pillar__num">03 / SCALE</span>
+          <h3 class="pillar__title">Scale</h3>
+          <div class="pillar__body"><p>Partnerships, business ideas and growth. Pitch me an idea, propose a deal or ask anything about building a business.</p><span class="link-arrow">Partner with me <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17L17 7M8 7h9v9"/></svg></span></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS (computed from live content) -->
+  <section class="section--tight">
+    <div class="container"><div class="stats" id="stats" data-reveal></div></div>
+  </section>
+
+  <!-- WORK -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <div><span class="eyebrow">Selected work</span><h2 class="h2">Things I've <span class="outline-text">built</span></h2></div>
+        <a class="btn" href="work.html">All projects <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="arrow"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="projects" id="featured-projects"></div>
+    </div>
+  </section>
+
+  <section class="section" id="testimonials" style="padding-top:0" hidden>
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Kind words</span><h2 class="h2">What people<br><span class="accent">say</span></h2></div></div>
+      <div class="quotes" id="quotes"></div>
+    </div>
+  </section>
+
+  <div class="ticker" id="ticker" aria-label="Live crypto prices"><div class="ticker__track"></div></div>
+
+  <!-- PACKAGES -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <div><span class="eyebrow">Packages</span><h2 class="h2">Pick a starting <span class="accent">point</span></h2><p>Clear prices for building, trading mentorship and business growth. Every package can be tailored.</p></div>
+        <div class="row" id="home-currency"></div>
+      </div>
+      <div class="plans" id="home-plans"></div>
+      <div class="row" style="justify-content:center;margin-top:32px"><a class="btn" href="packages.html">See all packages</a></div>
+    </div>
+  </section>
+
+  <!-- ACADEMY -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head">
+        <div><span class="eyebrow">MKB Academy</span><h2 class="h2">Learn what<br>I <span class="accent">use daily</span></h2></div>
+        <a class="btn" href="academy.html">All courses</a>
+      </div>
+      <div class="grid grid-3" id="home-courses"></div>
+    </div>
+  </section>
+
+  <!-- ASK -->
+  <section class="section" style="padding-top:0">
+    <div class="container grid grid-2" style="align-items:center;gap:clamp(28px,5vw,72px)">
+      <div data-reveal>
+        <span class="eyebrow">Ask me anything</span>
+        <h2 class="h2" style="margin:18px 0">Business question?<br><span class="accent">Ask it.</span></h2>
+        <p class="lead muted">Partnership offers, business ideas, tech questions or trading doubts — type it here and it lands straight in my DMs.</p>
+        <form class="glass" id="quick-ask" style="border-radius:24px;padding:10px;display:flex;gap:8px;margin-top:26px">
+          <label class="sr-only" for="qa-input">Your question</label>
+          <input class="input" id="qa-input" name="q" placeholder="e.g. Can you build an app for my SACCO?" style="border:0;background:transparent" maxlength="400" required>
+          <button class="btn btn--primary" type="submit">Ask</button>
+        </form>
+        <div class="row" style="margin-top:14px;gap:8px" id="ask-suggest"></div>
+      </div>
+      <div data-reveal style="--d:120"><div class="acc" id="home-qa"></div><a class="link-arrow" style="margin-top:18px" href="connect.html#qa">More answers <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17L17 7M8 7h9v9"/></svg></a></div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="cta-band" data-reveal="scale">
+        <img class="cta-band__art" src="assets/brand/mkb-mark-black.svg" alt="">
+        <span class="eyebrow" style="color:var(--black)">Partner with MKB</span>
+        <h2 class="h2" style="margin-top:18px">Got an idea? Let's build it.</h2>
+        <p>Send a business idea or partnership offer. You'll get a reference code and a reply in your DMs.</p>
+        <div class="row">
+          <a class="btn btn--dark btn--lg" href="connect.html#propose">Propose a partnership</a>
+          <a class="btn btn--lg" id="cta-wa" href="#" target="_blank" rel="noopener">WhatsApp me</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<noscript><p style="padding:24px;text-align:center">MKB works best with JavaScript on. You can reach Moses on WhatsApp: <a href="https://wa.me/254710910301">0710 910 301</a> or email <a href="mailto:mkbright888@gmail.com">mkbright888@gmail.com</a>.</p></noscript>
+</body>
+</html>

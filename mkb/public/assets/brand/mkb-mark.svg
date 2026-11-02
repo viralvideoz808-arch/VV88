@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="MKB mark">
+<title>MKB mark</title>
+<defs>
+  <linearGradient id="abg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0F3D2E"/><stop offset="1" stop-color="#030504"/></linearGradient>
+  <linearGradient id="am" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1F8A68"/><stop offset="1" stop-color="#4FD1A8"/></linearGradient>
+  <linearGradient id="ah" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#29AB87"/><stop offset="1" stop-color="#C9F5E6"/></linearGradient>
+</defs>
+  <rect width="120" height="120" rx="28" fill="url(#abg)"/>
+  <rect x=".75" y=".75" width="118.5" height="118.5" rx="27.3" fill="none" stroke="#29AB87" stroke-opacity=".35" stroke-width="1.5"/>
+  <path d="M26 92V48h13l21 23 21-23h13v44H81V70L60 92 39 70v22z" fill="url(#am)"/>
+  <path d="M26 48c-6-3-11-9-12-18-1-6 1-12 4-16 0 9 4 15 9 19 4 3 8 6 12 15z" fill="url(#ah)"/>
+  <path d="M94 48c6-3 11-9 12-18 1-6-1-12-4-16 0 9-4 15-9 19-4 3-8 6-12 15z" fill="url(#ah)"/>
+</svg>

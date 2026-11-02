@@ -231,3 +231,7 @@ Tests: `pip install -e ".[dev]" && pytest`. The end-to-end test renders real cli
 - [YouTube Data API — quota costs](https://developers.google.com/youtube/v3/determine_quota_cost)
 - [Whop Content Rewards docs](https://docs.whop.com/memberships-and-access/third-party-apps/content-rewards) and the [Apify Whop Content Rewards scraper](https://apify.com/automation-lab/whop-content-rewards-scraper)
 - [Postiz public API](https://docs.postiz.com/public-api)
+
+## MKB brand website
+
+The `mkb/` folder holds the brand and website for **Moses Bright Kang'ara (MKB)**: the logo and social kit, a website with a cursor-tracking 3D bull hero, IT services, a trading desk with live tools, an academy, packages, a partnership/proposal panel and a private admin dashboard. See [mkb/README.md](mkb/README.md).

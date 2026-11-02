@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IT Services — Websites, Apps & Systems · MKB</title>
+<meta name="description" content="Business websites, e-commerce with M-Pesa, web systems, mobile apps, trading tools and automation by Moses Bright Kang'ara (MKB).">
+<meta name="theme-color" content="#060A08">
+<meta property="og:type" content="website">
+<meta property="og:title" content="IT Services — Websites, Apps & Systems · MKB">
+<meta property="og:description" content="Business websites, e-commerce with M-Pesa, web systems, mobile apps, trading tools and automation by Moses Bright Kang'ara (MKB).">
+<meta property="og:image" content="assets/img/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@mosesbright888">
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/main.css">
+<script type="module" src="assets/js/pages/services.js"></script>
+</head>
+<body data-page="services">
+<main id="main">
+  <section class="page-hero">
+    <div class="page-hero__art" aria-hidden="true"><canvas data-fx="code"></canvas></div>
+    <div class="container">
+      <span class="eyebrow">IT services</span>
+      <h1 class="h1 split">Websites<br>&amp; apps that<br><span class="accent">earn their keep.</span></h1>
+      <p class="lead">Business websites, online stores, custom systems, mobile apps and trading tools — designed around what your customers need to do, and built to load fast on any phone.</p>
+      <div class="page-hero__actions">
+        <a class="btn btn--primary btn--lg" href="#estimate" data-magnetic>Estimate my project <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="arrow"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn--lg" href="work.html">See my work</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:20px">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Services</span><h2 class="h2">What I<br><span class="accent">build</span></h2></div><div class="row" id="svc-currency"></div></div>
+      <div class="grid grid-3" id="services"></div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Process</span><h2 class="h2">From idea<br>to <span class="accent">launch</span></h2></div><p>A simple, transparent process. You see progress every week and approve each stage before we move on.</p></div>
+      <div class="process" data-reveal>
+        <div class="process__step"><h4>Discover</h4><p>A call to understand your business, customers and goals. You get a written scope and fixed quote.</p></div>
+        <div class="process__step"><h4>Design</h4><p>Wireframes and visual design for mobile and desktop. Two rounds of revisions included.</p></div>
+        <div class="process__step"><h4>Build</h4><p>Development on a private preview link you can check any time, with weekly updates.</p></div>
+        <div class="process__step"><h4>Launch</h4><p>Domain, hosting, speed and security checks, analytics, then go live and train your team.</p></div>
+        <div class="process__step"><h4>Grow</h4><p>Support, improvements and maintenance so the product keeps working for you.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="estimate" style="padding-top:0">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Project estimator</span><h2 class="h2">What will it<br><span class="accent">cost?</span></h2></div><p>Pick what you need and get a ballpark in seconds. The final quote comes after a short call — no surprises.</p></div>
+      <div class="estimator" data-reveal>
+        <form class="estimator__form card" id="est-form">
+          <div class="field"><span class="label">1 · Project type</span><div class="choice-grid" id="est-type"></div></div>
+          <div class="field" id="est-pages-wrap"><label class="label" for="est-pages">2 · Pages / screens <b class="mono accent" id="est-pages-v">5</b></label><input type="range" id="est-pages" min="1" max="40" value="5" class="range"></div>
+          <div class="field"><span class="label">3 · Features</span><div class="choice-grid" id="est-features"></div></div>
+          <div class="form-grid">
+            <div class="field"><label class="label" for="est-design">4 · Design</label><select class="select" id="est-design"><option value="1">Clean &amp; proven</option><option value="1.25" selected>Custom design</option><option value="1.5">Premium, animated</option></select></div>
+            <div class="field"><label class="label" for="est-speed">5 · Timeline</label><select class="select" id="est-speed"><option value="1">Standard</option><option value="1.25">Rush (+25%)</option></select></div>
+          </div>
+        </form>
+        <aside class="estimator__out card" aria-live="polite">
+          <span class="eyebrow eyebrow--plain">Estimated range</span>
+          <div class="estimator__price" id="est-range">—</div>
+          <div class="estimator__time mono" id="est-time"></div>
+          <ul class="estimator__lines" id="est-lines"></ul>
+          <div class="row" style="margin-top:auto">
+            <button class="btn btn--primary btn--block" id="est-send">Send me this estimate <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="arrow"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </div>
+          <p class="muted" style="font-size:.78rem;margin:12px 0 0">A rough guide based on typical projects, not a quote. Payment terms: 50% to start, 50% at launch.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="section--tight" style="padding-top:0">
+    <div class="container">
+      <div class="marquee marquee--reverse" style="border-radius:var(--radius)" aria-hidden="true"><div class="marquee__track" id="stack"></div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container grid grid-2" style="gap:clamp(28px,5vw,80px)">
+      <div><span class="eyebrow">FAQ</span><h2 class="h2" style="margin-top:18px">Good<br><span class="accent">questions</span></h2><p class="muted" style="margin-top:18px">Don't see yours? <a class="link-arrow" href="connect.html?type=question">Ask me directly</a></p></div>
+      <div class="acc" id="faq"></div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="cta-band" data-reveal="scale">
+        <img class="cta-band__art" src="assets/brand/mkb-mark-black.svg" alt="">
+        <span class="eyebrow" style="color:var(--black)">Ready when you are</span>
+        <h2 class="h2" style="margin-top:18px">Let's build something that sells.</h2>
+        <p>Tell me about your business and I'll come back with a plan, a timeline and a fixed price.</p>
+        <div class="row"><a class="btn btn--dark btn--lg" href="connect.html?type=hire">Request a quote</a><a class="btn btn--lg" href="packages.html#build">Website packages</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+<noscript><p style="padding:24px;text-align:center">This page works best with JavaScript on. Reach Moses on WhatsApp: <a href="https://wa.me/254710910301">0710 910 301</a> or email <a href="mailto:mkbright888@gmail.com">mkbright888@gmail.com</a>.</p></noscript>
+</body>
+</html>

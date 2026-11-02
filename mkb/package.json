@@ -1,0 +1,13 @@
+{
+  "name": "mkb-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MKB — Moses Bright Kang'ara: brand website, trading desk, academy and admin.",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "MKB_ADMIN_PASSWORD=${MKB_ADMIN_PASSWORD:-change-me-now} node server/server.js",
+    "test": "node --test tests/*.test.mjs"
+  }
+}
