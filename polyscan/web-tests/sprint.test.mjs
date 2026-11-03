@@ -203,3 +203,20 @@ test("walking asks for an exact share count", () => {
   assert.equal(f.shares, 5);
   assert.ok(Math.abs(f.spent - (3 * 0.4 + 2 * 0.41)) < 1e-12);
 });
+
+test("resolution lookup asks Gamma for closed markets (it hides them by default)", async () => {
+  const { PolyClient } = await import("../web/js/sources.js");
+  const e5 = fx("updown_5m.json");
+  const urls = [];
+  const fake = async (url) => {
+    urls.push(url);
+    const closed = /closed=true/.test(url);
+    return { ok: true, status: 200, json: async () => (closed ? [{ ...e5.markets[0], closed: true }] : []) };
+  };
+  const c = new PolyClient(new AbortController().signal, fake);
+  c.gammaLimit = { wait: async () => {} };
+  const m = await c.market(e5.markets[0].id);
+  assert.ok(m && m.resolved, "resolved market found");
+  assert.equal(m.winner, 1);
+  assert.ok(urls.some((u) => /closed=true/.test(u)));
+});

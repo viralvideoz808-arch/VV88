@@ -102,10 +102,10 @@ fee is `rate × shares × p(1−p)`, read from each market's schedule.
 cd polyscan/web && python3 -m http.server 8090   # then open http://127.0.0.1:8090
 ```
 
-Tests (Node 20+): `node --test polyscan/web-tests/*.test.mjs` runs 37 cases. They cover the settlement model, the
+Tests (Node 20+): `node --test polyscan/web-tests/*.test.mjs` runs 38 cases. They cover the settlement model, the
 final-minute averaging, the strike ladder (including the real 5m/15m pair from Polymarket's data), crossed books,
 the 25-agent council and its vetoes, ladder fills in the demo account, fees, order-book walking, dutch-book
-arbitrage and resolution scoring.
+arbitrage, resolution scoring, and looking up resolved markets (which Gamma hides unless asked).
 
 ## Deploy (static, free)
 

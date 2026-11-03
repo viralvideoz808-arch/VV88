@@ -193,9 +193,13 @@ export class PolyClient {
     return parseHistory(d);
   }
 
-  // Re-read a single market (used to check resolution / refresh a held position).
+  // Re-read a single market (used to check resolution / refresh a held position). Gamma leaves closed markets out
+  // of /markets unless asked for them, and a market that has resolved is exactly the one we need, so ask both ways.
   async market(id) {
-    const d = await this.getJson(`${GAMMA}/markets?id=${id}`, "gamma", this.gammaLimit);
-    return Array.isArray(d) && d.length ? parseMarket(d[0]) : null;
+    for (const q of ["&closed=true", ""]) {
+      const d = await this.getJson(`${GAMMA}/markets?id=${encodeURIComponent(id)}${q}`, "gamma", this.gammaLimit);
+      if (Array.isArray(d) && d.length) return parseMarket(d[0]);
+    }
+    return null;
   }
 }
