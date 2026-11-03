@@ -429,7 +429,7 @@ export class SprintEngine {
     const now = this.now();
     const rows = [];
     for (const w of [...this.windows.values()].sort((p, q) => p.endMs - q.endMs || p.asset.localeCompare(q.asset))) {
-      if (w.endMs < now - 60000) continue;
+      if (w.endMs <= now) continue;  // ended windows settle in the background; the table shows what can still trade
       const a = this.analysis.get(w.id) || {};
       const best = a.sides ? a.sides[0] : null;
       rows.push({
