@@ -1,79 +1,100 @@
 # polyscan — a 25-agent council for Polymarket
 
-Open the site, press **START**. 25 analysis agents begin scanning the **fast-resolving** Polymarket markets —
-games and short-dated questions that settle within hours, not days — pricing each order book, and looking for two
-things:
+Two pages, one static site, everything running inside your browser tab:
 
-1. **Risk-free arbitrage.** On a *complete* question — one whose outcomes are mutually exclusive and exhaustive, so
-   exactly one resolves YES — buying one share of every outcome returns exactly **$1** at resolution. If the whole
-   set can be bought for **under $1 after fees**, that is guaranteed profit, no prediction required. The dashboard's
-   **Arbitrage Watch** ranks every complete set by how close it is to this, and a signal fires when one crosses
-   below $1.
-2. **A genuinely mispriced market.** Rare. Prediction-market prices are the crowd's probability and are hard to
-   beat. A directional signal fires only when the council reaches consensus **and** the price is below a modest
-   fair-value estimate by more than the fees — and it is labelled speculative.
+- **⚡ Minutes** (`index.html`) — Polymarket's crypto **Up or Down** windows that settle every **5 and 15 minutes**
+  (also 4-hour), for Bitcoin, Ethereum, Solana, XRP, Dogecoin, BNB, Hyperliquid and Zcash. The main page.
+- **Hours** (`hours.html`) — every market resolving within a day: dutch-book arbitrage and the council's
+  directional picks on games and short-dated questions.
 
-Only markets resolving within a window you choose (**24 hours by default**, adjustable down to an hour) are
-scanned, so positions settle quickly and the demo account builds a real, measured track record the same session —
-NBA/NFL/soccer/esports games, hourly crypto, same-day events. Markets that take days are skipped.
+Press **START**. Each page has its own **$10 demo account** that trades against the real order books and settles at
+the real $1 / $0 outcomes. Keep the tab open while you want it working.
 
-The whole thing runs **inside your browser tab**. Polymarket's Gamma and CLOB APIs both allow direct browser
-access, so polyscan is a static site with no server. Keep the tab open while you want it working.
+## Minute markets: the strategy
 
-## Why Polymarket, honestly
+### What actually settles a window
 
-A Polymarket market is binary at the token level: each outcome token pays exactly **$1** if it wins and **$0** if it
-loses, so prices live in [0, 1] and read as probabilities. That makes two things true that memecoins never offered:
+From Polymarket's own data on **2,065 resolved windows**:
 
-- **Signals are measurable.** A market resolves to a definite outcome, so every directional signal is scored as a
-  real win or loss against what actually happened — not an estimate.
-- **Arbitrage is real.** The $1 payout structure means a sub-$1 complete set is risk-free by arithmetic, not by
-  forecasting. That is the one edge polyscan treats as reliable. It is also rare and quickly taken by bots, so most
-  of the time the honest output is "no signal — here is how close the nearest set is."
+- A window ("Bitcoin Up or Down — 9:40–9:45AM ET") resolves **Up** when Chainlink's BTC/USD **60-second TWAP
+  stream** reads at least as high at the end as at the start (2,056 of 2,056 checked).
+- That boundary value is **one number**. The previous window's final price is the next window's price to beat (2,001
+  of 2,037 consecutive pairs identical), and every window that ends at the same moment — 5-minute, 15-minute, 4-hour
+  — settles on the same final number (447 of 447 identical).
+- Chainlink's value tracks Coinbase's average over the minute before the boundary to within **~1–4 basis points**.
+- The *hourly* markets are different: they settle on Binance's 1-hour candle, so polyscan leaves them out.
 
-## The 25 agents
+### Two handles on a window
 
-**Tradeability (veto group) — can this be traded well at all?**
-Market Status Sentinel · Spread Sentinel · Order Book Depth Auditor · Liquidity Floor · Resolution Clock ·
-Extreme Price Guard · Stale Quote Detector · Round-Trip Cost Agent
+1. **Fair value from physics.** With the start price, live spot, seconds left and realised volatility, the chance
+   that the final 60-second average ends above the start is a normal-distribution calculation:
+   `P(Up) = Φ(ln(S/S₀) / σ_eff)`, where `σ_eff² = σ²(t − 40s) + strike² + floor²` while more than a minute is left. Inside
+   the last minute, part of the final average is already known and counts as fact. The council buys a side only when
+   the book sells it well below that probability, **after Polymarket's crypto taker fee of 7% × p(1−p)** per share.
+2. **The strike ladder.** When a 5-minute and a 15-minute window end together, they are bets on the same number at
+   different strikes. Up on the lower strike must be worth at least Up on the higher strike. If prices break that
+   by more than the fees, **Up(low strike) + Down(high strike) pays at least $1 in every outcome**. It pays $2 if the
+   final lands between the strikes. That is arbitrage by arithmetic. Strikes must be ordered beyond doubt: either
+   two published Chainlink values, or a gap of at least 3× their combined uncertainty. The same check catches
+   Up + Down inside one window costing under $1.
 
-**Value — is there an edge?**
-Dutch-Book Arbitrage Agent · Binary Complement Agent · Overround Detector · Favorite-Longshot Bias · Fair-Value Band ·
-Expected Value Engine
+### Where each input comes from
 
-**Order flow**
-Momentum Scout · Price-History Trend · Volume Surge Analyst · Book Imbalance Tracker · Bid Support Agent ·
-Open Interest Monitor
+| Input | Source |
+|---|---|
+| Price to beat | (a) the live Coinbase feed's time-weighted average over the minute before the start, if the page was running then (±1.5bp); (b) Chainlink's published value, once Gamma posts it a few minutes after the boundary (±2bp, adjusted by the measured Chainlink–Coinbase basis); (c) a Coinbase 1-minute candle (±4bp) |
+| Spot | Coinbase Exchange websocket (every trade); REST quote midpoint for quiet coins; Binance.US every 4s as an independent cross-check |
+| Volatility | 60 minutes of Coinbase 1-minute candles, plus a 10-minute read to catch regime shifts |
+| Books | Polymarket CLOB, both tokens of every open window in one batched request every 2s |
 
-**Structure & context**
-Resolution Clarity · Event Consistency Check · Quick-Turnaround Agent · Probability Band · Category & Fee Fit
+### The 25 agents, five desks
 
-Each agent votes BUY / HOLD / AVOID / ABSTAIN with a one-line reason; every vote is shown. An agent abstains when it
-lacks data — it never guesses.
+| Desk | Agents (✱ = can veto) |
+|---|---|
+| **Oracle** — what will settle it? | Strike Agent ✱ · Spot Feed Agent ✱ · Cross-Exchange Agent ✱ · Volatility Agent ✱ · Settlement Clock ✱ |
+| **Value** — is the price wrong? | Settlement Model · Distance-to-Strike · Edge Agent · Kelly Sizer · Market Consensus |
+| **Structure** — does it break arithmetic? | Strike Ladder Agent · Binary Complement · Ladder Bound Agent · Extreme Price Guard · Fee Agent |
+| **Execution** — can it be bought? | Spread Sentinel ✱ · Order Book Depth ✱ · Book Imbalance · Quote Lag Agent · Liquidity Floor ✱ |
+| **Risk** — should the account take it? | Spot Momentum · Jump Guard ✱ · Exposure Agent ✱ · Bankroll Agent ✱ · Track-Record Agent |
 
-### When does a signal fire?
+Every vote and its one-line reason is shown for every window. A **crossed book** (bid ≥ ask, which appears as a
+window closes and matching pauses) is never treated as a price. The Track-Record Agent scores the model against
+the market on the session's resolved windows and votes against trading if the model is losing.
 
-- **Arbitrage:** a complete set's full cost (asks + fees) is below $1 by at least the minimum edge, and no safety
-  agent vetoes. It does **not** need a chorus of momentum agents — a risk-free set is risk-free.
-- **Directional:** at least the vote threshold (default 18/25) BUY, a positive net edge after fees (default ≥ 2¢
-  per share), and no safety veto.
+### When it trades
 
-## The money math
+- **Ladder / set arbitrage:** a pair costs under $1 after fees by at least 1¢, every leg is open, uncrossed and has
+  5+ shares at the ask. The account buys equal shares of each leg, all or nothing.
+- **Fair-value snipe:** no veto, net edge ≥ **5¢/share**, and **17+ of 25** agents vote BUY.
+- **Explore** (the "aggressive" switch, on by default): no veto, edge ≥ 4¢, 14+ BUY votes. Experiments: see below.
 
-- **Fees.** Polymarket's taker fee is `rate × shares × p(1−p)`, read per market (0 for makers and for several
-  categories such as geopolitics and many politics markets; 0.04–0.07 elsewhere). This matches the published
-  "$1.25 per 100 shares at 50¢" for a 0.05 rate. Makers pay nothing.
-- **Fills.** The demo account walks the real ask ladder from the CLOB for slippage, and can exit by walking the bid
-  ladder (paying the taker fee again). Arbitrage buys one share of every outcome in the set.
-- **Settlement.** Positions are normally held to resolution: each winning share pays **$1**, each losing share $0,
-  with no fee. So the demo account's track record is measured against real outcomes.
+Stakes are half-Kelly, capped at 35% of equity and raised to Polymarket's 5-share minimum. Up to 4 positions are
+held at once, one per window. Trades are taken best edge first, within the cash available.
 
-## The demo account
+### What the data says (read this)
 
-Starts with **$10** of simulated money and auto-trades the council's signals (toggle it off to trade by hand).
-For an arbitrage signal it buys the whole set, sized to a per-set cap. For a directional signal it buys the outcome
-token at the ask. It values open positions at the live mid, settles resolved markets at $1/$0, and keeps everything
-in your browser's local storage. "Reset to $10" clears it.
+Backtest on **1,651 resolved windows (≈14 hours)**, using Polymarket's minute-level price history and Coinbase
+1-minute candles. In this test the spot data was up to a minute *older* than the market price it was compared with:
+
+- The model's probabilities were **about as accurate as the market's** (Brier 0.158 vs 0.157). A model + market
+  blend **beat the market out of sample** in both halves (0.145 vs 0.148; 0.165 vs 0.167).
+- **Directional trades after fees and spread were small and unproven.** At a 4–6¢ edge bar they returned about +9–11%
+  per trade across all coins, but most of that came from Zcash's near-empty books. Without Zcash the return was
+  +4–5%, and on Bitcoin/Ethereum/Solana/XRP alone +1–3%. None of these is statistically distinguishable from zero.
+- **"Fade the leader"** (buy 15–30¢ underdogs) looked great in one half (+20%) and lost in the other (−10%), so
+  it was rejected as a regime effect.
+- **Ladder breaks** on liquid books appeared about once every 3 hours and always paid at least $1 (one paid $2).
+  Most apparent breaks were on books with almost no orders, which the execution desk refuses.
+
+Bots co-located with exchanges update these books in milliseconds, and a browser cannot outrun them. Treat
+directional trades as measured experiments. The **Model vs market** scoreboard on the page keeps the live record.
+
+## Hours markets
+
+The original council, for every market resolving within a window you choose (24 hours by default). It looks for
+dutch-book arbitrage (a complete outcome set bought for under $1 after fees) and, rarely, a directional edge
+above a fair-value estimate. Its agents are tradeability (veto), value, order flow, and structure & context. The
+fee is `rate × shares × p(1−p)`, read from each market's schedule.
 
 ## Run it
 
@@ -81,23 +102,24 @@ in your browser's local storage. "Reset to $10" clears it.
 cd polyscan/web && python3 -m http.server 8090   # then open http://127.0.0.1:8090
 ```
 
-Tests (Node 20+): `node --test polyscan/web-tests/*.test.mjs` — 21 cases, including the fee schedule, order-book
-walking, dutch-book arbitrage, resolution scoring, the council, and the demo account, several against **real
-Polymarket data captured as fixtures**.
+Tests (Node 20+): `node --test polyscan/web-tests/*.test.mjs` runs 37 cases. They cover the settlement model, the
+final-minute averaging, the strike ladder (including the real 5m/15m pair from Polymarket's data), crossed books,
+the 25-agent council and its vetoes, ladder fills in the demo account, fees, order-book walking, dutch-book
+arbitrage and resolution scoring.
 
 ## Deploy (static, free)
 
-Host `polyscan/web` as a static site on any static host (Vercel: Root Directory `polyscan/web`, Framework "Other",
-no build step). `web/vercel.json` adds a strict Content-Security-Policy that only allows connections to the two
-Polymarket API hosts.
+Host `polyscan/web` as a static site (Vercel: Root Directory `polyscan/web`, Framework "Other", no build step).
+`web/vercel.json` sets a strict Content-Security-Policy. The page may only connect to Polymarket's Gamma and CLOB
+APIs, Coinbase Exchange (REST and websocket) and Binance.US.
 
 ## Read this before trading
 
-polyscan is for study and paper trading. Prediction-market prices are efficient; the only edge it treats as reliable
-is arbitrage, which is rare, small, and taken quickly by bots with far faster execution than a browser. Directional
-signals are the council's opinion, not a forecast that beats the market. Fees and the bid/ask spread are a real cost
-on every round trip. Nothing here is financial or betting advice, and prediction-market trading is restricted or
-prohibited in some jurisdictions. Trade only what you can afford to lose.
+polyscan is for study and paper trading. Prediction-market prices are efficient, and minute markets are among the
+most competitive. Fees and the bid/ask spread are a real cost on every trade. Nothing here is financial or betting
+advice. Prediction-market trading is restricted or prohibited in some jurisdictions. Trade only what you can afford
+to lose.
 
-Data: Polymarket Gamma API (`gamma-api.polymarket.com`) and CLOB API (`clob.polymarket.com`), both public.
-Fee schedule from Polymarket's own per-market data.
+Data: Polymarket Gamma (`gamma-api.polymarket.com`) and CLOB (`clob.polymarket.com`), Coinbase Exchange
+(`api.exchange.coinbase.com`, `ws-feed.exchange.coinbase.com`), Binance.US (`api.binance.us`). Settlement facts
+are from Polymarket's own resolved-market metadata (Chainlink data streams).

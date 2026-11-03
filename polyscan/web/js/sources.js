@@ -124,14 +124,14 @@ export class PolyClient {
     this.errors = {};
   }
 
-  async getJson(url, source, limiter) {
+  async getJson(url, source, limiter, init = {}) {
     if (limiter) await limiter.wait(this.signal);
     const ctl = new AbortController();
     const onAbort = () => ctl.abort();
     this.signal.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(() => ctl.abort(), 15000);
     try {
-      const r = await this.fetch(url, { signal: ctl.signal });
+      const r = await this.fetch(url, { ...init, signal: ctl.signal });
       if (r.status === 429) { this.errors[source] = "rate limited (429)"; await sleep(3000, this.signal); return null; }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
@@ -166,6 +166,26 @@ export class PolyClient {
       this.getJson(`${CLOB}/book?token_id=${id}`, "clob", this.clobLimit).then((b) => [id, b]).catch(() => [id, null])));
     for (const [id, b] of results) if (b) out[id] = parseBook(b);
     return out;
+  }
+
+  // Order books for many tokens in one request (POST /books), chunked. Returns tokenId -> parsed book.
+  async booksBatch(tokenIds) {
+    const out = {};
+    const uniq = [...new Set(tokenIds.filter(Boolean))];
+    for (let i = 0; i < uniq.length; i += 40) {
+      const body = JSON.stringify(uniq.slice(i, i + 40).map((id) => ({ token_id: id })));
+      const d = await this.getJson(`${CLOB}/books`, "clob", this.clobLimit, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      for (const b of Array.isArray(d) ? d : []) if (b && b.asset_id) out[b.asset_id] = parseBook(b);
+    }
+    return out;
+  }
+
+  // Raw Gamma events for crypto "Up or Down" windows ending in [endMinIso, endMaxIso], soonest first.
+  async upDownEvents(endMinIso, endMaxIso, { closed = false, offset = 0 } = {}) {
+    const url = `${GAMMA}/events?closed=${closed}&archived=false&tag_slug=up-or-down&limit=100&offset=${offset}&order=endDate&ascending=true` +
+      `&end_date_min=${encodeURIComponent(endMinIso)}&end_date_max=${encodeURIComponent(endMaxIso)}`;
+    const d = await this.getJson(url, "gamma", this.gammaLimit);
+    return Array.isArray(d) ? d : [];
   }
 
   async history(tokenId, interval = "6h", fidelity = 10) {

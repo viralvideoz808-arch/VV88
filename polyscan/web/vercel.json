@@ -7,7 +7,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src https: data:; connect-src 'self' https://gamma-api.polymarket.com https://clob.polymarket.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src https: data:; connect-src 'self' https://gamma-api.polymarket.com https://clob.polymarket.com https://api.exchange.coinbase.com wss://ws-feed.exchange.coinbase.com https://api.binance.us; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
         },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "no-referrer" }

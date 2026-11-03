@@ -1,0 +1,43 @@
+{
+ "id": "1294211",
+ "title": "BNB Up or Down - November 3, 6AM ET",
+ "slug": "bnb-up-or-down-november-3-2026-6am-et",
+ "seriesSlug": "bnb-up-or-down-hourly",
+ "startDate": "2026-11-01T11:00:20Z",
+ "endDate": "2026-11-03T12:00:00Z",
+ "resolutionSource": "https://www.binance.com/en/trade/BNB_USDT",
+ "eventMetadata": {
+  "finalPrice": 697.66,
+  "priceToBeat": 698.77
+ },
+ "negRisk": false,
+ "closed": true,
+ "markets": [
+  {
+   "id": "6516776",
+   "question": "BNB Up or Down - November 3, 6AM ET",
+   "slug": "bnb-up-or-down-november-3-2026-6am-et",
+   "conditionId": "0xdacca7a5daa333a168ab0a73cc3a7632b2c2e6a409fe44869ea31e5063c3f8e7",
+   "outcomes": "[\"Up\", \"Down\"]",
+   "outcomePrices": "[\"0\", \"1\"]",
+   "clobTokenIds": "[\"6080608253696436512192460239045382695872548733428757646616271206015417627579\", \"57460059119639032391738514200630689292683858298576854262336182738715819466737\"]",
+   "eventStartTime": "2026-11-03T11:00:00Z",
+   "endDate": "2026-11-03T12:00:00Z",
+   "resolutionSource": "https://www.binance.com/en/trade/BNB_USDT",
+   "description": "This market will resolve to \"Up\" if the close price is greater than or equal to the open price for the BNB/USDT 1 hour candle that begins on the time and date specified in the title. Otherwise, this market will resolve to \"Down\".\n\nThe resolution source for this market is information from Binance, specifically the BNB/USDT pair (https://www.binance.com/en/trade/BNB_USDT). The close \u00ab C \u00bb and open \u00ab O \u00bb displayed at the top of the graph for the relevant \"1H\" candle will be used once the data for that candle is finalized.\n\nPlease note that this market is about the price according to Binance BNB/USDT, not according to other exchanges or trading pairs.",
+   "feeSchedule": {
+    "exponent": 1,
+    "rate": 0.07,
+    "takerOnly": true,
+    "rebateRate": 0.2
+   },
+   "feesEnabled": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.001,
+   "closed": true,
+   "active": true,
+   "bestAsk": 0.001,
+   "spread": 0.001
+  }
+ ]
+}

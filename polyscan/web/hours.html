@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polyscan · Hours</title>
+<meta name="description" content="25 agents analyze live Polymarket markets, flag risk-free arbitrage, and trade a demo account against real order books.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>POLYSCAN <small>25-agent council · Polymarket</small></h1>
+    <nav class="modes"><a href="./">⚡ Minutes</a><a class="on" href="hours.html">Hours</a></nav>
+  </div>
+  <div class="sources" id="sources"></div>
+  <button id="toggle" class="start">START</button>
+</header>
+
+<main>
+  <section id="verdict"></section>
+
+  <section><div class="stats" id="stats"></div></section>
+
+  <div class="grid2">
+    <section>
+      <h2>Arbitrage watch <span class="muted" style="text-transform:none;letter-spacing:0">· complete outcome sets, closest to risk-free first (buy the whole set when it costs under $1)</span></h2>
+      <div id="arbwatch"></div>
+    </section>
+    <section class="hist">
+      <h2>Demo account — real markets, simulated money</h2>
+      <div id="paper"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section>
+      <h2>Market leaderboard <span class="muted" style="text-transform:none;letter-spacing:0">· the council's best side per market · click a row for every vote</span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Market</th><th>Side</th><th>Ask</th><th>Edge</th><th>Spread</th><th>24h vol</th><th>Resolves</th><th>Council</th><th>Demo buy</th></tr></thead>
+          <tbody id="cands"></tbody>
+        </table>
+      </div>
+    </section>
+    <section>
+      <h2 id="council-title">The council</h2>
+      <div class="agents" id="agents"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="hist">
+      <h2>Signal history &amp; measured outcome <span class="muted" style="text-transform:none;letter-spacing:0">· markets resolve to $1 or $0, so these are real</span></h2>
+      <div id="record" class="muted"></div>
+      <div id="history"></div>
+    </section>
+    <section>
+      <h2>Consensus rules</h2>
+      <div class="settings">
+        <label>BUY votes for a directional signal <input type="range" id="minAgree" min="12" max="25"> <b id="minAgreeV"></b>/25</label>
+        <label>Min directional edge <input type="number" id="minEdge" min="0" max="20" step="0.5"> ¢/share</label>
+        <label>Resolves within <input type="number" id="maxHours" min="1" max="168" step="1"> hours</label>
+        <button id="saveRules">Apply</button>
+      </div>
+      <p class="muted" style="margin-bottom:0">
+        A <b>risk-free arbitrage</b> signal fires when a complete outcome set can be bought for under $1 after fees — guaranteed profit, no veto needed.
+        A <b>directional</b> signal needs the vote threshold, a positive net edge after fees, and no safety veto.
+        Beating the crowd's price is hard, so directional signals are rare and clearly labelled speculative; the market mid is the crowd's probability.
+      </p>
+    </section>
+  </div>
+</main>
+
+<footer>
+  Polyscan analyzes Polymarket for study and paper trading. Prediction-market prices are efficient; the only edge it treats as reliable is arbitrage, which is rare and quickly taken. Nothing here is financial or betting advice. Trade only what you can afford to lose.
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

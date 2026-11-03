@@ -21,11 +21,23 @@ export const DEFAULT_SETTINGS = {
   holdToResolution: true,
 };
 
+// Buy exactly `want` shares up an ask ladder. Returns {shares, spent, avgPrice}.
+export function walkAsksShares(asks, want) {
+  let shares = 0, spent = 0;
+  for (const l of asks || []) {
+    if (shares >= want - 1e-9) break;
+    const take = Math.min(want - shares, l.size);
+    shares += take; spent += take * l.price;
+  }
+  return { shares, spent, avgPrice: shares > 0 ? spent / shares : null };
+}
+
 function storageGet(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; } }
 function storageSet(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* ignore */ } }
 
 export class PaperAccount {
-  constructor({ nowMs = () => Date.now(), getMarket = () => null, client = null, storageKey = "polyscan.paper" } = {}) {
+  constructor({ nowMs = () => Date.now(), getMarket = () => null, client = null, storageKey = "polyscan.paper", defaults = {} } = {}) {
+    this.defaults = { ...DEFAULT_SETTINGS, ...defaults };
     this.nowMs = nowMs;
     this.getMarket = getMarket;
     this.client = client;
@@ -36,7 +48,7 @@ export class PaperAccount {
 
   load() {
     const s = storageGet(this.storageKey);
-    this.settings = { ...DEFAULT_SETTINGS, ...(s && s.settings) };
+    this.settings = { ...this.defaults, ...(s && s.settings) };
     this.acct = s && s.acct ? s.acct : {
       createdAt: this.nowMs(), startUsd: START_USD, cash: START_USD,
       positions: {}, trades: [], totals: { fees: 0, realized: 0, invested: 0 },
@@ -44,21 +56,23 @@ export class PaperAccount {
   }
   save() { storageSet(this.storageKey, { acct: this.acct, settings: this.settings }); }
   setSettings(patch) { Object.assign(this.settings, patch); this.save(); }
-  reset() { localStorage.removeItem(this.storageKey); this.load(); this.save(); }
+  reset() { try { localStorage.removeItem(this.storageKey); } catch { /* ignore */ } this.load(); this.save(); }
 
-  tradeUsd() { return Math.min(this.acct.cash, Math.max(2, this.acct.startUsd * this.settings.sizePct / 100)); }
+  tradeUsd() { return Math.min(this.acct.cash * 0.98, Math.max(2, this.acct.startUsd * this.settings.sizePct / 100)); }
   freeCash() { return this.acct.cash; }
   log(e) { this.acct.trades.unshift({ t: this.nowMs(), ...e }); if (this.acct.trades.length > 200) this.acct.trades.length = 200; }
   posKey(marketId, side) { return `${marketId}:${side}`; }
 
   async onSignal(sig, m) {
     if (!this.settings.autoTrade) return;
+    if (sig.legs && sig.legs.length) return this.buyLegs(sig);
     if (sig.kind === "arbitrage" && sig.arb) return this.buyArb(sig, m);
     if (Object.keys(this.acct.positions).length >= this.settings.maxPositions) {
       this.log({ side: "BUY", status: "skipped", question: sig.question, outcome: sig.outcome, reason: `already holding ${this.settings.maxPositions} positions` });
       this.save(); return;
     }
-    return this.buy(m, sig.side, this.tradeUsd(), sig);
+    const budget = sig.stake > 0 ? Math.min(sig.stake, this.acct.cash * 0.98) : this.tradeUsd(); // leave room for the fee
+    return this.buy(m, sig.side, budget, sig);
   }
 
   // Buy one outcome token with up to `budget` USD, walking the real ask ladder.
@@ -66,9 +80,10 @@ export class PaperAccount {
     const key = this.posKey(m.id, side);
     if (this.pending.has(key)) return;
     const base = { side: "BUY", marketId: m.id, pside: side, question: m.question, outcome: m.outcomes[side] };
-    if (budget < 1 || budget > this.acct.cash + 1e-9) { this.log({ ...base, status: "skipped", reason: "not enough cash" }); this.save(); return; }
+    if (!(budget > 0) || budget > this.acct.cash + 1e-9) { this.log({ ...base, status: "skipped", reason: "not enough cash" }); this.save(); return; }
     const asks = m.asks(side);
     if (!asks.length) { this.log({ ...base, status: "skipped", reason: "no asks on the book" }); this.save(); return; }
+    if (m.crossed && m.crossed(side)) { this.log({ ...base, status: "skipped", reason: "crossed book — matching paused" }); this.save(); return; }
     this.pending.add(key);
     try {
       const fill = walkAsks(asks, budget);
@@ -86,7 +101,7 @@ export class PaperAccount {
         kind: sig ? sig.kind : "manual", arbGroup: null,
       };
       this.log({ ...base, status: "filled", shares: fill.shares, avg_price: fill.avgPrice, fee, cost,
-        reason: sig ? (sig.kind === "arbitrage" ? "risk-free set" : `${sig.kind === "exploratory" ? "exploratory: top lean" : "signal"} ${sig.agree}/25, edge ${(sig.edge * 100).toFixed(1)}¢`) : "manual" });
+        reason: sig ? (sig.kind === "arbitrage" ? "risk-free set" : `${sig.kind === "exploratory" ? "exploratory: top lean" : sig.kind === "snipe" ? "fair-value snipe" : "signal"} ${sig.agree}/25, edge ${(sig.edge * 100).toFixed(1)}¢`) : "manual" });
       return this.acct.positions[key];
     } finally { this.pending.delete(key); this.save(); }
   }
@@ -126,6 +141,41 @@ export class PaperAccount {
     }
     this.log({ side: "ARB", status: "filled", question: sig.eventTitle, reason: `${sets} set(s) of ${members.length} outcomes for ${usd(totalCost)} → guaranteed ${usd(sets)} at resolution`,
       shares: sets, cost: totalCost, fee: totalFee, guaranteed: sets, edge: sets - totalCost });
+    this.save();
+  }
+
+  // Buy the same number of shares of several (market, side) legs — a strike-ladder pair whose combined payout is at
+  // least $1 per set in every outcome. All legs must fill in full at the live asks, or nothing is bought.
+  async buyLegs(sig) {
+    const legs = sig.legs.map((l) => ({ ...l, m: this.getMarket(l.marketId) }));
+    const title = sig.eventTitle || sig.question || "ladder";
+    const skip = (reason) => { this.log({ side: "ARB", status: "skipped", question: title, reason }); this.save(); };
+    if (legs.some((l) => !l.m || !l.m.asks(l.side).length)) return skip("a leg's order book isn't loaded");
+    if (legs.some((l) => l.m.crossed(l.side))) return skip("a leg's book is crossed — matching paused");
+    const perSet = legs.reduce((s, l) => { const a = l.m.ask(l.side); return s + a + feePerShare(l.m, a); }, 0);
+    if (!(perSet > 0 && perSet < 1)) return skip(`pair costs ${usd(perSet)} — no longer under $1`);
+    const budget = Math.min(sig.stake > 0 ? sig.stake : this.settings.arbMaxUsd, this.acct.cash);
+    const minShares = Math.max(...legs.map((l) => l.m.minOrder || 5));
+    const sets = Math.floor(budget / perSet);
+    if (sets < minShares) return skip(`budget ${usd(budget)} buys ${sets} set(s); minimum order is ${minShares} shares`);
+    const fills = legs.map((l) => ({ l, f: walkAsksShares(l.m.asks(l.side), sets) }));
+    if (fills.some(({ f }) => f.shares < sets - 1e-9)) return skip("not enough size on the asks for every leg");
+    let total = 0, fees = 0;
+    for (const { l, f } of fills) { const fee = feePerShare(l.m, f.avgPrice) * f.shares; f.fee = fee; total += f.spent + fee; fees += fee; }
+    if (total >= sets) return skip(`walking the books, the pair costs ${usd(total / sets)} per set`);
+    if (total > this.acct.cash + 1e-9) return skip("not enough cash for every leg");
+    this.acct.cash -= total; this.acct.totals.fees += fees; this.acct.totals.invested += total - fees;
+    const group = `arb:${sig.id}`;
+    for (const { l, f } of fills) {
+      const k = `${this.posKey(l.m.id, l.side)}:${group}`;
+      this.acct.positions[k] = {
+        key: k, marketId: l.m.id, side: l.side, tokenId: l.m.tokenIds[l.side], question: l.m.question, event: l.m.eventTitle,
+        outcome: l.m.outcomes[l.side], shares: f.shares, cost: f.spent + f.fee, avg: f.avgPrice, opened: this.nowMs(),
+        kind: "arbitrage", arbGroup: group,
+      };
+    }
+    this.log({ side: "ARB", status: "filled", question: title, shares: sets, cost: total, fee: fees, guaranteed: sets, edge: sets - total,
+      reason: `${sets} ladder set(s) for ${usd(total)} → at least ${usd(sets)} at resolution` });
     this.save();
   }
 
@@ -178,7 +228,8 @@ export class PaperAccount {
     let openValue = 0, openCost = 0;
     const positions = Object.values(this.acct.positions).map((p) => {
       const m = this.getMarket(p.marketId);
-      const mark = m ? (m.mid(p.side) ?? m.bid(p.side) ?? p.avg) : p.avg;
+      let mark = m && !(m.crossed && m.crossed(p.side)) ? (m.mid(p.side) ?? m.bid(p.side)) : null;
+      if (mark == null) mark = p.lastMark ?? p.avg; else p.lastMark = mark;
       const value = p.shares * (mark ?? p.avg);
       openValue += value; openCost += p.cost;
       return {

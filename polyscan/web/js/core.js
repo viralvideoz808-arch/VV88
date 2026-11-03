@@ -93,9 +93,15 @@ export class Market {
   }
   asks(side) { return this.books && this.books[side] ? this.books[side].asks || [] : []; }
   bids(side) { return this.books && this.books[side] ? this.books[side].bids || [] : []; }
+  // A crossed book (best bid >= best ask) cannot exist while matching runs; it shows up as a window closes and
+  // matching pauses. Its prices are not tradeable, so it has no mid.
+  crossed(side) {
+    const a = this.ask(side), b = this.bid(side);
+    return a != null && b != null && b >= a;
+  }
   mid(side) {
     const a = this.ask(side), b = this.bid(side);
-    if (a != null && b != null) return (a + b) / 2;
+    if (a != null && b != null) return b < a ? (a + b) / 2 : null;
     if (side === 0 && this.yesMid != null) return this.yesMid;
     if (side === 1 && this.yesMid != null) return 1 - this.yesMid;
     return null;
